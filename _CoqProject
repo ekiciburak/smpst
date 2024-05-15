@@ -1,0 +1,16 @@
+-R . SST
+
+aux/axioms.v
+aux/fintype.v
+aux/unscoped.v
+aux/header_extensible.v
+aux/coseq.v
+aux/expressions.v
+type/local.v
+type/global.v
+tree/local.v
+tree/global.v
+process/processes.v
+process/sessions.v
+process/beta.v
+process/typecheck.v
