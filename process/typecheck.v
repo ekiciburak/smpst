@@ -106,11 +106,46 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
   | tc_recv : forall m em c p L ST P T,
                      List.Forall (fun u => typ_proc m (S em) (extendS c em (fst u)) (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
                      typ_proc m em c (p_recv p (zip (zip L ST) P)) (ltt_recv p (zip (zip L ST) T))
-  | tc_send: forall m em c p l e P xs S T, Some(S,T) = matchSel l xs ->
+  | tc_send: forall m em c p l e P S T, typ_expr c e S ->
+                                        typ_proc m em c P T ->
+                                        typ_proc m em c (p_send p l e P) (ltt_send p [(l,S,T)]).
+(*   | tc_send: forall m em c p l e P xs S T, Some(S,T) = matchSel l xs ->
                                            typ_expr c e S ->
                                            typ_proc m em c P T ->
-                                           typ_proc m em c (p_send p l e P) (ltt_send p xs).
+                                           typ_proc m em c (p_send p l e P) (ltt_send p xs). *)
 
+From Paco Require Import paco.
+
+Lemma _a23_b: forall p l e Q T G,
+  typ_proc 0 0 G (p_send p l e Q) T ->
+  exists S S' T',
+  typ_expr G e S /\
+  typ_proc 0 0 G Q T' /\
+  subsort S' S /\
+  subtypeC (ltt_send p [(l,S',T')]) T.
+Proof. intros.
+       inversion H. subst.
+       exists S. exists S. exists T0.
+       split. exact H8.
+       split. exact H9.
+       split. apply srefl.
+       pfold.
+       specialize(sub_out (upaco2 subtype bot2)
+          p [l] [S] [S] [T0] [T0]
+        ); intros HHa.
+       simpl in HHa.
+       apply HHa. easy. easy.
+       apply Forall_forall. simpl.
+       intros (s1, s2) Hs. destruct Hs.
+       inversion H0. subst. simpl. apply srefl.
+       easy.
+       apply Forall_forall. simpl.
+       intros (T1, T2) Hs. destruct Hs.
+       inversion H0. subst.
+       simpl. left. pfold.
+       admit.
+       simpl. easy.
+Admitted.
 
 (*
 Definition st := p_recv "q" [("l1", sint, 
