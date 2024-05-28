@@ -50,7 +50,7 @@ Fixpoint findpath (l: list (label*sort*gtt)) (lbl: label): option gtt :=
 
 Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part -> part -> Prop :=
   | steq : forall p q l xs gc,
-(*               eqb p q = false -> *)
+(*                eqb p q = false -> *)
                   Datatypes.Some gc = findpath xs l -> gttstep R (gtt_send p q xs) gc p q
   | stneq: forall p q r s L S xs ys,
 (*                eqb p q = false ->
@@ -61,6 +61,7 @@ Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part ->
                   eqb s q = false ->
                   List.Forall (fun u => coseqIn p (gparts u)) xs ->
                   List.Forall (fun u => coseqIn q (gparts u)) xs ->
+                  List.Forall (fun u => R (fst u) (snd u) p q) (zip xs ys) ->
                   gttstep R (gtt_send r s (zip (zip L S) xs)) (gtt_send p q (zip (zip L S) ys)) p q.
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
