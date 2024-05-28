@@ -112,7 +112,6 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
                                            typ_proc m em c (p_send p l e P) (ltt_send p xs).
 
 
-
 (*
 Definition st := p_recv "q" [("l1", sint, 
                              (p_recv "q" [("l2", sbool, 

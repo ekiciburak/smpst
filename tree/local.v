@@ -37,19 +37,19 @@ Inductive lt2ltt (R: local -> ltt -> Prop): local -> ltt -> Prop :=
 
 Definition lt2lttC l t := paco2 lt2ltt bot2 l t.
 
-Inductive sub (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
-  | sub_end: sub R ltt_end ltt_end
+Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
+  | sub_end: subtype R ltt_end ltt_end
   | sub_in : forall p l s' s xs ys,
                     length s' = length s ->
                     length xs = length ys ->
                     List.Forall (fun u => subsort (fst u) (snd u)) (zip s' s) ->
                     List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
-                    sub R (ltt_recv p (zip (zip l s) xs)) (ltt_recv p (zip (zip l s') ys))
+                    subtype R (ltt_recv p (zip (zip l s) xs)) (ltt_recv p (zip (zip l s') ys))
   | sub_out: forall p l s' s xs ys,
                     length s' = length s ->
                     length xs = length ys ->
                     List.Forall (fun u => subsort (fst u) (snd u)) (zip s s') ->
                     List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
-                    sub R (ltt_send p (zip (zip l s) xs)) (ltt_send p (zip (zip l s') ys)).
+                    subtype R (ltt_send p (zip (zip l s) xs)) (ltt_send p (zip (zip l s') ys)).
 
-Definition subC l1 l2 := paco2 sub bot2 l1 l2.
+Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.

@@ -78,3 +78,18 @@ Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop
 Definition projectionC r g t := paco3 projection bot3 r g t.
 
 (* TODO: add merging *)
+
+(* Lemma _319: forall q p l S1 S2 T1 T2 T' T'' T''' G G', 
+                   projectionC p G T' ->
+                   projectionC q G T'' ->
+                   gttstepC G G' p q ->
+                   projectionC p G' T''' ->
+                   subtypeC (ltt_send q [(l,S1,T1)]) T' ->
+                   subtypeC (ltt_recv p [(l,S2,T2)]) T'' ->
+                   subtypeC T1 T'''.
+Proof. intros.
+       punfold H.
+       inversion H.
+Admitted. *)
+
+

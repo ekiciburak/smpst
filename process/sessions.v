@@ -4,7 +4,7 @@ Require Import List String Relations ZArith.
 Require Import Setoid Morphisms Coq.Program.Basics.
 
 Inductive session: Type :=
-  | s_ind : part    -> process -> session
+  | s_ind : part   -> process -> session
   | s_par: session -> session -> session.
 
 (* Inductive pcong: relation process :=
