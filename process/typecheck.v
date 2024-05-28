@@ -81,6 +81,9 @@ Inductive typ_expr: ctx -> expr -> sort -> Prop :=
                          typ_expr c (e_succ e) snat
   | sc_neg : forall c e, typ_expr c e sint ->
                          typ_expr c (e_neg e) sint
+  | sc_sub : forall c e s s', typ_expr c e s ->
+                              subsort s s' ->
+                              typ_expr c e s'
   | sc_not : forall c e, typ_expr c e sbool ->
                          typ_expr c (e_not e) sbool
   | sc_gt  : forall c e1 e2, typ_expr c e1 sint ->
@@ -103,6 +106,13 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
   | tc_mu   : forall m em c p t, let c' := extendT c m t in
                                  typ_proc (S m) em c' p t ->
                                  typ_proc m em c (p_rec t p) t
+  | tc_ite  : forall m em c e p1 p2 T, typ_expr c e sbool ->
+                                       typ_proc m em c p1 T ->
+                                       typ_proc m em c p2 T ->
+                                       typ_proc m em c (p_ite e p1 p2) T
+  | tc_sub  : forall m em c p t t', typ_proc m em c p t ->
+                                    subtypeC t t' ->
+                                    typ_proc m em c p t'
   | tc_recv : forall m em c p L ST P T,
                      List.Forall (fun u => typ_proc m (S em) (extendS c em (fst u)) (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
                      typ_proc m em c (p_recv p (zip (zip L ST) P)) (ltt_recv p (zip (zip L ST) T))
@@ -114,7 +124,53 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
                                            typ_proc m em c P T ->
                                            typ_proc m em c (p_send p l e P) (ltt_send p xs). *)
 
-From Paco Require Import paco.
+(* From Paco Require Import paco.
+
+Lemma _a23_b: forall p l e S S' Q T T' G,
+  typ_proc 0 0 G (p_send p l e Q) T ->
+  typ_expr G e S ->
+  typ_proc 0 0 G Q T' ->
+  subsort S' S ->
+  subtypeC (ltt_send p [(l,S',T')]) T.
+Proof. intros.
+       inversion H. subst.
+       pfold.
+       punfold H4. inversion H4. subst. admit.
+       subst. admit.
+       subst. 
+       simpl.
+       destruct T. inversion H. subst.
+       inversion . easy.
+       specialize(sub_out (upac subst.o2 subtype bot2)
+          p [l] [S] [S] [T'] [t]
+        ); intros HHa.
+       simpl in HHa.
+        admit.
+       subst. split.
+       
+       split.
+       inversion H. subst.
+       exists S. exists S. exists T0.
+       split. exact H8.
+       split. exact H9.
+       split. apply srefl.
+       pfold.
+       specialize(sub_out (upaco2 subtype bot2)
+          p [l] [S] [S] [T0] [T0]
+        ); intros HHa.
+       simpl in HHa.
+       apply HHa. easy. easy.
+       apply Forall_forall. simpl.
+       intros (s1, s2) Hs. destruct Hs.
+       inversion H0. subst. simpl. apply srefl.
+       easy.
+       apply Forall_forall. simpl.
+       intros (T1, T2) Hs. destruct Hs.
+       inversion H0. subst.
+       simpl. left. pfold.
+       admit.
+       simpl. easy.
+Admitted.
 
 Lemma _a23_b: forall p l e Q T G,
   typ_proc 0 0 G (p_send p l e Q) T ->
@@ -147,21 +203,25 @@ Proof. intros.
        simpl. easy.
 Admitted.
 
+Lemma _a23_c: forall e P1 P2 T1 T2 T G,
+  typ_proc 0 0 G (p_ite e P1 P2) T ->
+  typ_proc 0 0 G P1 T1 /\
+  typ_proc 0 0 G P2 T2 /\
+  subtypeC T1 T.
+Proof. intros.
+       inversion H.
+       subst.
+       split.
+       
+Qed.
+
 Lemma _a23_d: forall Q T G,
   typ_proc 0 0 G (p_rec T Q) T ->
   typ_proc 1 0 (extendT G 0 T) Q T.
 Proof. intros.
        inversion H. subst. easy.
 Qed.
-  
-(*
-Definition st := p_recv "q" [("l1", sint, 
-                             (p_recv "q" [("l2", sbool, 
-                                          (p_send "p" "l3" (e_plus (e_var 0) (e_val (vint 10))) 
-                                          (p_recv "q" [("l2", sint, 
-                                          (p_send "p" "l3" (e_plus (e_var 2) (e_val (vint 10))) p_inact))])))]))].
-Eval compute in (infr_proc empty st 0 0).
-*)
+ *)
 
 
 
