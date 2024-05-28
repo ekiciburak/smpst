@@ -147,6 +147,13 @@ Proof. intros.
        simpl. easy.
 Admitted.
 
+Lemma _a23_d: forall Q T G,
+  typ_proc 0 0 G (p_rec T Q) T ->
+  typ_proc 1 0 (extendT G 0 T) Q T.
+Proof. intros.
+       inversion H. subst. easy.
+Qed.
+  
 (*
 Definition st := p_recv "q" [("l1", sint, 
                              (p_recv "q" [("l2", sbool, 
