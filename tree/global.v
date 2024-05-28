@@ -79,7 +79,8 @@ Definition projectionC r g t := paco3 projection bot3 r g t.
 
 (* TODO: add merging *)
 
-(* Lemma _319: forall q p l S1 S2 T1 T2 T' T'' T''' G G', 
+(*
+Lemma _319: forall q p l S1 S2 T1 T2 T' T'' T''' G G', 
                    projectionC p G T' ->
                    projectionC q G T'' ->
                    gttstepC G G' p q ->
@@ -88,8 +89,8 @@ Definition projectionC r g t := paco3 projection bot3 r g t.
                    subtypeC (ltt_recv p [(l,S2,T2)]) T'' ->
                    subtypeC T1 T'''.
 Proof. intros.
-       punfold H.
-       inversion H.
+       punfold H3.
+       inversion H3.
 Admitted. *)
 
 
