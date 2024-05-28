@@ -42,6 +42,29 @@ Inductive gt2gtt (R: global -> gtt -> Prop): global -> gtt -> Prop :=
 
 Definition gt2lttC g t := paco2 gt2gtt bot2 g t.
 
+Fixpoint findpath (l: list (label*sort*gtt)) (lbl: label): option gtt :=
+  match l with
+    | []           => Datatypes.None
+    | (l1,s,g)::xs => if eqb l1 lbl then Datatypes.Some g else findpath xs lbl
+  end.
+
+Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part -> part -> Prop :=
+  | steq : forall p q l xs gc,
+(*               eqb p q = false -> *)
+                  Datatypes.Some gc = findpath xs l -> gttstep R (gtt_send p q xs) gc p q
+  | stneq: forall p q r s L S xs ys,
+(*                eqb p q = false ->
+                  eqb r s = false -> *)
+                  eqb r p = false ->
+                  eqb r q = false ->
+                  eqb s p = false ->
+                  eqb s q = false ->
+                  List.Forall (fun u => coseqIn p (gparts u)) xs ->
+                  List.Forall (fun u => coseqIn q (gparts u)) xs ->
+                  gttstep R (gtt_send r s (zip (zip L S) xs)) (gtt_send p q (zip (zip L S) ys)) p q.
+
+Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
+
 Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
   | proj_end: forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
   | proj_in : forall p r l s xs ys,
