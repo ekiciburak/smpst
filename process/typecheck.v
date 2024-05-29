@@ -327,4 +327,27 @@ Proof. intros.
        specialize(stTrans T' t t' Hb H1); intro HT. easy.
 Qed.
 
+Lemma _a23_f: forall P m em T G,
+  typ_proc m em G P T ->
+  (P = (p_inact) -> T = ltt_end).
+Proof. intros.
+       induction H; intros; try easy.
+       subst. 
+       specialize(IHtyp_proc eq_refl).
+       subst.
+       punfold H1. inversion H1. easy.
+       apply st_mon.
+Qed.
+
+
+
+
+
+
+
+
+
+
+
+
 
