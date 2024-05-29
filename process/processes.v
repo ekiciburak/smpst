@@ -80,6 +80,15 @@ Fixpoint unfold_rec (s: process): process :=
 (* Inductive p_cong: relation process :=
   | p_cong_rec: forall p, p_cong (p_rec p) (unfold_rec (p_rec p)). *)
 
+Fixpoint subst_expr_proc_all (e: expr) (p: process): process :=
+  match p with
+    | p_send pt l e1 P => p_send pt l (subst_expr (e .: e_var) e1) (subst_expr_proc_all e P)
+    | p_ite e1 P Q     => p_ite (subst_expr (e .: e_var) e1) (subst_expr_proc_all e P) (subst_expr_proc_all e Q)
+    | p_rec T P        => p_rec T (subst_expr_proc_all e P)
+    | p_recv pt xs     => p_recv pt ((list_map (prod_map (prod_map (fun x => x) (fun x => x)) (subst_expr_proc_all e))) xs)
+    | _                => p
+  end.
+
 Definition subst_expr_proc (p: process) (l: label) (e: expr): process :=
   match p with
     | p_recv s0 s1  => 

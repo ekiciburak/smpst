@@ -161,26 +161,25 @@ Proof. intros m em p l e Q P G T H.
        easy.
 Qed.
 
-Lemma _a23_d: forall m em P Q T G,
+Lemma _a23_d: forall P m em Q T G,
   typ_proc m em G P T ->
-  (P = (p_rec T Q) -> typ_proc (S m) em (extendT G m T) Q T).
+  (exists T', (P = (p_rec T' Q) /\ subtypeC T T') -> typ_proc (S m) em (extendT G m T') Q T').
 Proof. intros.
-       induction H; intros; try easy.
-       inversion H0. subst. 
+       induction H; try (exists ltt_end; easy).
+       exists t.
+       intros (Ha, Hb). 
+       inversion Ha. subst. 
        unfold c' in *.
        easy.
-       subst.
-       specialize(tc_sub m em c (p_rec t' Q) t t' H H1); intro HTC.
-       inversion H. subst.
-       unfold c' in *.
-       easy.
-       subst.
-       
-       inversion H. subst.
-       apply IHtyp_proc. easy.
-       subst.
-       admit.
-Admitted.
+
+       destruct IHtyp_proc as (T', Hp).
+       exists T'.
+       intros (Ha, Hb).
+       apply Hp.
+       split. easy.
+       specialize(stTrans t t' T' H0 Hb); intro HT.
+       exact HT.
+Qed.
 
 
 
