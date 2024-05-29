@@ -53,6 +53,73 @@ Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
                     List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
                     subtype R (ltt_send p (zip (zip l s) xs)) (ltt_send p (zip (zip l s') ys)).
 
+Lemma destZip: forall {A B C: Type} (l: list (A * B * C)),
+               exists L S xs, l = (zip (zip L S) xs).
+Proof. induction l; intros.
+       - exists nil. exists nil. exists nil. easy.
+       - destruct IHl as (L,(S,(xs,Hxs))).
+         destruct a as ((a1,a2),a3).
+         simpl.
+         exists (a1::L). exists (a2::S). exists(a3::xs).
+         simpl. rewrite Hxs. easy.
+Qed.
+
+Lemma stReflH: forall R T, Reflexive R -> subtype R T T.
+Proof. intros.
+       case_eq T; intros.
+       - constructor.
+       - subst.
+         specialize (destZip l); intro Hdest.
+         destruct Hdest as (L,(S,(xs,Hxs))).
+         subst.
+         apply sub_in. easy. easy.
+         Search Forall.
+         apply Forall_forall.
+         intros (x1,x2) Hx. simpl.
+         induction S; intros.
+         subst. simpl in Hx.
+         unfold In in Hx. easy.
+         subst. simpl in Hx.
+         destruct Hx as [Hx | Hx].
+         inversion Hx. apply srefl.
+         apply IHS. easy.
+         
+         apply Forall_forall.
+         intros (x1,x2) Hx. simpl.
+         induction xs; intros.
+         subst. simpl in Hx.
+         unfold In in Hx. easy.
+         subst. simpl in Hx.
+         destruct Hx as [Hx | Hx].
+         inversion Hx.
+         reflexivity.
+         apply IHxs. easy.
+
+         specialize (destZip l); intro Hdest.
+         destruct Hdest as (L,(S,(xs,Hxs))).
+         subst.
+         apply sub_out. easy. easy.
+         apply Forall_forall.
+         intros (x1,x2) Hx. simpl.
+         induction S; intros.
+         subst. simpl in Hx.
+         unfold In in Hx. easy.
+         subst. simpl in Hx.
+         destruct Hx as [Hx | Hx].
+         inversion Hx. apply srefl.
+         apply IHS. easy.
+
+         apply Forall_forall.
+         intros (x1,x2) Hx. simpl.
+         induction xs; intros.
+         subst. simpl in Hx.
+         unfold In in Hx. easy.
+         subst. simpl in Hx.
+         destruct Hx as [Hx | Hx].
+         inversion Hx. reflexivity.
+         apply IHxs. easy.
+Qed.
+
 Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.
 
 Lemma st_mon: monotone2 subtype.
@@ -75,7 +142,6 @@ Proof. unfold monotone2.
          specialize(H2 (x0,x1)). simpl in H2.
          now apply H2.
 Qed.
-
 
 #[export]
 Declare Instance stTrans: Transitive (subtypeC).
