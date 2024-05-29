@@ -3,6 +3,7 @@ Require Import List String Datatypes ZArith Relations.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.
 Import ListNotations.
+From Paco Require Import paco.
 
 Inductive ctx: Type :=
   | empty: ctx
@@ -124,104 +125,62 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
                                            typ_proc m em c P T ->
                                            typ_proc m em c (p_send p l e P) (ltt_send p xs). *)
 
-(* From Paco Require Import paco.
 
-Lemma _a23_b: forall p l e S S' Q T T' G,
-  typ_proc 0 0 G (p_send p l e Q) T ->
-  typ_expr G e S ->
-  typ_proc 0 0 G Q T' ->
-  subsort S' S ->
-  subtypeC (ltt_send p [(l,S',T')]) T.
-Proof. intros.
-       inversion H. subst.
-       pfold.
-       punfold H4. inversion H4. subst. admit.
-       subst. admit.
-       subst. 
-       simpl.
-       destruct T. inversion H. subst.
-       inversion . easy.
-       specialize(sub_out (upac subst.o2 subtype bot2)
-          p [l] [S] [S] [T'] [t]
-        ); intros HHa.
-       simpl in HHa.
-        admit.
-       subst. split.
-       
-       split.
-       inversion H. subst.
-       exists S. exists S. exists T0.
-       split. exact H8.
-       split. exact H9.
-       split. apply srefl.
-       pfold.
+Lemma _a23_b: forall m em p l e Q P G T, 
+  typ_proc m em G P T ->
+  (P = (p_send p l e Q) -> exists S S' T', typ_expr G e S /\ typ_proc m em G Q T' /\ subsort S' S /\ subtypeC (ltt_send p [(l,S',T')]) T).
+Proof. intros m em p l e Q P G T H.
+       induction H; intros; try easy.
+       specialize(IHtyp_proc H1).
+       destruct IHtyp_proc as (S,(S',(T',Ha))).
+       exists S. exists S'. exists T'.
+       split. easy. split. easy. split. easy.
+       destruct Ha as (Ha,(Hb,(Hc,Hd))).
+       specialize(stTrans (ltt_send p [(l, S', T')]) t t' Hd H0); intro HT.
+       apply HT.
+       exists S. exists S. exists T.
+       inversion H1. subst.
+       split. easy. split. easy.
+       split. apply srefl. 
        specialize(sub_out (upaco2 subtype bot2)
-          p [l] [S] [S] [T0] [T0]
+          p [l] [S] [S] [T] [T]
         ); intros HHa.
        simpl in HHa.
+       pfold.
        apply HHa. easy. easy.
        apply Forall_forall. simpl.
        intros (s1, s2) Hs. destruct Hs.
-       inversion H0. subst. simpl. apply srefl.
+       inversion H2. subst. simpl. apply srefl.
        easy.
        apply Forall_forall. simpl.
        intros (T1, T2) Hs. destruct Hs.
-       inversion H0. subst.
+       inversion H2. subst.
        simpl. left. pfold.
-       admit.
-       simpl. easy.
-Admitted.
-
-Lemma _a23_b: forall p l e Q T G,
-  typ_proc 0 0 G (p_send p l e Q) T ->
-  exists S S' T',
-  typ_expr G e S /\
-  typ_proc 0 0 G Q T' /\
-  subsort S' S /\
-  subtypeC (ltt_send p [(l,S',T')]) T.
-Proof. intros.
-       inversion H. subst.
-       exists S. exists S. exists T0.
-       split. exact H8.
-       split. exact H9.
-       split. apply srefl.
-       pfold.
-       specialize(sub_out (upaco2 subtype bot2)
-          p [l] [S] [S] [T0] [T0]
-        ); intros HHa.
-       simpl in HHa.
-       apply HHa. easy. easy.
-       apply Forall_forall. simpl.
-       intros (s1, s2) Hs. destruct Hs.
-       inversion H0. subst. simpl. apply srefl.
+       specialize(stRefl T2); intro HT.
+       punfold HT. apply st_mon.
        easy.
-       apply Forall_forall. simpl.
-       intros (T1, T2) Hs. destruct Hs.
-       inversion H0. subst.
-       simpl. left. pfold.
-       admit.
-       simpl. easy.
-Admitted.
+Qed.
 
-Lemma _a23_c: forall e P1 P2 T1 T2 T G,
-  typ_proc 0 0 G (p_ite e P1 P2) T ->
-  typ_proc 0 0 G P1 T1 /\
-  typ_proc 0 0 G P2 T2 /\
-  subtypeC T1 T.
+Lemma _a23_d: forall m em P Q T G,
+  typ_proc m em G P T ->
+  (P = (p_rec T Q) -> typ_proc (S m) em (extendT G m T) Q T).
 Proof. intros.
-       inversion H.
+       induction H; intros; try easy.
+       inversion H0. subst. 
+       unfold c' in *.
+       easy.
        subst.
-       split.
+       specialize(tc_sub m em c (p_rec t' Q) t t' H H1); intro HTC.
+       inversion H. subst.
+       unfold c' in *.
+       easy.
+       subst.
        
-Qed.
-
-Lemma _a23_d: forall Q T G,
-  typ_proc 0 0 G (p_rec T Q) T ->
-  typ_proc 1 0 (extendT G 0 T) Q T.
-Proof. intros.
-       inversion H. subst. easy.
-Qed.
- *)
+       inversion H. subst.
+       apply IHtyp_proc. easy.
+       subst.
+       admit.
+Admitted.
 
 
 

@@ -4,6 +4,7 @@ From SST Require Import type.local.
 Require Import String List ZArith.
 Local Open Scope string_scope.
 Import ListNotations.
+Require Import Morphisms.
 
 (* local session trees *)
 CoInductive ltt: Type :=
@@ -53,3 +54,33 @@ Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
                     subtype R (ltt_send p (zip (zip l s) xs)) (ltt_send p (zip (zip l s') ys)).
 
 Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.
+
+Lemma st_mon: monotone2 subtype.
+Proof. unfold monotone2.
+       intros.
+       induction IN; intros.
+       - constructor.
+       - apply sub_in; try easy.
+         apply Forall_forall. 
+         intros (x0,x1) Ha.
+         rewrite Forall_forall in H2.
+         simpl. apply LE.
+         specialize(H2 (x0,x1)). simpl in H2.
+         now apply H2.
+       - apply sub_out; try easy.
+         apply Forall_forall. 
+         intros (x0,x1) Ha.
+         rewrite Forall_forall in H2.
+         simpl. apply LE.
+         specialize(H2 (x0,x1)). simpl in H2.
+         now apply H2.
+Qed.
+
+
+#[export]
+Declare Instance stTrans: Transitive (subtypeC).
+
+#[export]
+Declare Instance stRefl: Reflexive (subtypeC).
+
+
