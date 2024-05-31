@@ -3,7 +3,7 @@ Require Import List String.
 Open Scope string_scope.
 
 Notation part := string (only parsing).
-Notation label := string (only parsing).
+Notation label := nat (only parsing).
 
 
 Section global.
@@ -57,7 +57,7 @@ Fixpoint unfold_grec (s: global): global :=
     | _            => s
   end.
 
-Let gt := g_rec (g_send "p" "q" (cons (pair (pair "x" sint) (g_var 0)) nil)).
+Let gt := g_rec (g_send "p" "q" (cons (pair (pair 0 sint) (g_var 0)) nil)).
 Print gt.
 Compute unfold_grec gt.
 

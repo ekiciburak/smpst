@@ -45,7 +45,7 @@ Definition gt2lttC g t := paco2 gt2gtt bot2 g t.
 Fixpoint findpath (l: list (label*sort*gtt)) (lbl: label): option gtt :=
   match l with
     | []           => Datatypes.None
-    | (l1,s,g)::xs => if eqb l1 lbl then Datatypes.Some g else findpath xs lbl
+    | (l1,s,g)::xs => if Nat.eqb l1 lbl then Datatypes.Some g else findpath xs lbl
   end.
 
 Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part -> part -> Prop :=

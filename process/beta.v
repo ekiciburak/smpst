@@ -25,15 +25,15 @@ Definition beta_multistep := multi betaP.
 #[global] Declare Instance RW_scong4: Proper (scong ==> scong ==> impl) beta_multistep.
 
 Definition PAlice: process := 
-  p_send "Bob" "l1" (e_val (vint 50)) (p_recv "Carol" [("l3",sint,p_inact)]).
+  p_send "Bob" 1 (e_val (vint 50)) (p_recv "Carol" [(3,sint,p_inact)]).
 
 Definition PBob: process :=
-  p_recv "Alice" [("l1",sint,p_send "Carol" "l2" (e_val (vint 100)) p_inact);
-                  ("l4",sint,p_send "Carol" "l2" (e_val (vint 2)) p_inact)
+  p_recv "Alice" [(1,sint,p_send "Carol" 2 (e_val (vint 100)) p_inact);
+                  (4,sint,p_send "Carol" 2 (e_val (vint 2)) p_inact)
                  ].
 
 Definition PCarol: process :=
-  p_recv "Bob" [("l2", sint, p_send "Alice" "l3" (e_plus (e_var 0) (e_val (vint 1))) p_inact)].
+  p_recv "Bob" [(2, sint, p_send "Alice" 3 (e_plus (e_var 0) (e_val (vint 1))) p_inact)].
 
 Definition MS: session := ("Alice" <-- PAlice) ||| ("Bob" <-- PBob) ||| ("Carol" <-- PCarol).
 
@@ -50,8 +50,8 @@ Proof. unfold beta_multistep, MS, MS', PAlice, PBob.
        setoid_rewrite <- sc_par3.
 
        apply multi_step with
-       (y := ((("Bob" <-- p_send "Carol" "l2" (e_val (vint 100)) p_inact) |||
-              ("Alice" <-- (p_recv "Carol" [("l3", sint, p_inact)]))) ||| ("Carol" <-- PCarol))
+       (y := ((("Bob" <-- p_send "Carol" 2 (e_val (vint 100)) p_inact) |||
+              ("Alice" <-- (p_recv "Carol" [(3, sint, p_inact)]))) ||| ("Carol" <-- PCarol))
        ).
        apply r_comm.
        unfold PCarol.
@@ -59,8 +59,8 @@ Proof. unfold beta_multistep, MS, MS', PAlice, PBob.
        setoid_rewrite sc_par2.
        setoid_rewrite <- sc_par3.
        apply multi_step with
-       (y := ((("Carol" <-- p_send "Alice" "l3" (e_plus (e_val (vint 100)) (e_val (vint 1)))  p_inact) |||
-              ("Bob" <-- p_inact)) ||| ("Alice" <-- p_recv "Carol" [("l3", sint, p_inact)]))
+       (y := ((("Carol" <-- p_send "Alice" 3 (e_plus (e_val (vint 100)) (e_val (vint 1)))  p_inact) |||
+              ("Bob" <-- p_inact)) ||| ("Alice" <-- p_recv "Carol" [(3, sint, p_inact)]))
        ).
        apply r_comm.
 

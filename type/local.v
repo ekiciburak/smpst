@@ -56,7 +56,7 @@ Fixpoint local_eq (l1 l2: local): bool :=
       let fix next la lb :=
         match pair la lb with
           | pair ((pair (pair lbl1 s1) lc1) :: xs1) ((pair (pair lbl2 s2) lc2) :: xs2) =>
-            if (andb (andb (eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
+            if (andb (andb (Nat.eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
             else false
           | pair nil nil => true
           | _            => false
@@ -66,7 +66,7 @@ Fixpoint local_eq (l1 l2: local): bool :=
       let fix next la lb :=
         match pair la lb with
           | pair ((pair (pair lbl1 s1) lc1) :: xs1) ((pair (pair lbl2 s2) lc2) :: xs2) =>
-            if (andb (andb (eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
+            if (andb (andb (Nat.eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
             else false
           | pair nil nil => true
           | _            => false

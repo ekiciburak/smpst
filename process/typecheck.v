@@ -115,7 +115,7 @@ Inductive typ_expr: ctx -> expr -> sort -> Prop :=
 Fixpoint matchSel (l: label) (xs: list(label*(expressions.sort)*ltt)%type): option ((sort)*ltt)%type :=
   match xs with
     | nil           => None
-    | (lbl,s,t)::ys => if eqb l lbl then Some(s,t) else matchSel l ys
+    | (lbl,s,t)::ys => if Nat.eqb l lbl then Some(s,t) else matchSel l ys
   end.
 
 Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=

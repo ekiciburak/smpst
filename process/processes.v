@@ -95,7 +95,7 @@ Definition subst_expr_proc (p: process) (l: label) (e: expr): process :=
       let fix next lst :=
       match lst with
         | (lbl,_,P)::xs => 
-          if String.eqb lbl l then
+          if Nat.eqb lbl l then
           let fix rec P :=
             match P with
               | p_send pt l e1 P => p_send pt l (subst_expr (e .: e_var) e1) (rec P)
