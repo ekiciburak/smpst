@@ -133,6 +133,9 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
                                     subtypeC t t' ->
                                     typ_proc m em c p t'
   | tc_recv : forall m em c p L ST P T,
+                     length L = length ST ->
+                     length ST = length P ->
+                     length P = length T ->
                      List.Forall (fun u => typ_proc m (S em) (extendS c em (fst u)) (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
                      typ_proc m em c (p_recv p (zip (zip L ST) P)) (ltt_recv p (zip (zip L ST) T))
   | tc_send: forall m em c p l e P S T, typ_expr c e S ->
@@ -143,6 +146,270 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
                                            typ_proc m em c P T ->
                                            typ_proc m em c (p_send p l e P) (ltt_send p xs). *)
 
+Lemma empty_nil: forall {A: Type} (l: list A),
+  0 = length l <-> l = [].
+Proof. intros A l.
+       case l; intros; easy.
+Qed.
+
+Lemma zip_eq: forall {A B: Type} (l1 l3: list A) (l2 l4: list B),
+  length l1 = length l2 -> length l2 = length l3 -> length l3 = length l4 ->
+  (zip l1 l2) = (zip l3 l4) ->
+  l1 = l3 /\ l2 = l4.
+Proof. intros A B l1.
+       induction l1; intros.
+       - simpl in *.
+         rewrite <- H in H0.
+         rewrite <- H0 in H1.
+         rewrite empty_nil in H.
+         rewrite empty_nil in H0.
+         rewrite empty_nil in H1.
+         subst. easy.
+       - simpl in H.
+         case_eq l2; intros.
+         + subst. simpl in *. easy.
+         + subst. simpl in *.
+           case_eq l3; intros.
+           ++ subst. easy.
+           ++ case_eq l4; intros.
+              -- subst. easy.
+              -- subst. simpl in *.
+                 inversion H2. subst.
+                 inversion H.
+                 inversion H1.
+                 inversion H0.
+                 specialize(IHl1 l0 l l2 H4 H7 H5 H6).
+                 split. f_equal. easy.
+                 f_equal. easy.
+Qed.
+
+Lemma zip_len: forall {A B: Type} (l1: list A) (l2: list B),
+  length l1 = length l2 -> length l1 = length (zip l1 l2).
+Proof. intros A B l1.
+       induction l1; intros.
+       - simpl in H. rewrite empty_nil in H.
+         subst. simpl. easy.
+       - simpl in H. simpl.
+         case_eq l2; intros.
+         subst. easy.
+         subst. simpl in H.
+         inversion H.
+         simpl. f_equal.
+         apply IHl1. easy.
+Qed.
+
+Lemma _a23_a: forall m em p L S Q P G T, 
+  typ_proc m em G P T ->
+  P = (p_recv p (zip (zip L S) Q)) -> 
+  (exists T', length T' = length L -> length T' = length S -> length T' = length Q -> subtypeC (ltt_recv p (zip (zip L S) T')) T /\  
+  List.Forall (fun u => typ_proc m (Datatypes.S em) (extendS G em (fst u)) (fst (snd u)) (snd (snd u))) (zip S (zip Q T'))).
+Proof. intros.
+       induction H; intros; try easy.
+       specialize(IHtyp_proc H0).
+       destruct IHtyp_proc as (T',IHtyp_proc).
+       exists T'. intros Hla1 Hla2 Hla3.
+       split.
+       specialize(IHtyp_proc Hla1 Hla2 Hla3).
+       destruct IHtyp_proc as (IHtyp_proc, Ha).
+       specialize(stTrans (ltt_recv p (zip (zip L S) T')) t t' IHtyp_proc H1); intro HT. easy.
+       
+       (**)
+       destruct IHtyp_proc as (IHtyp_proc, Ha). easy. easy. easy.
+       apply Forall_forall.
+       intros (x1,(x2,x3)) Hx.
+       simpl in *.
+       rewrite Forall_forall in Ha.
+       specialize(Ha (x1,(x2,x3))). simpl in Ha.
+       apply Ha. easy.
+       (**)
+       
+       rewrite Forall_forall in H3.
+       exists T.
+       intros Hla1 Hla2 Hla3.
+       split.
+       inversion H0. subst.
+       assert(length (zip L0 ST) = length L0) as Hasrt1.
+       { symmetry.
+         apply zip_len. easy.
+       }
+       assert(L = L0).
+       { specialize(zip_eq (zip L0 ST) (zip L S) P Q); intro HH.
+         assert(length (zip L0 ST) = length P).
+         { symmetry.
+           rewrite <- H1, <- H.
+           apply zip_len. easy.
+         }
+         assert(length P = length (zip L S)).
+         {
+           rewrite H2, Hla1. apply zip_len.
+           rewrite <- Hla1. easy.
+         }
+         assert(length (zip L S) = length Q).
+         {  rewrite <- Hla3, Hla1.
+            symmetry. apply zip_len.
+            rewrite <- Hla1.  easy.
+         }
+         specialize(HH H4 H5 H7 H6).
+         destruct HH as (HHa,HHb).
+         specialize(zip_eq L0 L ST S); intro HH1.
+         subst.
+         assert(length ST = length L).
+         { rewrite H1, <- Hla3. easy. }
+         assert(length L = length S).
+         { rewrite <- Hla1. easy. }
+         specialize(HH1 H H8 H9 HHa). easy.
+       }
+       assert(S = ST).
+       {
+         specialize(zip_eq (zip L0 ST) (zip L S) P Q); intro HH.
+         assert(length (zip L0 ST) = length P).
+         { rewrite Hasrt1, H. easy. }
+         assert(length P = length (zip L S)).
+         { rewrite H2, Hla1. apply zip_len.
+           rewrite <- Hla1. easy.
+         }
+         assert(length (zip L S) = length Q).
+         {  rewrite <- Hla3, Hla1.
+            symmetry. apply zip_len.
+            rewrite <- Hla1.  easy.
+         }
+         specialize(HH H5 H7 H8 H6).
+         destruct HH as (HHa,HHb).
+         specialize(zip_eq L0 L ST S); intro HH1.
+         assert(length ST = length L).
+         { rewrite H1, H2. easy. }
+         assert(length L = length S).
+         { rewrite <- Hla1.  easy. }
+         specialize(HH1 H H9 H10 HHa). easy.
+       }
+       assert(P = Q).
+       {
+         specialize(zip_eq (zip L0 ST) (zip L S) P Q); intro HH.
+         assert(length (zip L0 ST) = length P).
+         { symmetry.
+           rewrite <- H1, <- H.
+           apply zip_len. easy.
+         }
+         assert(length P = length (zip L S)).
+         {
+           rewrite H2, Hla1. apply zip_len.
+           rewrite <- Hla1. easy.
+         }
+         assert(length (zip L S) = length Q).
+         {  rewrite <- Hla3, Hla1.
+            symmetry. apply zip_len.
+            rewrite <- Hla1.  easy.
+         }
+         specialize(HH H7 H8 H9 H6). easy.
+       }
+       subst.
+       pfold.
+       apply sub_in. easy. easy.
+       clear H H1 H2 H3 H6 Hla1 Hla2 Hla3 Hasrt1.
+       apply Forall_forall.
+       intros (x1,x2) Hx.
+       induction ST; intros.
+       simpl in Hx. easy.
+       simpl in Hx.
+       destruct Hx as [Hx | Hx].
+       inversion Hx. subst.
+       simpl. apply srefl.
+       simpl. apply IHST. easy. easy.
+
+       apply Forall_forall.
+       intros (x1,x2) Hx.
+       clear H H1 H2 H3 Hla1 Hla2 Hla3 Hasrt1.
+       induction T; intros.
+       simpl in Hx. easy.
+       simpl in Hx.
+       simpl in IHT.
+       destruct Hx as [Hx | Hx].
+       inversion Hx. subst. simpl.
+       specialize(stRefl x2); intro HT.
+       punfold HT. apply st_mon.
+       simpl. apply IHT. easy.
+       
+       (**)
+       apply Forall_forall.
+       intros (x1,(x2,x3)) Hx.
+       simpl in *.
+       specialize(H3 (x1,(x2,x3))). simpl in H3.
+       inversion H0. subst.
+       apply H3.
+       assert(L = L0).
+       { specialize(zip_eq (zip L0 ST) (zip L S) P Q); intro HH.
+         assert(length (zip L0 ST) = length P).
+         { symmetry.
+           rewrite <- H1, <- H.
+           apply zip_len. easy.
+         }
+         assert(length P = length (zip L S)).
+         {
+           rewrite H2, Hla1. apply zip_len.
+           rewrite <- Hla1. easy.
+         }
+         assert(length (zip L S) = length Q).
+         {  rewrite <- Hla3, Hla1.
+            symmetry. apply zip_len.
+            rewrite <- Hla1.  easy.
+         }
+         specialize(HH H4 H5 H7 H6).
+         destruct HH as (HHa,HHb).
+         specialize(zip_eq L0 L ST S); intro HH1.
+         subst.
+         assert(length ST = length L).
+         { rewrite H1, <- Hla3. easy. }
+         assert(length L = length S).
+         { rewrite <- Hla1. easy. }
+         specialize(HH1 H H8 H9 HHa). easy.
+       }
+       assert(S = ST).
+       {
+         specialize(zip_eq (zip L0 ST) (zip L S) P Q); intro HH.
+         assert(length (zip L0 ST) = length P).
+         { rewrite <- H1, <- H.
+           symmetry. apply zip_len. easy.  }
+         assert(length P = length (zip L S)).
+         { rewrite H2, Hla1. apply zip_len.
+           rewrite <- Hla1. easy.
+         }
+         assert(length (zip L S) = length Q).
+         {  rewrite <- Hla3, Hla1.
+            symmetry. apply zip_len.
+            rewrite <- Hla1.  easy.
+         }
+         specialize(HH H5 H7 H8 H6).
+         destruct HH as (HHa,HHb).
+         specialize(zip_eq L0 L ST S); intro HH1.
+         assert(length ST = length L).
+         { rewrite H1, H2. easy. }
+         assert(length L = length S).
+         { rewrite <- Hla1.  easy. }
+         specialize(HH1 H H9 H10 HHa). easy.
+       }
+       assert(P = Q).
+       {
+         specialize(zip_eq (zip L0 ST) (zip L S) P Q); intro HH.
+         assert(length (zip L0 ST) = length P).
+         { symmetry.
+           rewrite <- H1, <- H.
+           apply zip_len. easy.
+         }
+         assert(length P = length (zip L S)).
+         {
+           rewrite H2, Hla1. apply zip_len.
+           rewrite <- Hla1. easy.
+         }
+         assert(length (zip L S) = length Q).
+         {  rewrite <- Hla3, Hla1.
+            symmetry. apply zip_len.
+            rewrite <- Hla1.  easy.
+         }
+         specialize(HH H7 H8 H9 H6). easy.
+       }
+       subst.
+       easy.
+Qed.
 
 Lemma _a23_b: forall m em p l e Q P G T, 
   typ_proc m em G P T ->

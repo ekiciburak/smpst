@@ -73,7 +73,6 @@ Proof. intros.
          destruct Hdest as (L,(S,(xs,Hxs))).
          subst.
          apply sub_in. easy. easy.
-         Search Forall.
          apply Forall_forall.
          intros (x1,x2) Hx. simpl.
          induction S; intros.
