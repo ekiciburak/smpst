@@ -4,6 +4,7 @@ From Paco Require Import paco.
 Require Import String List ZArith.
 Local Open Scope string_scope.
 Import ListNotations.
+Require Import Coq.Logic.Classical_Pred_Type Coq.Logic.ClassicalFacts Coq.Logic.Classical_Prop.
 
 (* global session trees *)
 CoInductive gtt: Type :=
@@ -76,6 +77,41 @@ Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop
               projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys)).
 
 Definition projectionC r g t := paco3 projection bot3 r g t.
+
+Inductive dropDupsH {A: Type}: list A -> list A -> Prop :=
+  | ddnil : dropDupsH nil nil
+  | ddcons: forall x xs ys, In x ys -> dropDupsH xs ys -> NoDup ys -> dropDupsH (x::xs) ys.
+
+Lemma ddp1: forall {A: Type} (l1 l2: list A), dropDupsH l1 l2 -> (forall x, In x l1 -> In x l2) /\ NoDup l2.
+Proof. intros A l1.
+       induction l1; intros.
+       - inversion H. subst. split. intro Ha. easy. constructor.
+       - inversion H. subst.
+         split. intros x Ha.
+         simpl in Ha. 
+         destruct Ha as [Ha | Ha].
+         subst. easy.
+         apply IHl1. easy. easy. easy.
+Qed.
+
+Definition dropDups {A: Type} (l1 l2: list A) :=
+  dropDupsH l1 l2 /\ (forall x, In x l2 -> In x l1).
+
+Lemma ddp2: forall {A: Type} (l1 l2: list A), dropDups l1 l2 -> (forall x, In x l1 <-> In x l2) /\ NoDup l2.
+Proof. intros.
+       split. split. intros Ha.
+       unfold dropDups in H.
+       apply ddp1 with (l1 := l1); easy.
+       unfold dropDups in H.
+       intro Ha. apply H. easy.
+       unfold dropDups in H.
+       destruct H as (Ha, Hb).
+       inversion Ha. constructor.
+       easy.
+Qed.
+
+(* Parameter (l: list (label*sort*ltt)).
+Check dropDups l l. *)
 
 (* TODO: add merging *)
 

@@ -5,7 +5,6 @@ Open Scope string_scope.
 Notation part := string (only parsing).
 Notation label := nat (only parsing).
 
-
 Section global.
 Inductive global  : Type :=
   | g_var : ( fin ) -> global 

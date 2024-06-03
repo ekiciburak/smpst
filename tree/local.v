@@ -22,6 +22,13 @@ Definition ltt_id (s: ltt): ltt :=
 Lemma ltt_eq: forall s, s = ltt_id s.
 Proof. intro s; destruct s; easy. Defined.
 
+(* Inductive lttbisim (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
+  | lttbisim_end : lttbisim R ltt_end ltt_end
+  | lttbisim_recv: forall p l s xs ys,
+                   length xs = length ys ->
+                   List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
+                   lttbisim R (ltt_recv p (zip (zip l s) xs)) (ltt_recv p (zip (zip l s) ys)).
+ *)
 Inductive lt2ltt (R: local -> ltt -> Prop): local -> ltt -> Prop :=
   | lt2ltt_end: lt2ltt R l_end ltt_end
   | lt2ltt_rcv: forall p l s xs ys,
