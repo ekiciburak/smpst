@@ -95,6 +95,7 @@ Fixpoint infr_expr (m: ctx) (e: expr): option sort :=
 Inductive typ_expr: ctx -> expr -> sort -> Prop :=
   | sc_var : forall c s t, Some t = lookupS c s -> typ_expr c (e_var s) t
   | sc_vali: forall c i, typ_expr c (e_val (vint i)) sint
+  | sc_valn: forall c i, typ_expr c (e_val (vnat i)) snat
   | sc_valb: forall c b, typ_expr c (e_val (vbool b)) sbool
   | sc_succ: forall c e, typ_expr c e snat ->
                          typ_expr c (e_succ e) snat
@@ -145,6 +146,69 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
                                            typ_expr c e S ->
                                            typ_proc m em c P T ->
                                            typ_proc m em c (p_send p l e P) (ltt_send p xs). *)
+
+
+Definition PBob: process := p_recv "Alice" [(1, snat, p_send "Carol" 2 (e_val (vnat 100)) p_inact);
+                                            (4, snat, p_send "Carol" 2 (e_val (vnat 2)) p_inact)].
+
+Definition TBob: ltt := ltt_recv "Alice" [(1, snat, ltt_send "Carol" [(2, snat, ltt_end)]);
+                                          (4, snat, ltt_send "Carol" [(2, snat, ltt_end)])].
+
+Example _317_b: typ_proc 0 0 empty PBob TBob.
+Proof. unfold PBob, TBob.
+       (* typechecking the outermost structure *)
+       specialize(tc_recv 0 0 empty "Alice"
+                         [1; 4]
+                         [snat; snat]
+                         [(p_send "Carol" 2 (e_val (vnat 100)) p_inact); (p_send "Carol" 2 (e_val (vnat 2)) p_inact)]
+                         [(ltt_send "Carol" [(2, snat, ltt_end)]); (ltt_send "Carol" [(2, snat, ltt_end)])]
+                         ); intro HR.
+       simpl in HR.
+       apply HR; clear HR; try easy.
+       apply Forall_forall.
+       intros (s, (p, l)) HIn.
+       simpl in HIn.
+       destruct HIn as [HIn | HIn].
+       inversion HIn. simpl.
+       subst.
+
+       (* typechecking the first continuation *)
+       specialize(tc_send 0 1 (extendS empty 0 snat) "Carol"
+                          2
+                          (e_val (vnat 100))
+                          p_inact
+                          snat
+                          ltt_end
+         ); intro HS.
+       simpl in HS.
+       apply HS; clear HS.
+       
+       (*expression typcheck*)
+       constructor.
+
+       constructor.
+       simpl.
+       destruct HIn as [HIn | HIn].
+       inversion HIn. simpl.
+       subst.
+       (* typechecking the second continuation *)
+       specialize(tc_send 0 1 (extendS empty 0 snat) "Carol"
+                          2
+                          (e_val (vnat 2))
+                          p_inact
+                          snat
+                          ltt_end
+         ); intro HS.
+       simpl in HS.
+       apply HS; clear HS.
+       
+       constructor.
+       
+       constructor.
+       
+       easy.
+Qed.
+
 
 Lemma empty_nil: forall {A: Type} (l: list A),
   0 = length l <-> l = [].
