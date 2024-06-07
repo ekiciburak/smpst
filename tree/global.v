@@ -110,6 +110,105 @@ Proof. intros.
        easy.
 Qed.
 
+Lemma ddp3: forall {A: Type} (l1 l2: list A), ((forall x, In x l1 <-> In x l2) /\ NoDup l2) -> dropDups l1 l2.
+Admitted.
+
+Inductive mergeH {A B C: Type}: list (A*B*C) -> list (A*B*C)-> list (A*B*C) -> Prop :=
+  | merge0: forall L1 L2,
+            mergeH L1 L2 []
+  | merge1: forall l1 s1 c1 xs L1 L2,
+            In (l1,s1,c1) L1 ->
+            (forall s2 c2, (In (l1,s2,c2) L2) -> False) ->
+            mergeH L1 L2 xs ->
+            mergeH L1 L2 ((l1,s1,c1)::xs)
+  | merge2: forall l2 s2 c2 xs L1 L2,
+            In (l2,s2,c2) L2 ->
+            (forall s1 c1, (In (l2,s1,c1) L1) -> False) ->
+            mergeH L1 L2 xs ->
+            mergeH L1 L2 ((l2,s2,c2)::xs)
+  | merge3: forall L1 L2 x xs,
+            In x L1 ->
+            In x L2 ->
+            mergeH L1 L2 xs ->
+            mergeH L1 L2 (x::xs).
+
+Definition merge {A B C: Type} (l1 l2 l3: list (A*B*C)) :=
+  mergeH l1 l2 l3 /\ dropDups (l1 ++ l2) l3.
+
+
+Definition t1 := [(3,sint,ltt_end); (5,snat,ltt_end)].
+
+Definition t2 := [(4,sint,ltt_end); (5,snat,ltt_end)].
+
+Definition t3 := [(3,sint,ltt_end); (5,snat,ltt_end); (4,sint,ltt_end)].
+
+Example _39: merge t1 t2 t3.
+Proof. unfold merge.
+       split.
+       unfold t1, t2, t3.
+       specialize (merge1 3 sint ltt_end
+                   ([(5, snat, ltt_end); (4, sint, ltt_end)])); intros HS.
+       apply HS;  clear HS.
+       simpl. left. easy.
+       intros. simpl in H.
+       destruct H as [H | H]. easy.
+       destruct H as [H | H]. easy. easy.
+       apply merge3.
+       simpl. right. left. easy.
+       simpl. right. left. easy.
+       specialize (merge2 4 sint ltt_end
+                   nil); intros HS.
+       apply HS;  clear HS.
+       simpl. left. easy.
+       intros. simpl in H.
+       destruct H as [H | H]. easy.
+       destruct H as [H | H]. easy. easy.
+       simpl.
+       constructor.
+       
+       apply ddp3.
+       split.
+       intros ((l1,s1),c1).
+       split. intro Hx.
+       simpl in Hx.
+       destruct Hx as [Hx | Hx]. 
+       inversion Hx. subst. unfold t3. simpl.
+       left. easy.
+       destruct Hx as [Hx | Hx]. 
+       inversion Hx. subst. unfold t3. simpl.
+       right. left. easy.
+       destruct Hx as [Hx | Hx]. 
+       inversion Hx. subst. unfold t3. simpl.
+       right. right. left. easy.
+       destruct Hx as [Hx | Hx]. 
+       inversion Hx. subst. unfold t3. simpl.
+       right. left. easy. easy.
+
+       intro Hx.
+       simpl in Hx.
+       destruct Hx as [Hx | Hx]. 
+       inversion Hx. subst. unfold t3. simpl.
+       left. easy.
+       destruct Hx as [Hx | Hx]. 
+       inversion Hx. subst. unfold t3. simpl.
+       right. left. easy.
+       destruct Hx as [Hx | Hx]. 
+       inversion Hx. subst. unfold t3. simpl.
+       right. right. left. easy. easy.
+
+       unfold t3.
+       apply NoDup_cons_iff.
+       split. simpl. intro Hx.
+       destruct Hx as [Hx | Hx]. easy.
+       destruct Hx as [Hx | Hx]. easy. easy.
+       apply NoDup_cons_iff.
+       split. simpl. intro Hx.
+       destruct Hx as [Hx | Hx]. easy. easy.
+       apply NoDup_cons_iff.
+       split. simpl. easy.
+       apply NoDup_nil.
+Qed.
+  
 (* Parameter (l: list (label*sort*ltt)).
 Check dropDups l l. *)
 

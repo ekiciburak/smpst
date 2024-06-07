@@ -142,11 +142,6 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
   | tc_send: forall m em c p l e P S T, typ_expr c e S ->
                                         typ_proc m em c P T ->
                                         typ_proc m em c (p_send p l e P) (ltt_send p [(l,S,T)]).
-(*   | tc_send: forall m em c p l e P xs S T, Some(S,T) = matchSel l xs ->
-                                           typ_expr c e S ->
-                                           typ_proc m em c P T ->
-                                           typ_proc m em c (p_send p l e P) (ltt_send p xs). *)
-
 
 Definition PBob: process := p_recv "Alice" [(1, snat, p_send "Carol" 2 (e_val (vnat 100)) p_inact);
                                             (4, snat, p_send "Carol" 2 (e_val (vnat 2)) p_inact)].
@@ -182,7 +177,7 @@ Proof. unfold PBob, TBob.
          ); intro HS.
        simpl in HS.
        apply HS; clear HS.
-       
+
        (*expression typcheck*)
        constructor.
 
@@ -201,11 +196,12 @@ Proof. unfold PBob, TBob.
          ); intro HS.
        simpl in HS.
        apply HS; clear HS.
-       
+
+       (*expression typcheck*)
        constructor.
-       
+
        constructor.
-       
+
        easy.
 Qed.
 
