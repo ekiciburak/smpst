@@ -112,7 +112,8 @@ Definition merge {A B C: Type} (l1 l2 l3: list (A*B*C)) :=
 
 Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
   | mbc: forall p l1 l2 l3, merge l1 l2 l3 ->
-                            merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3).
+                            merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3)
+  | mbe: forall L1 L2, L1 = L2 -> merge_branch L1 L2 L1.
 
 Definition t1 := [(3,sint,ltt_end); (5,snat,ltt_end)].
 
@@ -268,7 +269,61 @@ Proof. intro l.
            easy.
            simpl in H1. easy.
            simpl in H0. easy.
+         + subst. easy.
 Qed.
+
+Definition t6 := [(3,snat,ltt_end)].
+
+Definition t7 := [(3,snat,ltt_recv "q" [(3,snat,ltt_end)])].
+
+Example _39_e: forall l, merge_branch (ltt_recv "q" t6) (ltt_recv "q" t7) (ltt_recv "q" l) -> False.
+Proof. intro l.
+       induction l; intros.
+       - inversion H.
+         subst. inversion H1.
+         inversion H0.
+       - inversion H.
+         subst.
+         inversion H1.
+         inversion H0.
+         + subst.
+           inversion H5. inversion H3.
+           subst.
+           specialize (H6 snat (ltt_recv "q" [(3,snat,ltt_end)])).
+           apply H6. simpl. left. easy.
+           simpl in H3. easy.
+         + subst.
+           inversion H5. inversion H3.
+           subst.
+           specialize (H6 snat ltt_end).
+           apply H6. simpl. left. easy.
+           simpl in H3. easy.
+         + subst.
+           inversion H5. inversion H6.
+           rewrite <- H3 in H4.
+           easy.
+           simpl in H4. easy.
+           simpl in H3. easy.
+         + subst. easy.
+Qed.
+
+Example _39_c: forall l, merge_branch (ltt_send "q" [(3,snat,ltt_end)]) (ltt_send "q" [(4,snat,ltt_end)]) l -> False.
+Proof. intros.
+       inversion H.
+       subst. easy.
+Qed.
+
+Example _39_a: merge_branch (ltt_send "q" [(0,snat,ltt_end)]) (ltt_send "q" [(0,snat,ltt_end)]) (ltt_send "q" [(0,snat,ltt_end)]).
+Proof. constructor.
+       easy.
+Qed.
+
+Example _39_b: forall l, merge_branch (ltt_send "p" [(0,snat,ltt_end)]) (ltt_send "q" [(0,snat,ltt_end)]) l -> False.
+Proof. intros l H.
+       inversion H.
+       easy.
+Qed.
+
 
 (* Parameter (l: list (label*sort*ltt)).
 Check dropDups l l. *)
