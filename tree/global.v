@@ -81,30 +81,38 @@ Definition projectionC r g t := paco3 projection bot3 r g t.
 Definition dropDups {A: Type} (l1 l2: list A) := 
   (forall x, In x l1 <-> In x l2) /\ NoDup l2.
 
-Inductive mergeH {A B C: Type}: list (A*B*C) -> list (A*B*C)-> list (A*B*C) -> Prop :=
-  | merge0: forall L1 L2,
-            mergeH L1 L2 []
-  | merge1: forall l1 s1 c1 xs L1 L2,
+Inductive dropM {A : Type} : A -> list A -> list A -> Prop :=
+  | drop0: forall a, dropM a [] []
+  | drop1: forall x l1 xs, In x l1 -> ~In x xs -> (forall a, In a (x::xs) <-> In a l1) -> dropM x l1 xs.
+
+
+Inductive mergeH {A B C: Type}: list (A*B*C) -> list (A*B*C) -> list (A*B*C) -> Prop :=
+  | merge0: mergeH [] [] []
+  | merge1: forall l1 s1 c1 xs L1 L2 L3,
             In (l1,s1,c1) L1 ->
             (forall s2 c2, (In (l1,s2,c2) L2) -> False) ->
-            mergeH L1 L2 xs ->
+            dropM (l1,s1,c1) L1 L3 ->
+            mergeH L3 L2 xs ->
             mergeH L1 L2 ((l1,s1,c1)::xs)
-  | merge2: forall l2 s2 c2 xs L1 L2,
+  | merge2: forall l2 s2 c2 xs L1 L2 L3,
             In (l2,s2,c2) L2 ->
             (forall s1 c1, (In (l2,s1,c1) L1) -> False) ->
-            mergeH L1 L2 xs ->
+            dropM (l2,s2,c2) L2 L3 ->
+            mergeH L1 L3 xs ->
             mergeH L1 L2 ((l2,s2,c2)::xs)
-  | merge3: forall L1 L2 x xs,
+  | merge3: forall x xs L1 L2 L3 L4,
             In x L1 ->
             In x L2 ->
-            mergeH L1 L2 xs ->
+            dropM x L1 L3 ->
+            dropM x L2 L4 ->
+            mergeH L3 L4 xs ->
             mergeH L1 L2 (x::xs).
 
 Definition merge {A B C: Type} (l1 l2 l3: list (A*B*C)) :=
   mergeH l1 l2 l3 /\ dropDups (l1 ++ l2) l3.
 
 Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
-  | mbc: forall p l1 l2 l3, merge l1 l2 l3 -> 
+  | mbc: forall p l1 l2 l3, merge l1 l2 l3 ->
                             merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3).
 
 Definition t1 := [(3,sint,ltt_end); (5,snat,ltt_end)].
@@ -119,23 +127,67 @@ Proof. constructor.
        split.
        unfold t1, t2, t3.
        specialize (merge1 3 sint ltt_end
-                   ([(5, snat, ltt_end); (4, sint, ltt_end)])); intros HS.
+                   ([(5, snat, ltt_end); (4, sint, ltt_end)])
+                   [(3, sint, ltt_end); (5, snat, ltt_end)] [(4, sint, ltt_end); (5, snat, ltt_end)]
+                   [(5, snat, ltt_end)] 
+                   ); intros HS.
        apply HS;  clear HS.
        simpl. left. easy.
+
        intros. simpl in H.
        destruct H as [H | H]. easy.
        destruct H as [H | H]. easy. easy.
-       apply merge3.
+       
+       (*dropM case*)
+       constructor. simpl. left. easy.
+       simpl. unfold not.  intro H. destruct H; easy.
+       easy.
+
+       specialize (merge3 (5,snat,ltt_end) [(4, sint, ltt_end)]
+                  [(5, snat, ltt_end)] [(4, sint, ltt_end); (5, snat, ltt_end)]
+                  [] [(4, sint, ltt_end)]
+                  ); intro HS.
+       apply HS; clear HS.
+       simpl. left. easy.
        simpl. right. left. easy.
+       constructor. simpl.
+       left. easy.
+       simpl. easy.
+       easy.
+       
+       constructor.
        simpl. right. left. easy.
+       simpl. intro H.
+       destruct H; easy.
+       intros ((u,v),y).
+       
+       simpl. split. intro Hc.
+       simpl in Hc. 
+       destruct Hc as [Hc |Hc].
+       inversion Hc. subst. right. left. easy.
+       destruct Hc as [Hc |Hc].
+       inversion Hc. subst. left. easy. easy.
+       intro Hc.
+       simpl in Hc. 
+       destruct Hc as [Hc |Hc].
+       inversion Hc. subst. right. left. easy.
+       destruct Hc as [Hc |Hc].
+       inversion Hc. subst. left. easy. easy.
+       
        specialize (merge2 4 sint ltt_end
-                   nil); intros HS.
+                   nil
+                   [] [(4, sint, ltt_end)] []
+                  ); intros HS.
        apply HS;  clear HS.
        simpl. left. easy.
-       intros. simpl in H.
-       destruct H as [H | H]. easy.
-       destruct H as [H | H]. easy. easy.
-       simpl.
+       intros. simpl in H. easy.
+       
+       (*dropM case*)
+       constructor.
+       simpl. left. easy. 
+       intro H. simpl in H. easy.
+       easy.
+       (*merge0*)
        constructor.
 
        unfold dropDups.
@@ -181,7 +233,7 @@ Proof. constructor.
        split. simpl. easy.
        apply NoDup_nil.
 Qed.
-  
+
 (* Parameter (l: list (label*sort*ltt)).
 Check dropDups l l. *)
 
