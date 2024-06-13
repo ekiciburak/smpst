@@ -85,7 +85,6 @@ Inductive dropM {A : Type} : A -> list A -> list A -> Prop :=
   | drop0: forall a, dropM a [] []
   | drop1: forall x l1 xs, In x l1 -> ~In x xs -> (forall a, In a (x::xs) <-> In a l1) -> dropM x l1 xs.
 
-
 Inductive mergeH {A B C: Type}: list (A*B*C) -> list (A*B*C) -> list (A*B*C) -> Prop :=
   | merge0: mergeH [] [] []
   | merge1: forall l1 s1 c1 xs L1 L2 L3,
@@ -121,7 +120,7 @@ Definition t2 := [(4,sint,ltt_end); (5,snat,ltt_end)].
 
 Definition t3 := [(3,sint,ltt_end); (5,snat,ltt_end); (4,sint,ltt_end)].
 
-Example _39: merge_branch (ltt_recv "q" t1) (ltt_recv "q" t2) (ltt_recv "q" t3).
+Example _39_d: merge_branch (ltt_recv "q" t1) (ltt_recv "q" t2) (ltt_recv "q" t3).
 Proof. constructor.
        unfold merge.
        split.
@@ -137,7 +136,7 @@ Proof. constructor.
        intros. simpl in H.
        destruct H as [H | H]. easy.
        destruct H as [H | H]. easy. easy.
-       
+
        (*dropM case*)
        constructor. simpl. left. easy.
        simpl. unfold not.  intro H. destruct H; easy.
@@ -154,13 +153,13 @@ Proof. constructor.
        left. easy.
        simpl. easy.
        easy.
-       
+
        constructor.
        simpl. right. left. easy.
        simpl. intro H.
        destruct H; easy.
        intros ((u,v),y).
-       
+
        simpl. split. intro Hc.
        simpl in Hc. 
        destruct Hc as [Hc |Hc].
@@ -173,7 +172,7 @@ Proof. constructor.
        inversion Hc. subst. right. left. easy.
        destruct Hc as [Hc |Hc].
        inversion Hc. subst. left. easy. easy.
-       
+
        specialize (merge2 4 sint ltt_end
                    nil
                    [] [(4, sint, ltt_end)] []
@@ -181,7 +180,7 @@ Proof. constructor.
        apply HS;  clear HS.
        simpl. left. easy.
        intros. simpl in H. easy.
-       
+
        (*dropM case*)
        constructor.
        simpl. left. easy. 
@@ -232,6 +231,43 @@ Proof. constructor.
        apply NoDup_cons_iff.
        split. simpl. easy.
        apply NoDup_nil.
+Qed.
+
+Definition t4 := [(0,snat,ltt_end)].
+
+Definition t5 := [(0,sint,ltt_end)].
+
+Example _39_f: forall l, merge_branch (ltt_recv "q" t4) (ltt_recv "q" t5) (ltt_recv "q" l) -> False.
+Proof. intro l.
+       induction l; intros.
+       - inversion H. subst.
+         unfold merge in H1.
+         destruct H1 as (Ha, Hb).
+         inversion Hb. easy.
+       - inversion H.
+         subst.
+         unfold merge in H1.
+         destruct H1 as (Ha, Hb).
+         inversion Ha.
+         + subst.
+           specialize(H3 sint ltt_end). apply H3.
+           inversion H2. subst.
+           unfold t5. inversion H0; subst. simpl. 
+           left. easy.
+         + simpl in H0. easy.
+         + subst. 
+           inversion H2. unfold t5 in *.
+           inversion H0. subst. 
+           specialize(H3 snat ltt_end). apply H3.
+           unfold t4. simpl. left. easy.
+           simpl in H0. easy.
+         + subst.
+           inversion H2.
+           inversion H3.
+           rewrite <- H0 in H1.
+           easy.
+           simpl in H1. easy.
+           simpl in H0. easy.
 Qed.
 
 (* Parameter (l: list (label*sort*ltt)).
