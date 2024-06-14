@@ -67,24 +67,6 @@ Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part ->
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
 
-Parameter mergeList: forall {A: Type}, list A -> A -> Prop.
-
-Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
-  | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
-  | proj_in  : forall p r l s xs ys,
-               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send p r (zip (zip l s) xs)) (ltt_recv p (zip (zip l s) ys))
-  | proj_out : forall p r l s xs ys,
-               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys))
-  | proj_cont: forall p q r l s xs ys T,
-               r <> p ->
-               r <> q ->
-               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               @mergeList ltt ys T ->
-               projection R r (gtt_send p q (zip (zip l s) xs)) T.
-
-Definition projectionC r g t := paco3 projection bot3 r g t.
 
 Definition dropDups {A: Type} (l1 l2: list A) := 
   (forall x, In x l1 <-> In x l2) /\ NoDup l2.
@@ -122,6 +104,28 @@ Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
   | mbc: forall p l1 l2 l3, merge l1 l2 l3 ->
                             merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3)
   | mbe: forall L1 L2, L1 = L2 -> merge_branch L1 L2 L1.
+
+Inductive mergeList {A: Type}: list ltt -> ltt -> Prop :=
+  | ml1  : forall t, mergeList [t] t
+  | mlce : forall x y xs t, merge_branch x y t -> xs = [] -> mergeList (x::y::xs) t
+  | mlcne: forall x y xs t T T2, merge_branch x y t -> mergeList xs T -> merge_branch t T T2 -> mergeList (x::y::xs) T2.
+
+Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
+  | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
+  | proj_in  : forall p r l s xs ys,
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               projection R r (gtt_send p r (zip (zip l s) xs)) (ltt_recv p (zip (zip l s) ys))
+  | proj_out : forall p r l s xs ys,
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys))
+  | proj_cont: forall p q r l s xs ys T,
+               r <> p ->
+               r <> q ->
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               @mergeList ltt ys T ->
+               projection R r (gtt_send p q (zip (zip l s) xs)) T.
+
+Definition projectionC r g t := paco3 projection bot3 r g t.
 
 Definition t1 := [(3,sint,ltt_end); (5,snat,ltt_end)].
 
