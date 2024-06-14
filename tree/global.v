@@ -67,6 +67,8 @@ Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part ->
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
 
+Parameter mergeList: forall {A: Type}, list A -> A -> Prop.
+
 Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
   | proj_end: forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
   | proj_in : forall p r l s xs ys,
@@ -74,7 +76,13 @@ Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop
               projection R r (gtt_send p r (zip (zip l s) xs)) (ltt_recv p (zip (zip l s) ys))
   | proj_out: forall p r l s xs ys,
               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-              projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys)).
+              projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys))
+  | proj_cont: forall p q r l s xs ys T t,
+               @mergeList ltt T t ->
+               r <> p ->
+               r <> q ->
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               projection R r (gtt_send p q (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys)).
 
 Definition projectionC r g t := paco3 projection bot3 r g t.
 
@@ -323,6 +331,27 @@ Proof. intros l H.
        inversion H.
        easy.
 Qed.
+
+Lemma _37: forall {A B C: Type} (t1 t2 t3 t4 t5 t6: list (A * B * C)), 
+           mergeH t1 t2 t5 ->
+           mergeH t3 t5 t6 ->
+           mergeH t2 t3 t4 ->
+           mergeH t1 t4 t6.
+Proof. intros A B C t1.
+       induction t1; intros.
+       - inversion H.
+         subst.
+         inversion H1. subst.
+         inversion H0. subst.
+         easy.
+         + subst. simpl in H2. easy.
+         + subst. simpl in H2. easy.
+         + subst. simpl in H2. easy.
+         + subst. simpl in H2. easy.
+         + subst. inversion H1.
+           subst. simpl in H12. easy.
+Admitted.
+       
 
 
 (* Parameter (l: list (label*sort*ltt)).
