@@ -78,11 +78,11 @@ Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop
               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
               projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys))
   | proj_cont: forall p q r l s xs ys T,
-               @mergeList ltt ys T ->
                r <> p ->
                r <> q ->
                List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send p q (zip (zip l s) xs)) (ltt_send p (zip (zip l s) T)).
+               @mergeList ltt ys T ->
+               projection R r (gtt_send p q (zip (zip l s) xs)) (ltt_send q (zip (zip l s) T)).
 
 Definition projectionC r g t := paco3 projection bot3 r g t.
 
