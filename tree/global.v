@@ -67,7 +67,7 @@ Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part ->
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
 
-Parameter mergeList: forall {A: Type}, list A -> A -> Prop.
+Parameter mergeList: forall {A: Type}, list A -> list A -> Prop.
 
 Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
   | proj_end: forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
@@ -77,12 +77,12 @@ Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop
   | proj_out: forall p r l s xs ys,
               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
               projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys))
-  | proj_cont: forall p q r l s xs ys T t,
-               @mergeList ltt T t ->
+  | proj_cont: forall p q r l s xs ys T,
+               @mergeList ltt ys T ->
                r <> p ->
                r <> q ->
                List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send p q (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys)).
+               projection R r (gtt_send p q (zip (zip l s) xs)) (ltt_send p (zip (zip l s) T)).
 
 Definition projectionC r g t := paco3 projection bot3 r g t.
 
