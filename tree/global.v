@@ -67,7 +67,6 @@ Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part ->
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
 
-
 Definition dropDups {A: Type} (l1 l2: list A) := 
   (forall x, In x l1 <-> In x l2) /\ NoDup l2.
 
