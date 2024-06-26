@@ -12,14 +12,14 @@ Inductive ctx: Type :=
 
 Fixpoint memS (n: fin) (s: sort) (m: ctx): Prop :=
   match m with
-    | consS u v m1 => (n = u /\ (exists s', v = s' /\ subsort s s') \/ v = s) \/ memS n s m1
+    | consS u v m1 => (n = u /\ (subsort s v \/ v = s)) \/ memS n s m1
     | consT u v m1 => memS n s m1
     | _            => False
   end.
 
 Fixpoint memT (n: fin) (t: ltt) (m: ctx): Prop :=
   match m with
-    | consT u v m1 => (n = u /\ (exists t', v = t' /\ subtypeC t t') \/ v = t) \/ memT n t m1
+    | consT u v m1 => (n = u /\ (subtypeC t v \/ v = t)) \/ memT n t m1
     | consS u v m1 => memT n t m1
     | _            => False
   end.
@@ -97,8 +97,8 @@ Inductive subCtx: ctx -> ctx -> Prop :=
 
 Fixpoint refCtxT (c1 c2: ctx): Prop :=
   match (c1, c2) with
-    | (consT u1 v1 m1, consT u2 v2 m2) => ((u1 = u2 /\ exists t', v2 = t' /\ subtypeC v1 t') \/ v1 = v2) /\ refCtxT m1 m2
-    | (consS u1 v1 m1, consS u2 v2 m2) => ((u1 = u2 /\ exists s', v2 = s' /\ subsort  v1 s') \/ v1 = v2) /\ refCtxT m1 m2
+    | (consT u1 v1 m1, consT u2 v2 m2) => (u1 = u2 /\ (subtypeC v1 v2 \/ v1 = v2)) /\ refCtxT m1 m2
+    | (consS u1 v1 m1, consS u2 v2 m2) => (u1 = u2 /\ (subsort  v1 v2 \/ v1 = v2)) /\ refCtxT m1 m2
     | (empty, empty)                   => True
     | _                                => False
   end.
@@ -106,6 +106,10 @@ Fixpoint refCtxT (c1 c2: ctx): Prop :=
 Definition eq_ctx (m1 m2: ctx) := 
   (forall n s, memS n s m1 <-> memS n s m2) /\
   (forall n t, memT n t m1 <-> memT n t m2).
+
+Definition eq_ctxL (m1 m2: ctx) := 
+  (forall n s, memS n s m1 -> memS n s m2) /\
+  (forall n t, memT n t m1 -> memT n t m2).
 
 Inductive typ_expr: ctx -> expr -> sort -> Prop :=
   | sc_var : forall c s t, Some t = lookupS c s -> typ_expr c (e_var s) t
@@ -192,8 +196,8 @@ Proof. intros.
        apply Hs.
        apply IHtyp_proc. easy. easy.
        simpl.
-       split. left. split. easy.
-       exists t'. split; easy.
+       split. split. easy.
+       left. easy.
        easy.
 Qed.
 
@@ -256,6 +260,21 @@ Proof. unfold PBob, TBob.
 
        constructor.
 
+       easy.
+Qed.
+
+Definition PBob2: process := p_rec (p_send "Carol" 2 (e_val (vnat 100)) (p_var 0)).
+CoFixpoint TBob2: ltt := ltt_send "Carol" [(2, snat, TBob2)].
+
+Example newEx: typ_proc 0 0 empty PBob2 TBob2.
+Proof. unfold PBob2.
+       rewrite(ltt_eq TBob2). simpl.
+       constructor.
+       constructor.
+       constructor.
+       constructor.
+       simpl.
+       rewrite(ltt_eq TBob2) at 1. simpl.
        easy.
 Qed.
 
@@ -371,7 +390,7 @@ Proof. intros.
        apply Ha. easy.
        apply stRefl.
        simpl.
-       split. right. easy. easy.
+       split. split. easy.  right. easy. easy.
 
        rewrite Forall_forall in H3.
        exists T.
@@ -648,9 +667,138 @@ Proof. intros.
        exact HT.
 Qed.
  *)
+
+Lemma helper0: forall c d n s, refCtxT c d -> memS n s c -> memS n s d.
+Proof. intro c.
+       induction c; intros.
+       - case_eq d; intros.
+         + subst. simpl in H0. easy.
+         + subst. simpl in H0. easy.
+         + subst. simpl in H0. easy.
+       - case_eq d; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. simpl.
+           simpl in H0.
+           destruct H0.
+           destruct H0.
+           subst. 
+           destruct H1. left.
+           split. easy.
+           destruct H. destruct H. destruct H2.
+           subst. left.
+           apply sstrans with (s2 := s); easy.
+           subst. left. easy.
+           subst. left.
+           destruct H.
+           destruct H. split. easy.
+           destruct H1. left. easy. right. easy.
+           right.
+           apply IHc. easy. easy.
+           subst. simpl in H. easy.
+       - case_eq d; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. easy. 
+         + subst. simpl in H. simpl.
+           apply IHc. easy.
+           simpl in H0. easy.
+Qed.
+
+Lemma helper1: forall c d n s, refCtxT c d -> memT n s c -> memT n s d.
+Proof. intro c.
+       induction c; intros.
+       - case_eq d; intros.
+         + subst. simpl in H0. easy.
+         + subst. simpl in H0. easy.
+         + subst. simpl in H0. easy.
+       - case_eq d; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. simpl.
+           apply IHc. easy. easy.
+           subst. simpl in H. easy.
+       - case_eq d; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. simpl.
+           simpl in H0.
+           destruct H0.
+           destruct H0.
+           subst. 
+           destruct H1. left.
+           split. easy.
+           destruct H. destruct H. destruct H2.
+           subst. left.
+           specialize (stTrans s l l0 H0 H2); intro HT. easy.
+           subst. left. easy.
+           subst. left.
+           destruct H.
+           destruct H. split. easy.
+           destruct H1. left. easy. right. easy.
+           right.
+           apply IHc. easy. easy.
+Qed.
+
+Lemma helper: forall c c' u, refCtxT c c' -> eq_ctxL u c -> eq_ctxL u c'. 
+Proof. intro c.
+       induction c; intros.
+       - case_eq c'; intros.
+         + subst. easy.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. easy.
+       - case_eq c'; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H.
+           destruct H as ((Ha1,Ha2),Hb).
+           unfold eq_ctxL in H0.
+           unfold eq_ctxL.
+           split. 
+           intros.
+           apply H0 in H. simpl in H.
+           simpl.
+           destruct H. left. subst.
+           split. easy. 
+           destruct Ha2.
+           destruct H. destruct H2.
+           left.
+           apply sstrans with (s2 := s); easy.
+           subst. left. easy.
+           subst. easy.
+           right. 
+           apply helper0 with (c := c); easy.
+           intros.
+           apply H0 in H. simpl in H.
+           simpl.  
+           apply helper1 with (c := c); easy.
+           subst. simpl in H. easy.
+       - case_eq c'; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. easy.
+         + subst. simpl in H.
+           destruct H as ((Ha1,Ha2),Hb).
+           unfold eq_ctxL in H0.
+           unfold eq_ctxL.
+           split. 
+           intros.
+           apply H0 in H. simpl in H.
+           simpl.
+           apply helper0 with (c := c); easy.
+           intros. 
+           apply H0 in H. simpl in H.
+           destruct H. left. subst.
+           split. easy. 
+           destruct Ha2.
+           destruct H. destruct H2.
+           left.
+           specialize (stTrans t l l0 H2 H1); intro HT. easy.
+           subst. left. easy.
+           subst. easy.
+           right.
+           apply helper1 with (c := c); easy.
+Qed.
+
+
 Lemma _a23_e: forall P (n: fin) m em n T G,
   typ_proc m em G P T ->
-  (P = (p_var n) -> exists T' G', eq_ctx G (extendT G' n T') /\ subtypeC T' T).
+  (P = (p_var n) -> exists T' G', eq_ctxL (extendT G' n T') G /\ subtypeC T' T).
 Proof. intros.
        induction H; intros; try easy.
        inversion H0. subst.
@@ -663,31 +811,42 @@ Proof. intros.
 
        split.
        unfold extendT.
-       unfold eq_ctx in *. 
+       unfold eq_ctxL in *. 
        split.
-       intros. simpl.
+       intros n2 s0 HH. simpl.
        destruct Ha as (Ha1,Ha2).
-       split. intro HH.
-       destruct HH as [HH | HH].
+
        destruct HH as [HH | HH].
        destruct HH as( H1a, H1b).
+       destruct H1b as [HH | HH].
        subst. unfold extendT. simpl.
-       left. left. split. easy. easy.
-       left. right. easy.
+       left. split. easy. left. easy.
+       left. split. easy.
+       right. easy.
        right.
        apply Ha1. easy.
        
-       intro HH.
+       intros.
+       simpl. simpl in H1.
+ 
+       destruct Ha as (Ha,Hc).
+       apply Hc in H1.
+       simpl in H1. easy.
+       easy.
+
+(*        intro HH.
        simpl in HH.
        destruct HH as [HH | HH].
-       destruct HH as [HH | HH].
        destruct HH as( H1a, H1b).
-       simpl. left. left. split; easy.
-       simpl. left. right. easy.
+       destruct H1b as [HH | HH].
+       subst. unfold extendT. simpl.
+       left. split. easy. left. easy.
+       left. split. easy.
+       right. easy.
        right.
-       apply Ha1. easy.
+       apply Ha1. easy. *)
 
-       intros.
+(*        intros.
        destruct Ha as (Ha1,Ha2).
        split. intro HH.
        simpl in HH. simpl.
@@ -696,7 +855,7 @@ Proof. intros.
        intro HH.
        simpl. simpl in HH.
        apply Ha2. simpl. easy.
-       easy.
+       easy. *)
 
        simpl in H.
        case_eq((Nat.eqb n0 n1)); intro Heq.
@@ -710,57 +869,30 @@ Proof. intros.
        exists T'. exists (consT n1 l G').
        split.
 
-       unfold eq_ctx, extendT in *.
+       unfold eq_ctxL, extendT in *.
        split.
        intros. simpl.
        destruct Ha as (Ha1,Ha2).
-       split. intro HH.
+(*        split. intro HH. *)
        apply Ha1. easy.
-       intro HH. apply Ha1. simpl. easy.
+       intros. simpl. simpl in H1.
        
-       destruct Ha as (Ha1,Ha2).
-       split. intro HH.
-       simpl. simpl in HH.
-       destruct HH as [HH |HH]. 
-       right. left. easy.
-       apply Ha2 in HH.
-       simpl in HH.
-       destruct HH as [HH |HH].
-       left. easy.
-       right. right. easy.
-       
-       intro HH.
-       simpl. simpl in HH.
-       destruct HH as [HH |HH].
-       right. apply Ha2. simpl. left. easy.
-       destruct HH as [HH |HH].
+       destruct H1.
+       right. apply Ha.
+       simpl. left. easy.
+       destruct H1.
        left. easy.
        right.
-       apply Ha2. simpl. right. easy.
+       apply Ha. simpl. right. easy.
        easy.
 
        specialize(IHtyp_proc H0).
        destruct IHtyp_proc as (T',(G',(Ha,Hb))).
        exists T'. exists G'.
        split.
-       
-       unfold eq_ctx in *.
-       split.
-       intros. split. intro Hc.
-       simpl.
-       destruct Ha as (Ha1, Ha2).
-       apply Ha1.
-       
-       admit.
-       admit.
-       intros.
-       split. intro Hc.
-       simpl.
-       admit.
-       admit.
-(*        easy.  *)
+       apply helper with (c := c); easy.
        specialize(stTrans T' t t' Hb H1); intro HT. easy.
-Admitted.
+Qed.
 
 Lemma _a23_f: forall P m em T G,
   typ_proc m em G P T ->

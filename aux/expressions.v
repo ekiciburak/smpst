@@ -17,6 +17,13 @@ Inductive subsort: sort -> sort -> Prop :=
   | sni  : subsort snat sint
   | srefl: forall s, subsort s s.
 
+Lemma sstrans: forall s1 s2 s3, subsort s1 s2 -> subsort s2 s3 -> subsort s1 s3.
+Proof. intros.
+       induction H.
+       inversion H0. subst. constructor.
+       easy.
+Qed.
+
 Inductive nsubsort: sort -> sort -> Prop :=
   | nsin: nsubsort sint snat
   | nsbi: nsubsort sbool sint
