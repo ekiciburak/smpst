@@ -263,22 +263,6 @@ Proof. unfold PBob, TBob.
        easy.
 Qed.
 
-Definition PBob2: process := p_rec (p_send "Carol" 2 (e_val (vnat 100)) (p_var 0)).
-CoFixpoint TBob2: ltt := ltt_send "Carol" [(2, snat, TBob2)].
-
-Example newEx: typ_proc 0 0 empty PBob2 TBob2.
-Proof. unfold PBob2.
-       rewrite(ltt_eq TBob2). simpl.
-       constructor.
-       constructor.
-       constructor.
-       constructor.
-       simpl.
-       rewrite(ltt_eq TBob2) at 1. simpl.
-       easy.
-Qed.
-
-
 Lemma empty_nil: forall {A: Type} (l: list A),
   0 = length l <-> l = [].
 Proof. intros A l.
@@ -357,6 +341,19 @@ Proof. intro c.
            
            subst. split. easy. split. easy.
            apply IHc with (t := t) (t' := t'). easy. *)
+
+Example complex_mu : process := 
+  p_rec (p_recv "Alice" [
+    (0, sbool, p_var 0);
+    (1, sbool, p_rec (p_recv "Bob" [
+       (3, sbool, p_var 0);
+       (4, sbool, p_var 1);
+       (5, sbool, p_inact)
+    ]));
+    (2, sbool, p_inact)
+  ]).
+
+Compute unfold_rec complex_mu.
 
 
 Lemma _a23_a: forall m em p L S Q P G T, 
@@ -577,52 +574,6 @@ Proof. intros.
          specialize(HH H7 H8 H9 H6). easy.
        }
        subst.
-       easy.
-Qed.
-
-Lemma _a23_bA: forall m em p l e Q P G T, 
-  typ_proc m em G P T ->
-  (P = (p_send p l e Q) -> exists S T', typ_expr G e S /\ typ_proc m em G Q T' /\ (forall S', subsort S' S -> subtypeC (ltt_send p [(l,S',T')]) T)).
-Proof. intros m em p l e Q P G T H.
-       induction H; intros; try easy.
-       specialize(IHtyp_proc H2).
-       destruct IHtyp_proc as (S',(T',Ha)).
-       exists S'. exists T'.
-       split.
-       specialize(sc_sub c c' e S' S'); intro HSS.
-       apply HSS.
-       apply Ha. constructor. easy.
-       split.
-       specialize(tc_sub m em c c' Q T' T'); intro HTS.
-       apply HTS.
-       apply Ha. apply stRefl. easy.
-       intros.
-       destruct Ha as (Ha,(Hb,Hc)).
-       specialize(Hc S'0 H3).
-(*        destruct Hc as (Hc,Hd). *)
-       specialize(stTrans (ltt_send p [(l, S'0, T')]) t t' Hc H0); intro HT.
-       apply HT.
-       exists S. exists T.
-       intros.
-       inversion H1. subst.
-       split. easy. split. easy.
-       intros.
-       specialize(sub_out (upaco2 subtype bot2)
-          p [l] [S] [S'] [T] [T]
-        ); intros HHa.
-       simpl in HHa.
-       pfold.
-       apply HHa. easy. easy.
-       apply Forall_forall. simpl.
-       intros (s1, s2) Hs. destruct Hs.
-       inversion H3. subst. simpl. easy.
-       easy.
-       apply Forall_forall. simpl.
-       intros (T1, T2) Hs. destruct Hs.
-       inversion H3. subst.
-       simpl. left. pfold.
-       specialize(stRefl T2); intro HT.
-       punfold HT. apply st_mon.
        easy.
 Qed.
 
@@ -952,49 +903,13 @@ Proof. intros.
        apply st_mon.
 Qed.
 
-Lemma refCtxT_refl: forall G, refCtxT G G.
-Proof. intro G.
-       induction G; intros.
-       - easy.
-       - simpl. split. split. easy. right. easy.
-         easy.
-       - simpl. split. split. easy. right. easy.
-         easy.
-Qed.
-
-Lemma _a21: forall P Q m em T T' G,
-  typ_proc m em G Q T' ->
-  typ_proc (S m) em (extendT G m T') P T ->
+Lemma _a21: forall P Q m em T G,
+  typ_proc m em G Q T ->
+  typ_proc (S m) em (extendT G m T) P T ->
   typ_proc m em G (subst_proc Q P) T.
-Proof. intro P.
-       induction P; intros.
-       - admit.
-       - admit.
-       - simpl.
-         inversion H0.
-         + specialize(_a23_bA (S m) em s n e P p c t); intro HH.
-           subst.
-           specialize (HH H1 eq_refl).
-           destruct HH as (S, (T'',(Ha, (Hb, Hc)))).
-           assert(subsort S S) as HHSS by constructor.
-           specialize(Hc S HHSS).
-           specialize(stTrans  _ _ _ Hc H2); intro HT.
-           specialize(tc_sub m em G G (p_send s n e (subst_proc Q P)) (ltt_send s [(n, S, T'')]) T); intro HS.
-           apply HS.
-           constructor.
-           admit.
-           apply IHP with (T' := T'). easy.
-           specialize(tc_sub (Datatypes.S m) em c (extendT G m T') P T'' T''); intro HSs.
-           apply HSs. easy. apply stRefl. easy.
-           easy. apply refCtxT_refl.
-         + subst. constructor.
-           admit.
-           apply IHP with (T' := T'). easy.
-           easy.
-       - admit.
-       - admit.
-       - admit.
-Admitted.
+Proof. Admitted.
+
+
 
 
 
