@@ -15,3 +15,4 @@ process/sessions.v
 process/beta.v
 process/typecheck.v
 process/typecheck_examples.v
+process/inversion.v

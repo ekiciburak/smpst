@@ -15,7 +15,7 @@ Inductive process : Type :=
   | p_var : fin -> process
   | p_inact : process
   | p_send : part -> label -> expr -> process -> process
-  | p_recv : part -> list (prod (prod label sort) process) -> process 
+  | p_recv : part -> list (prod label process) -> process 
   | p_ite : expr -> process -> process -> process 
   | p_rec : fin -> process -> process.
 
@@ -25,13 +25,13 @@ Example simple_mu : process :=
   
 Example Pcomplex_mu : process := 
   p_rec 0 (p_recv "Alice" [
-    (0, sbool, p_var 0);
-    (1, sbool, p_rec 1 (p_recv "Bob" [
-       (3, sbool, p_var 0);
-       (4, sbool, p_var 1);
-       (5, sbool, p_inact)
+    (0, p_var 0);
+    (1, p_rec 1 (p_recv "Bob" [
+       (3, p_var 0);
+       (4, p_var 1);
+       (5, p_inact)
     ]));
-    (2, sbool, p_inact)
+    (2, p_inact)
   ]).
   
 
@@ -47,21 +47,21 @@ CoFixpoint Tcomplex_mu : ltt :=
 Example recursive_mu : process :=
   p_rec 0 (p_send "A" 0 (e_val (vnat 1)) (
     p_rec 1 (p_recv "B" [
-      (1, sbool, p_var 0); 
-      (2, sbool, p_send "C" 2 (e_val (vnat 2)) (p_var 1))
+      (1, p_var 0); 
+      (2, p_send "C" 2 (e_val (vnat 2)) (p_var 1))
     ])
   )).
   
 Example subst_mu : process := 
   p_rec 0 (p_recv "Alice" [
-    (0, sbool, p_var 0);
-    (1, sbool, p_recv "Bob" [
-       (3, sbool, p_var 0);
-       (4, sbool, p_var 15);
-       (5, sbool, p_var 16);
-       (6, sbool, p_rec 2 p_inact)
+    (0, p_var 0);
+    (1, p_recv "Bob" [
+       (3, p_var 0);
+       (4, p_var 15);
+       (5, p_var 16);
+       (6, p_rec 2 p_inact)
     ]);
-    (2, sbool, p_inact)
+    (2, p_inact)
   ]).
   
 
@@ -72,7 +72,7 @@ Fixpoint fv (P : process) : list fin :=
     | p_recv p lis => 
        let fix next xs :=
          match xs with 
-          | (_,_,p)::ys => (fv p) ++ next ys
+          | (_,p)::ys => (fv p) ++ next ys
           | _ => []
          end
        in next lis 
@@ -94,7 +94,7 @@ Fixpoint vars (P : process) : list fin :=
     | p_recv p lis => 
        let fix next xs :=
          match xs with 
-          | (_,_,p)::ys => (vars p) ++ next ys
+          | (_,p)::ys => (vars p) ++ next ys
           | [] => []
          end
        in next lis 
@@ -177,11 +177,6 @@ decide equality.
 decide equality. decide equality. decide equality. decide equality. decide equality. decide equality. decide equality.
 Defined.
 
-Definition sort_eq_dec : forall (x y : sort), { x = y } + { x <> y }.
-Proof.
-decide equality.
-Defined.
-
 Definition balpha_equiv (P : process) (Q : process) : bool :=
   let fix syntax_eq P1 P2 :=
     match P1 with 
@@ -205,10 +200,10 @@ Definition balpha_equiv (P : process) (Q : process) : bool :=
           | p_recv q lis' => 
             let fix all_true xs ys := 
               match xs with
-                | (l,s,p')::xs' => 
+                | (l,p')::xs' => 
                   match ys with 
                     | [] => false 
-                    | (l',s',q')::ys' => (Nat.eqb l l') && (sort_eq_dec s s') && (syntax_eq p' q') && (all_true xs' ys')
+                    | (l',q')::ys' => (Nat.eqb l l') && (syntax_eq p' q') && (all_true xs' ys')
                   end
                 | [] => 
                   match ys with
@@ -266,10 +261,10 @@ Inductive multi {X : Type} (R : relation X) : relation X :=
 
 Definition alpha_multistep : relation process := multi alphaP.
 
-Definition al1 := p_rec 0 (p_rec 1 (p_recv "Alice " [(1,sbool,p_var 0); (2,sbool,p_var 1)])).
-Definition al2 := p_rec 1 (p_rec 0 (p_recv "Alice " [(1,sbool,p_var 1); (2,sbool,p_var 0)])).
-Definition al3 := p_rec 20 (p_rec 13 (p_recv "Alice " [(1,sbool,p_var 20); (2,sbool,p_var 13)])).
-Definition al4 := p_rec 0 (p_rec 1 (p_recv "Alice " [(1,sbool,p_var 1); (2,sbool,p_var 1)])).
+Definition al1 := p_rec 0 (p_rec 1 (p_recv "Alice " [(1, p_var 0); (2, p_var 1)])).
+Definition al2 := p_rec 1 (p_rec 0 (p_recv "Alice " [(1, p_var 1); (2, p_var 0)])).
+Definition al3 := p_rec 20 (p_rec 13 (p_recv "Alice " [(1, p_var 20); (2, p_var 13)])).
+Definition al4 := p_rec 0 (p_rec 1 (p_recv "Alice " [(1, p_var 1); (2, p_var 1)])).
 
 Compute balpha_equiv al1 al2.
 Compute balpha_equiv al1 al4.
@@ -290,13 +285,13 @@ Proof.
   unfold al1, al3.
   unfold alpha_multistep.
   apply multi_step with 
-  (y := (p_rec 20 (p_rec 1 (p_recv "Alice " [(1, sbool, p_var 20); (2, sbool, p_var 1)])))).
+  (y := (p_rec 20 (p_rec 1 (p_recv "Alice " [(1, p_var 20); (2, p_var 1)])))).
   apply a_rec1. 
   - unfold fresh_in. simpl. easy.
   - unfold p_rename. unfold rename_force. simpl. easy.
   
   apply multi_step with 
-  (y := (p_rec 20 (p_rec 13 (p_recv "Alice " [(1, sbool, p_var 20); (2, sbool, p_var 13)])))).
+  (y := (p_rec 20 (p_rec 13 (p_recv "Alice " [(1, p_var 20); (2, p_var 13)])))).
   apply a_rec2. apply a_rec1. 
   - unfold fresh_in. simpl. easy.
   - unfold p_rename; unfold rename_force. simpl. easy.
@@ -310,13 +305,13 @@ Proof.
   unfold al3, al2.
   unfold alpha_multistep.
   apply multi_step with 
-  (y := (p_rec 1 (p_rec 13 (p_recv "Alice " [(1, sbool, p_var 1); (2, sbool, p_var 13)])))).
+  (y := (p_rec 1 (p_rec 13 (p_recv "Alice " [(1, p_var 1); (2, p_var 13)])))).
   apply a_rec1. 
   - unfold fresh_in. simpl. easy.
   - unfold p_rename. unfold rename_force. simpl. easy.
   
   apply multi_step with 
-  (y := (p_rec 1 (p_rec 0 (p_recv "Alice " [(1, sbool, p_var 1); (2, sbool, p_var 0)])))).
+  (y := (p_rec 1 (p_rec 0 (p_recv "Alice " [(1, p_var 1); (2, p_var 0)])))).
   apply a_rec2. apply a_rec1. 
   - unfold fresh_in. simpl. easy.
   - unfold p_rename; unfold rename_force. simpl. easy.
@@ -327,10 +322,16 @@ Qed.
 
 Lemma transitive_multi {X : Type} : forall (R : relation X) (x y z : X), multi R x y -> multi R y z -> multi R x z.
 Proof.
-  intros x y z.
+  intros R x y z H.
+  revert z.
   
-
-Admitted.
+(*   inversion H. subst.
+  easy. subst. inversion H0. subst. easy. subst. *)
+  induction H; intros. easy.
+  specialize(IHmulti z0 H1).
+  specialize(@multi_step X R); intros.
+  apply H2 with (y := y). easy. easy.
+Qed.
 
 Example al1_al2 : alpha_multistep al1 al2.
 Proof. 
@@ -395,7 +396,7 @@ Proof. congruence. Qed.
 Lemma congr_p_send  { s0 : part   } { s1 : label   } { s2 : expr   } { s3 : process   } { t0 : part   } { t1 : label   } { t2 : expr   } { t3 : process   } (H1 : s0 = t0) (H2 : s1 = t1) (H3 : s2 = t2) (H4 : s3 = t3) : p_send  s0 s1 s2 s3 = p_send  t0 t1 t2 t3 .
 Proof. congruence. Qed.
 
-Lemma congr_p_recv  { s0 : part   } { s1 : list (prod (prod (label  ) (sort  )) (process  )) } { t0 : part   } { t1 : list (prod (prod (label  ) (sort  )) (process  )) } (H1 : s0 = t0) (H2 : s1 = t1) : p_recv  s0 s1 = p_recv  t0 t1 .
+Lemma congr_p_recv  { s0 : part   } { s1 : list (prod (label  ) (process  )) } { t0 : part   } { t1 : list (prod (label  ) (process  )) } (H1 : s0 = t0) (H2 : s1 = t1) : p_recv  s0 s1 = p_recv  t0 t1 .
 Proof. congruence. Qed.
 
 Lemma congr_p_ite  { s0 : expr   } { s1 : process   } { s2 : process   } { t0 : expr   } { t1 : process   } { t2 : process   } (H1 : s0 = t0) (H2 : s1 = t1) (H3 : s2 = t2) : p_ite  s0 s1 s2 = p_ite  t0 t1 t2 .
@@ -424,7 +425,7 @@ Definition subst_expr_proc (p : process) (l : label) (e : expr) : (option proces
     | p_recv pt xs => 
       let fix next lst := 
         match lst with
-          | (lbl,_,P)::ys => 
+          | (lbl,P)::ys => 
             if Nat.eqb lbl l then 
               let fix rec p' :=
                 match p' with 
