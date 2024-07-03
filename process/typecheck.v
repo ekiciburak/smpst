@@ -318,6 +318,36 @@ Proof.
   specialize(IHct1 H); intros. easy.
 Qed.
 
+Lemma leq_consS : forall cs cs' x s s', subsort s s' -> leq_ctxS cs cs' 
+      -> leq_ctxS (extendS cs x s) (extendS cs' x s').
+Proof.
+  intros.
+  unfold leq_ctxS. unfold leq_sinctx_prop.
+  intro n.
+  case_eq (Nat.eqb n x); intros; try easy.
+  simpl.
+  replace ((n =? x)%nat) with true. easy.
+  simpl. 
+  replace ((n =? x)%nat) with false.
+  unfold leq_ctxS in H0. unfold leq_sinctx_prop in H0.
+  specialize(H0 n); intros. easy.
+Qed.
+
+Lemma leq_consT : forall ct ct' x t t', subtypeC t t' -> leq_ctxT ct ct' 
+      -> leq_ctxT (extendT ct x t) (extendT ct' x t').
+Proof.
+  intros.
+  unfold leq_ctxT. unfold leq_tinctx_prop.
+  intro n.
+  case_eq (Nat.eqb n x); intros; try easy.
+  simpl.
+  replace ((n =? x)%nat) with true. easy.
+  simpl. 
+  replace ((n =? x)%nat) with false.
+  unfold leq_ctxT in H0. unfold leq_tinctx_prop in H0.
+  specialize(H0 n); intros. easy.
+Qed.
+
 Lemma empty_nil: forall {A: Type} (l: list A),
   0 = length l <-> l = [].
 Proof. intros A l.

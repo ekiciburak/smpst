@@ -84,10 +84,9 @@ Proof. intros.
 (*        specialize(tc_sub m (Datatypes.S em) c); intro HTC. *)
        apply Ha. easy.
        apply stRefl.
-       simpl.
-       split. split. split. right. easy. easy. easy.
-
-       rewrite Forall_forall in H3.
+       simpl. 
+       specialize(leq_consS cs cs' em x1 x1 (srefl x1) H2); intros. easy. easy.
+     
        exists T. exists ST.
        intros Hla1 Hla2 Hla3.
        split.
@@ -132,24 +131,17 @@ Proof. intros.
        specialize(stRefl x2); intro HT.
        punfold HT. apply st_mon.
        simpl. apply IHT. easy.
-       
-       (**)
-       apply Forall_forall.
-       intros (x1,(x2,x3)) Hx.
-       simpl in *.
-       specialize(H3 (x1,(x2,x3))). simpl in H3.
-       inversion H0. subst.
-       apply H3.
+       inversion H0.
        assert(L0 = L /\ P = Q).
        { 
           specialize(eq_trans H H1); intros.
           specialize(eq_trans H2 Hla1); intros.
           specialize(eq_trans (eq_sym Hla1) Hla3); intros.
-          specialize(zip_eq L0 L P Q H4 H5 H7 H6); intros.
+          specialize(zip_eq L0 L P Q H4 H7 H8 H6); intros.
           easy.
        }
-       destruct H4.
-       subst.
+       destruct H4. 
+       replace Q with P.
        easy.
 Qed.
 
@@ -232,7 +224,7 @@ Proof. intros.
        (ct := extendT ct x t) (cs := cs) (t := t).
        apply IHtyp_proc. easy.
        easy. easy.
-       split. split. split. left. easy. easy.
+       specialize(leq_consT ct ct' x t t' H1 H3); intros. easy.
 Qed.
 
 Lemma helper_a23_e_1 : forall x X n l x0 ct t, (Some t = lookupT ct X) -> (leq_ctxT (extendT x0 X x) ct) -> ((X =? n)%nat = false)
@@ -308,15 +300,13 @@ Proof. intros.
        
        specialize(IHtyp_proc H0).
        destruct IHtyp_proc. destruct H4.
-       specialize(ref_stronger_T ct ct' H3); intros.
+(*        specialize(ref_stronger_T ct ct' H3); intros. *)
        destruct H4.
-       specialize(leq_ctxT_trans (extendT x0 X x) ct ct' H4 H5); intros.
-       specialize(stTrans x t t' H6 H1); intros.
+       specialize(leq_ctxT_trans (extendT x0 X x) ct ct' H4 H3); intros.
+       specialize(stTrans x t t' H5 H1); intros.
        exists x. exists x0.
        split.
-       apply H7.
-       apply H8.
-      
+       easy. easy.
 Qed.
 
 Lemma _a23_f: forall P em T Gs Gt,
