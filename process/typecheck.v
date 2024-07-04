@@ -31,7 +31,6 @@ Definition extendS (m: ctxS) (s: fin) (t: expressions.sort) :=
 Definition extendT (m: ctxT) (s: fin) (t: ltt) :=
   consT s t m.
 
-(* Lookup by shadowing *)
 Fixpoint lookupS (m: ctxS) (s: fin): option expressions.sort :=
   match m with
     | consS s' t' xs => if Nat.eqb s s' then Some t' else lookupS xs s
@@ -44,84 +43,46 @@ Fixpoint lookupT (m: ctxT) (s: fin): option ltt :=
     | emptyT          => None
   end.
 
-Inductive subCtxS : ctxS -> ctxS -> Prop := 
-  | sctxs_app : forall m s s' c c', subCtxS c c' -> subsort s s' -> subCtxS (consS m s c) (consS m s' c') 
-  | sctxs_appe: forall m s c c', subCtxS c c' -> subCtxS (consS m s c) (consS m s c') 
-  | sctxs_ref : forall c, subCtxS c c.
+(* Fixpoint existsbS (n : fin) (l: ctxS) : bool :=
+    match l with
+      | emptyS => false
+      | consS f _ l => (Nat.eqb n f) || existsbS n l
+    end.
 
-Inductive subCtxT : ctxT -> ctxT -> Prop := 
-  | sctxt_app : forall m t t' c c', subCtxT c c' -> subtypeC t t' -> subCtxT (consT m t c) (consT m t' c')
-  | sctxt_appe: forall m t c c', subCtxT c c' -> subCtxT (consT m t c) (consT m t c') 
-  | sctxt_ref : forall c, subCtxT c c.
+Fixpoint existsbT (n : fin) (l: ctxT) : bool :=
+    match l with
+      | emptyT => false
+      | consT f _ l => (Nat.eqb n f) || existsbT n l
+    end. *)
 
-Fixpoint refCtxS (c1 c2: ctxS) : Prop := 
-  match (c1, c2) with 
-    | (consS u1 v1 m1, consS u2 v2 m2) => (u1 = u2 /\ (subsort v1 v2 \/ v1 = v2) /\ refCtxS m1 m2)
-    | (emptyS, emptyS) => True
-    | _ => False
-  end.
-  
-Fixpoint refCtxT (c1 c2: ctxT) : Prop := 
-  match (c1, c2) with 
-    | (consT u1 v1 m1, consT u2 v2 m2) => (u1 = u2 /\ (subtypeC v1 v2 \/ v1 = v2) /\ refCtxT m1 m2)
-    | (emptyT, emptyT) => True
-    | _ => False
+Fixpoint consistent_ctxS (m : ctxS) : Prop := 
+  match m with 
+    | emptyS => True
+    | consS f _ l => (lookupS l f = None) /\ consistent_ctxS l
   end.
 
-(* Definition eq_ctxS (m1 m2 : ctxS) := forall n s, memS n s m1 <-> memS n s m2.
-  
-Definition eq_ctxT (m1 m2 : ctxT) := forall n t, memT n t m1 <-> memT n t m2.
-
-Definition leq_ctxS (m1 m2 : ctxS) := forall n s, memS n s m1 -> memS n s m2.
-  
-Definition leq_ctxT (m1 m2 : ctxT) := forall n t, memT n t m1 -> memT n t m2. *)
-
-Definition leq_sinctx_prop (n : fin) (m1 m2 : ctxS) : Prop :=
-  match lookupS m1 n with
-    | Some s => match lookupS m2 n with
-        | Some s' => subsort s s' 
-        | None => False 
-       end
-    | None => match lookupS m2 n with
-        | Some s' => False
-        | None => True
-      end
+Fixpoint consistent_ctxT (m : ctxT) : Prop := 
+  match m with 
+    | emptyT => True
+    | consT f _ l => (lookupT l f = None) /\ consistent_ctxT l
   end.
-
-Definition leq_tinctx_prop (n : fin) (m1 m2 : ctxT) : Prop := 
-  match lookupT m1 n with 
-    | Some t => match lookupT m2 n with
-        | Some t' => subtypeC t t'
-        | None => False 
-       end
-    | None => match lookupT m2 n with
-        | Some t' => False
-        | None => True 
-       end
-  end.
-
-Definition eq_ctxS (m1 m2 : ctxS) := forall n, (leq_sinctx_prop n m1 m2) /\ (leq_sinctx_prop n m2 m1).
   
-Definition eq_ctxT (m1 m2 : ctxT) := forall n, (leq_tinctx_prop n m1 m2) /\ (leq_tinctx_prop n m2 m1).
-
-Definition leq_ctxS (m1 m2 : ctxS) := forall n, (leq_sinctx_prop n m1 m2).
-  
-Definition leq_ctxT (m1 m2 : ctxT) := forall n, (leq_tinctx_prop n m1 m2).
+Definition eq_ctxS (m1 m2 : ctxS) := forall n, consistent_ctxS m1 /\ consistent_ctxS m2 /\ lookupS m1 n = lookupS m2 n.
+Definition eq_ctxT (m1 m2 : ctxT) := forall n, consistent_ctxT m1 /\ consistent_ctxT m2 /\ lookupT m1 n = lookupT m2 n.
 
 
 Inductive typ_expr: ctxS -> expr -> sort -> Prop :=
-  | sc_var : forall c s t, Some t = lookupS c s -> typ_expr c (e_var s) t
-  | sc_vali: forall c i, typ_expr c (e_val (vint i)) sint
-  | sc_valn: forall c i, typ_expr c (e_val (vnat i)) snat
-  | sc_valb: forall c b, typ_expr c (e_val (vbool b)) sbool
-  | sc_succ: forall c e, typ_expr c e snat ->
+  | sc_var : forall c s t, consistent_ctxS c -> Some t = lookupS c s -> typ_expr c (e_var s) t
+  | sc_vali: forall c i, consistent_ctxS c -> typ_expr c (e_val (vint i)) sint
+  | sc_valn: forall c i, consistent_ctxS c -> typ_expr c (e_val (vnat i)) snat
+  | sc_valb: forall c b, consistent_ctxS c -> typ_expr c (e_val (vbool b)) sbool
+  | sc_succ: forall c e, consistent_ctxS c -> typ_expr c e snat ->
                          typ_expr c (e_succ e) snat
   | sc_neg : forall c e, typ_expr c e sint ->
                          typ_expr c (e_neg e) sint
-  | sc_sub : forall c c' e s s', typ_expr c e s ->
+  | sc_sub : forall c e s s', typ_expr c e s ->
                                  subsort s s' ->
-                                 leq_ctxS c c' ->
-                                 typ_expr c' e s'
+                                 typ_expr c e s'
   | sc_not : forall c e, typ_expr c e sbool ->
                          typ_expr c (e_not e) sbool
   | sc_gt  : forall c e1 e2, typ_expr c e1 sint ->
@@ -152,8 +113,8 @@ Fixpoint findCtxT (n: fin) (t: ltt) (m: ctxT): Prop :=
   end.
 
 Inductive typ_proc: fin -> ctxS -> ctxT -> process -> ltt -> Prop :=
-  | tc_inact: forall em cs ct, typ_proc em cs ct (p_inact) (ltt_end)
-  | tc_var  : forall em cs ct s t, Some t = lookupT ct s ->
+  | tc_inact: forall em cs ct, consistent_ctxS cs -> consistent_ctxT ct -> typ_proc em cs ct (p_inact) (ltt_end)
+  | tc_var  : forall em cs ct s t, consistent_ctxS cs -> consistent_ctxT ct -> Some t = lookupT ct s ->
                                    typ_proc em cs ct (p_var s) t
   | tc_mu   : forall em cs ct x p t, let ct' := extendT ct x t in
                                      typ_proc em cs ct' p t ->
@@ -162,17 +123,16 @@ Inductive typ_proc: fin -> ctxS -> ctxT -> process -> ltt -> Prop :=
                                          typ_proc em cs ct p1 T ->
                                          typ_proc em cs ct p2 T ->
                                          typ_proc em cs ct (p_ite e p1 p2) T
-  | tc_sub  : forall em cs cs' ct ct' p t t', typ_proc em cs ct p t ->
+  | tc_sub  : forall em cs ct p t t', typ_proc em cs ct p t ->
                                               subtypeC t t' ->
-                                              leq_ctxS cs cs' ->
-                                              leq_ctxT ct ct' -> 
-                                              typ_proc em cs' ct' p t'
-  | tc_recv : forall em cs ct p L ST P T,
+                                              typ_proc em cs ct p t'
+  | tc_recv : forall em cs ct p lb st pr ty L ST P T,
                      length L = length ST ->
                      length ST = length P ->
                      length P = length T ->
+                     typ_proc (S em) (extendS cs em st) ct pr ty ->
                      List.Forall (fun u => typ_proc (S em) (extendS cs em (fst u)) ct (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
-                     typ_proc em cs ct (p_recv p (zip L P)) (ltt_recv p (zip (zip L ST) T))
+                     typ_proc em cs ct (p_recv p (zip (lb::L) (pr::P))) (ltt_recv p (zip (zip (lb::L) (st::ST)) (ty::T)))
   | tc_send: forall em cs ct p l e P S T, typ_expr cs e S ->
                                           typ_proc em cs ct P T ->
                                           typ_proc em cs ct (p_send p l e P) (ltt_send p [(l,S,T)]).
@@ -222,137 +182,6 @@ Admitted.
 Lemma ref_stronger_T : forall ct ct', refCtxT ct ct' -> leq_ctxT ct ct'. 
 Admitted. *)
 
-Lemma leq_ctxS_refl : forall cs, leq_ctxS cs cs.
-Proof.
-  intros. unfold leq_ctxS.
-  intros. unfold leq_sinctx_prop.
-  destruct lookupS. 
-  apply (srefl s).
-  easy. 
-Qed.
-
-Lemma leq_ctxT_refl : forall ct, leq_ctxT ct ct.
-Proof.
-  intros. unfold leq_ctxT.
-  intros. unfold leq_tinctx_prop.
-  destruct lookupT. easy. easy.
-Qed.
-
-Lemma leq_ctxC_trans : forall cs1 cs2 cs3, leq_ctxS cs1 cs2 -> leq_ctxS cs2 cs3 -> leq_ctxS cs1 cs3.
-Proof.
-  intros.
-  unfold leq_ctxS in *.
-  unfold leq_sinctx_prop in *.
-  intro n.
-  specialize(H n); intros.
-  specialize(H0 n); intros.
-  induction cs1; intros; try easy.
-  simpl.
-  simpl in H.
-  induction cs2; intros; try easy.
-  case_eq (Nat.eqb n n0); intros.
-  specialize(natb_to_prop n n0 H1); intros. subst. simpl in H.
-  replace ((n0 =? n0)%nat) with true in H. 
-  contradiction.
-  simpl in H.
-  replace ((n =? n0)%nat) with false in H.
-  specialize(IHcs2 H); intros.
-  simpl in H0. 
-  replace ((n =? n0)%nat) with false in H0.
-  specialize(IHcs2 H0); intros. 
-  easy.
-  
-  simpl.
-  case_eq (Nat.eqb n n0); intros.
-  simpl in H.
-  replace ((n =? n0)%nat) with true in H.
-  
-  
-  destruct (lookupS cs2 n) in *. 
-  destruct (lookupS cs3 n) in *.
-  specialize(sstrans s s0 s1 H H0); intros. 
-  easy. easy.
-  contradiction.
-  simpl in H.
-  replace ((n =? n0)%nat) with false in H.
-  specialize(IHcs1 H); intros. easy.
-Qed.
-
-Lemma leq_ctxT_trans : forall ct1 ct2 ct3, leq_ctxT ct1 ct2 -> leq_ctxT ct2 ct3 -> leq_ctxT ct1 ct3.
-Proof.
-  intros.
-  unfold leq_ctxT in *.
-  unfold leq_tinctx_prop in *.
-  intro n.
-  specialize(H n); intros.
-  specialize(H0 n); intros.
-  induction ct1; intros; try easy.
-  simpl.
-  simpl in H.
-  induction ct2; intros; try easy.
-  case_eq (Nat.eqb n n0); intros.
-  specialize(natb_to_prop n n0 H1); intros. subst. simpl in H.
-  replace ((n0 =? n0)%nat) with true in H. 
-  contradiction.
-  simpl in H.
-  replace ((n =? n0)%nat) with false in H.
-  specialize(IHct2 H); intros.
-  simpl in H0. 
-  replace ((n =? n0)%nat) with false in H0.
-  specialize(IHct2 H0); intros. 
-  easy.
-  
-  simpl.
-  case_eq (Nat.eqb n n0); intros.
-  simpl in H.
-  replace ((n =? n0)%nat) with true in H.
-  
-  
-  destruct (lookupT ct2 n) in *. 
-  destruct (lookupT ct3 n) in *.
-  specialize(stTrans l l0 l1 H H0); intros. 
-  easy. easy.
-  contradiction.
-  simpl in H.
-  replace ((n =? n0)%nat) with false in H.
-  specialize(IHct1 H); intros. easy.
-Qed.
-
-Lemma leq_consS : forall cs cs' x s s', subsort s s' -> leq_ctxS cs cs' 
-      -> leq_ctxS (extendS cs x s) (extendS cs' x s').
-Proof.
-  intros.
-  unfold leq_ctxS. unfold leq_sinctx_prop.
-  intro n.
-  case_eq (Nat.eqb n x); intros; try easy.
-  simpl.
-  replace ((n =? x)%nat) with true. easy.
-  simpl. 
-  replace ((n =? x)%nat) with false.
-  unfold leq_ctxS in H0. unfold leq_sinctx_prop in H0.
-  specialize(H0 n); intros. easy.
-Qed.
-
-Lemma leq_consT : forall ct ct' x t t', subtypeC t t' -> leq_ctxT ct ct' 
-      -> leq_ctxT (extendT ct x t) (extendT ct' x t').
-Proof.
-  intros.
-  unfold leq_ctxT. unfold leq_tinctx_prop.
-  intro n.
-  case_eq (Nat.eqb n x); intros; try easy.
-  simpl.
-  replace ((n =? x)%nat) with true. easy.
-  simpl. 
-  replace ((n =? x)%nat) with false.
-  unfold leq_ctxT in H0. unfold leq_tinctx_prop in H0.
-  specialize(H0 n); intros. easy.
-Qed.
-
-Lemma empty_nil: forall {A: Type} (l: list A),
-  0 = length l <-> l = [].
-Proof. intros A l.
-       case l; intros; easy.
-Qed.
 
 
 (* 
@@ -397,12 +226,6 @@ Example complex_mu : process :=
 Compute unfold_rec complex_mu. 
  *)
 
-
-Lemma _a21: forall P Q m em T G,
-  typ_proc m em G Q T ->
-  typ_proc (S m) em (extendT G m T) P T.
-(*   typ_proc m em G (subst_proc Q P) T. *)
-Proof. Admitted.
 
 
 
