@@ -122,9 +122,23 @@ Proof.
   specialize(Nat.lt_succ_diag_r (process_size Q)); intros. easy.
 Qed.
 
-Lemma subst_inv_rec : forall P n Q X Qb Qa, (P = p_rec n Q) -> substitutionP (p_var X) Qb P Qa -> exists m Q', (Qa = p_rec m Q').
+
+
+
+Lemma alpha_multi_cong : forall P Q n, alpha_multistep P (p_rec n Q) -> exists m Q', P = p_rec m Q'.
 Proof.
   intros.
+  induction H. 
+  admit.
+  inversion H. exists n. exists Q. easy.
+   
+
+Lemma subst_inv_rec : forall P n Q X Qb Qa, alpha_multistep P (p_rec n Q) -> substitutionP (p_var X) Qb P Qa -> exists m Q', (Qa = p_rec m Q').
+Proof.
+  intros.
+  inversion H. subst.
+  induction H0; subst; try easy.
+  
   
 
 Lemma _a21: forall n P Q em T T' Gs Gt X Q',

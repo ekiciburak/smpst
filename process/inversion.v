@@ -66,7 +66,7 @@ Qed.
 
 Lemma _a23_a: forall em p lb pr L Q P Gs Gt T, 
   typ_proc em Gs Gt P T ->
-  P = (p_recv p (zip (lb::L) (pr::Q))) -> 
+  P = (p_recv p lb pr L Q) -> 
   (exists ty st T' S, length (ty::T') = length (lb::L) -> length (ty::T') = length (st::S) -> length (ty::T') = length (pr::Q) -> subtypeC (ltt_recv p (zip (zip (lb::L) (st::S)) (ty::T'))) T /\  
   typ_proc (Datatypes.S em) (extendS Gs em st) Gt pr ty /\
   List.Forall (fun u => typ_proc (Datatypes.S em) (extendS Gs em (fst u)) Gt (fst (snd u)) (snd (snd u))) (zip S (zip Q T'))).
@@ -97,19 +97,7 @@ Proof. intros.
        specialize(remove_S H6); intros. 
        specialize(remove_S H7); intros.
        clear H5 H6 H7. 
-       
-       assert(L0 = L /\ P = Q).
-       { 
-          specialize(eq_trans H H1); intros.
-          specialize(eq_trans H2 H8); intros.
-          specialize(eq_trans (eq_sym H8) H11); intros.
-          specialize(zip_eq L0 L P Q H5 H6 H7 H9); intros.
-          easy.
-       }
-       destruct H5. subst.
-       split. easy.
-       split. easy.
-       easy.
+       split. easy. split. easy. easy.
 Qed.
 
 
@@ -156,7 +144,7 @@ Qed.
 
 Lemma _a23_c: forall P em e Q1 Q2 T Gs Gt,
   typ_proc em Gs Gt P T ->
-  P = (p_ite e Q1 Q2) -> exists T1 T2, typ_proc em Gs Gt Q1 T1 /\ typ_proc em Gs Gt Q2 T2 /\ subtypeC T1 T /\ subtypeC T2 T.
+  P = (p_ite e Q1 Q2) -> exists T1 T2, typ_proc em Gs Gt Q1 T1 /\ typ_proc em Gs Gt Q2 T2 /\ subtypeC T1 T /\ subtypeC T2 T /\ typ_expr Gs e sbool.
 Proof. intros.
        induction H; intros; try easy.
        inversion H0.
@@ -171,21 +159,26 @@ Proof. intros.
        specialize(tc_sub em cs ct Q1 T1 T1); intro HTS.
        apply HTS. easy. apply stRefl. split. easy. split. 
        specialize(stTrans T1 t t' Hc H1); intro HT. easy.
-       specialize(stTrans T2 t t' Hd H1); intro HT. easy.
+       split. destruct Hd.
+       specialize(stTrans T2 t t' H2 H1); intro HT. easy.
+       destruct Hd. easy.
 Qed.
 
-Lemma _a23_d: forall P em x Q T Gs Gt,
-  typ_proc em Gs Gt P T ->
-  P = (p_rec x Q)   -> exists T', (typ_proc em Gs (extendT Gt x T') Q T' /\ subtypeC T' T).
+Lemma _a23_d: forall P em x Q T'' Gs Gt,
+  typ_proc em Gs Gt P T'' ->
+  P = (p_rec x Q)   -> exists T T', (typ_proc em Gs (extendT Gt x T) Q T' /\ subtypeC T T' /\ subtypeC T' T'').
 Proof. intros.
        induction H; intros; try easy.
        inversion H0. subst.
-       exists t. split. easy. easy.
-       specialize(IHtyp_proc H0). 
-       destruct IHtyp_proc. exists x0. destruct H2.
-       split.
-       easy.
-       specialize(stTrans x0 t t' H3 H1); intros. easy.
+       exists t. exists t. 
+       split. easy. split. easy. easy.
+       
+       specialize(IHtyp_proc H0).
+       destruct IHtyp_proc. destruct H2. 
+       exists x0. exists x1. 
+       destruct H2. destruct H3. 
+       split. easy. split. easy. 
+       specialize(stTrans x1 t t' H4 H1); intros. easy.
 Qed. 
 (* 
 

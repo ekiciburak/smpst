@@ -116,9 +116,10 @@ Inductive typ_proc: fin -> ctxS -> ctxT -> process -> ltt -> Prop :=
   | tc_inact: forall em cs ct, consistent_ctxS cs -> consistent_ctxT ct -> typ_proc em cs ct (p_inact) (ltt_end)
   | tc_var  : forall em cs ct s t, consistent_ctxS cs -> consistent_ctxT ct -> Some t = lookupT ct s ->
                                    typ_proc em cs ct (p_var s) t
-  | tc_mu   : forall em cs ct x p t, let ct' := extendT ct x t in
+  | tc_mu   : forall em cs ct x p t t', let ct' := extendT ct x t in
                                      typ_proc em cs ct' p t ->
-                                     typ_proc em cs ct (p_rec x p) t
+                                     subtypeC t t' ->
+                                     typ_proc em cs ct (p_rec x p) t'
   | tc_ite  : forall em cs ct e p1 p2 T, typ_expr cs e sbool ->
                                          typ_proc em cs ct p1 T ->
                                          typ_proc em cs ct p2 T ->
@@ -132,10 +133,12 @@ Inductive typ_proc: fin -> ctxS -> ctxT -> process -> ltt -> Prop :=
                      length P = length T ->
                      typ_proc (S em) (extendS cs em st) ct pr ty ->
                      List.Forall (fun u => typ_proc (S em) (extendS cs em (fst u)) ct (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
-                     typ_proc em cs ct (p_recv p (zip (lb::L) (pr::P))) (ltt_recv p (zip (zip (lb::L) (st::ST)) (ty::T)))
+                     typ_proc em cs ct (p_recv p lb pr L P) (ltt_recv p (zip (zip (lb::L) (st::ST)) (ty::T)))
   | tc_send: forall em cs ct p l e P S T, typ_expr cs e S ->
                                           typ_proc em cs ct P T ->
                                           typ_proc em cs ct (p_send p l e P) (ltt_send p [(l,S,T)]).
+
+Print typ_proc_ind.
 
 Lemma natb_to_prop : forall a b, (a =? b)%nat = true -> a = b.
 Proof. 
