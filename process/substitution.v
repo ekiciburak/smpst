@@ -7,11 +7,28 @@ From Paco Require Import paco.
 
 Lemma _typ_consistency_ : forall em Gs Gt P T, typ_proc em Gs Gt P T -> (consistent_ctxS Gs /\ consistent_ctxT Gt).
 intros.
-  induction H; intros; try easy.
+  induction H using typ_proc_ind_ref; intros; try easy.
   destruct IHtyp_proc.
-  split; try easy.
-  simpl in H2. destruct H2. easy.
-  destruct IHtyp_proc. simpl in H4. destruct H4. easy. 
+  split; try easy. simpl in H1. destruct H1. easy. 
+  destruct H2. 
+  - simpl in H. specialize(eq_trans H H0); intros. specialize(eq_trans H2 H1); intros. clear H0 H1.
+    specialize(positive_list_length_dst ST 0 (eq_sym H)); intros.
+    specialize(positive_list_length_dst Pr 0 (eq_sym H2)); intros.
+    specialize(positive_list_length_dst T 0 (eq_sym H4)); intros.
+    destruct H0. destruct H0. destruct H1. destruct H1. destruct H5. destruct H5. subst.
+    specialize(Forall2_cons_iff (fun (_ : process) (v : sort * ltt) =>
+        consistent_ctxS (extendS cs em (fst v)) /\ consistent_ctxT ct) x1 (x,x3) x2 (zip x0 x4)); intros.
+    destruct H0. clear H1. specialize(H0 H3); intros. clear H3. destruct H0. destruct H0. 
+    simpl in H0. destruct H0. easy.
+  - simpl in H. specialize(eq_trans H H0); intros. specialize(eq_trans H5 H1); intros. clear H0 H1.
+    specialize(positive_list_length_dst ST (S (length l)) (eq_sym H)); intros.
+    specialize(positive_list_length_dst Pr (S (length l)) (eq_sym H5)); intros.
+    specialize(positive_list_length_dst T (S (length l)) (eq_sym H6)); intros.
+    destruct H0. destruct H0. destruct H1. destruct H1. destruct H7. destruct H7. subst.
+    specialize(Forall2_cons_iff (fun (_ : process) (v : sort * ltt) =>
+        consistent_ctxS (extendS cs em (fst v)) /\ consistent_ctxT ct) x1 (x,x3) x2 (zip x0 x4)); intros.
+    destruct H0. clear H1. specialize(H0 H3); intros. clear H3. destruct H0. destruct H0. 
+    simpl in H0. destruct H0. easy.    
 Qed.
 
 Lemma trivial_type_inact : forall em Gs Gt T, typ_proc em Gs Gt p_inact T -> T = ltt_end.
@@ -55,17 +72,12 @@ Proof.
   easy.
 Qed.
 
-Lemma alphaP_typ_eq {P Q : process} {em : fin} {Gs : ctxS} {Gt : ctxT} {T : ltt} :
+(* Lemma alphaP_typ_eq {P Q : process} {em : fin} {Gs : ctxS} {Gt : ctxT} {T : ltt} :
       alphaP P Q -> typ_proc em Gs Gt P T -> typ_proc em Gs Gt Q T.
       intros.
       induction H; intros; try easy.
 Admitted.
-
-Lemma alphaP_sym {P Q : process} : alphaP P Q -> alphaP Q P.
-Proof.
-  intros.
-  induction H; intros; try easy.
-Admitted.
+ *)
 (* 
 Theorem typ_proc_ind:
   forall {em:fin} (P:list X -> Prop),
@@ -75,179 +87,156 @@ Theorem typ_proc_ind:
 Proof. Admitted.
 
  *)
+
+Lemma inv_subst_var : forall x P Q1 Q2 n, wtyped P -> wtyped Q1 -> wtyped Q2 -> substitutionP x P Q1 Q2 -> Q1 = (p_var n)
+                 -> (x = n /\ alphaP P Q2) \/ (x <> n /\ Q2 = p_var n).
+Proof.
+  intros x P Q1 Q2 n WP WQ1 WQ2 H.
+  induction H using substitutionP_ind_ref; intros; try easy.
+  inversion H. subst. left. split. easy. 
+  specialize(alphaP_refl Pr WQ2); intros. easy.
+  right. inversion H0. subst. split. easy. easy.
+  specialize(IHsubstitutionP WP); intros.
+  
+Admitted.
  
-(* https://proofassistants.stackexchange.com/questions/1520/strong-induction-for-nat-in-coq *)
-Lemma strong_ind (P : nat -> Prop) :
-  (forall m, (forall k : nat, k < m -> P k) -> P m) ->
-    forall n, P n.
+Lemma inv_subst_inact : forall x P Q1 Q2, substitutionP x P Q1 Q2 -> (Q1 = p_inact) -> Q2 = p_inact.
 Proof.
-  intros H n; enough (H0: forall p, p <= n -> P p).
-    - apply H0, le_n. 
-    - induction n.
-      + intros. inversion H0. apply H. intros. inversion H2.
-      + intros. apply H. intros. apply IHn.  inversion H0. 
-        * rewrite H2 in H1. apply PeanoNat.lt_n_Sm_le in H1. assumption.
-        * specialize (PeanoNat.Nat.lt_le_trans k p n H1 H3). apply PeanoNat.Nat.lt_le_incl.
+  intros x P Q1 Q2 Hs.
+  induction Hs using substitutionP_ind_ref; intros; try easy.
+  induction H using alphaP_ind_ref; intros; try easy. 
+  specialize(IHHs H1); intros; try easy.
+  subst. 
+  specialize(inv_alphaP_inact Q2); intros. 
+  specialize(alphaP_sym p_inact Q2 H0); intros.
+  specialize(H H2); intros; try easy.
 Qed.
 
-Fixpoint process_size (P : process) : fin := 
-  match P with 
-    | p_var n => 0 
-    | p_inact => 0
-    | p_send pt lb e p => 1 + process_size p 
-    | p_recv pt lb p llb lp => 
-      let fix mx_siz lis := 
-        match lis with 
-          | x::xs => max (process_size x) (mx_siz xs)
-          | [] => 0
-        end
-      in 1 + max (process_size p) (mx_siz lp)
-    | p_ite e p1 p2 => 1 + max (process_size p1) (process_size p2)
-    | p_rec n p => 1 + (process_size p)
-  end.
-
-Lemma psize_exists : forall P, exists n, process_size P = n.
+Lemma inv_subst_rec : forall P X Qb Qa, wtyped Qa -> wtyped Qb -> (exists n Q, P = (p_rec n Q)) -> substitutionP X Qb P Qa -> exists m Q', (Qa = p_rec m Q').
 Proof.
-  intro P. 
-  exists (process_size P). easy.
+  intros. revert H.  
+  induction H2 using substitutionP_ind_ref; intros; try easy.
+  destruct H1. destruct H1. easy.
+  destruct H1. destruct H1. easy.
+  destruct H1. destruct H1. easy.
+  destruct H1. destruct H1. easy.
+  
+  destruct H1. destruct H1. 
+  exists Y. exists Q1. easy.
+  
+  destruct H1. destruct H1. subst. 
+  specialize(inv_alphaP_rec P1 x x0 H); intros. destruct H1. destruct H1. destruct H1. destruct H1. 
+  destruct H4. destruct H5. 
+  destruct IHsubstitutionP. easy. exists x1. exists x3. easy. 
+  specialize(wtyped_alphaP Q2 Q1 (alphaP_sym Q1 Q2 H2) H3); intros. easy.
+  
+  destruct H7. subst.  
+  specialize(inv_alphaP_rec Q2 x4 x5 (alphaP_sym (p_rec x4 x5) Q2 H2)); intros.
+  destruct H1. destruct H1. destruct H1. destruct H1.
+  exists x6. exists x8. easy.
 Qed.
 
-Lemma psize_smaller_rec : forall P n Q k, (P = p_rec n Q) -> (process_size P = k) -> exists l, (process_size Q = l /\ l < k).
-Proof.  
-  intros. 
-  subst.
-  specialize(psize_exists Q); intros. destruct H.
-  exists x. split. easy.
-  simpl. subst.
-  specialize(Nat.lt_succ_diag_r (process_size Q)); intros. easy.
+Lemma typable_implies_wtyped [em : fin] [Gs : ctxS] [Gt : ctxT] [P : process] [T : ltt] : typ_proc em Gs Gt P T -> wtyped P.
+Proof.
+  intros. induction H using typ_proc_ind_ref.
+  apply wp_inact.
+  apply wp_var.
+  apply wp_rec. easy.
+  apply wp_ite; try easy. easy.
+  apply wp_recv; try easy. 
+  - specialize(eq_trans H H0); intros; try easy.
+  - admit.
+  apply wp_send; try easy.
+Admitted.
+
+Lemma typable_after_subst_list [xs ys : list process] [Pr : process] : wtyped Pr -> Forall2 (fun Q1 Q2 : process => wtyped Pr -> wtyped Q1 -> wtyped Q2) xs ys -> Forall wtyped xs -> Forall wtyped ys.
+Proof.
+  revert ys.
+  induction xs.
+  - intros. specialize(Forall2_length H0); intros. 
+    simpl in H2.
+    specialize(length_zero_iff_nil ys); intros. destruct H3.
+    specialize(H3 (eq_sym H2)). subst. easy.
+  - intros. 
+    specialize(Forall2_length H0); intros. simpl in H2.
+    specialize(positive_list_length_dst ys (length xs) (eq_sym H2)); intros.
+    destruct H3. destruct H3. subst.
+    specialize(Forall2_cons_iff (fun Q1 Q2 : process => wtyped Pr -> wtyped Q1 -> wtyped Q2) a x xs x0); intros.
+    destruct H3. specialize(H3 H0). clear H4. destruct H3.
+    specialize(Forall_cons_iff wtyped a xs); intros. destruct H5.
+    specialize(H5 H1); intros. destruct H5. clear H6. 
+    specialize(H3 H H5); intros.
+    specialize(IHxs x0 H H4 H7); intros.
+    apply Forall_cons. easy. easy.
 Qed.
 
-Lemma subst_inv_rec : forall P n Q X Qb Qa, (P = p_rec n Q) -> substitutionP (p_var X) Qb P Qa -> exists m Q', (Qa = p_rec m Q').
+Lemma typable_after_subst [X : fin] [P Q1 Q2 : process] : substitutionP X P Q1 Q2 -> wtyped P -> wtyped Q1 -> wtyped Q2.
+Proof.
+  intro H. induction H using substitutionP_ind_ref; intros; try easy.
+  - inversion H0. subst.
+    specialize(IHsubstitutionP H H2); intros.
+    apply wp_send. easy.
+  - inversion H4. subst.
+    apply wp_recv; try easy.
+    specialize(typable_after_subst_list H3 H2 H10); intros. easy.
+  - inversion H0. subst.
+    apply wp_ite. 
+    specialize(IHsubstitutionP H H3); intros; try easy.
+    specialize(IHsubstitutionP0 H H5); intros; try easy.
+  - inversion H2. subst.
+    apply wp_rec. 
+    specialize(IHsubstitutionP H1 H4); intros; try easy.
+  - specialize(wtyped_alphaP P2 P1 (alphaP_sym P1 P2 H) H2); intros.
+    specialize(IHsubstitutionP H1 H3); intros.
+    specialize(wtyped_alphaP Q1 Q2 H0 IHsubstitutionP); intros. easy.
+Qed.
+
+Lemma typable_alpha [em : fin] [Gs : ctxS] [Gt : ctxT] [P1 P2 : process] [T : ltt] :
+      alphaP P1 P2 -> typ_proc em Gs Gt P1 T -> typ_proc em Gs Gt P2 T.
 Proof.
   intros.
+  induction H0 using typ_proc_ind_ref.
+Admitted.
   
 
-Lemma _a21: forall n P Q em T T' Gs Gt X Q',
-  process_size P = n
-  -> subtypeC T T'
+Lemma _a21: forall P Q em T T' Gs Gt X Q', wtyped Q -> subtypeC T T'
   -> typ_proc em Gs (extendT Gt X T) P T' -> typ_proc em Gs Gt Q T' 
-  -> substitutionP (p_var X) Q P Q'
+  -> substitutionP X Q P Q'
   -> typ_proc em Gs Gt Q' T'.
 Proof. 
 
-  intros n.
-  induction n using @strong_ind.
-  
-  intros.
-  induction P.
-  admit.
-  admit.
-  admit.
-  admit.
-  admit.
-  clear IHP.
-  specialize(psize_smaller_rec (p_rec n0 P) n0 P n (eq_refl (p_rec n0 P)) H0); intros.
-  destruct H5. 
-  pose proof H as Hrec.
-  destruct H5.
-  specialize(_a23_d (p_rec n0 P) em n0 P T' Gs (extendT Gt X T) H2 (eq_refl (p_rec n0 P))); intros.
-  destruct H7. destruct H7. destruct H7. destruct H8.
-  unfold extendT in *.
-  specialize(Hrec x H6); intros.
-  specialize(Hrec P Q em); intros.
-  
-  
-  
-  specialize(psize_exists P); intro. 
-  destruct H.
-  
- 
-
-  
-  intros.
-  
-  
-  
-  
-  
-  
-  
-  
-  (* inact *) 
-  intros.
-  specialize (_a23_f p_inact em T Gs (extendT Gt X T) H (eq_refl p_inact)); intros.
-  subst.
-  inversion H1; intros; try easy.
-  subst.
-  specialize(_typ_consistency_ em Gs Gt Q ltt_end H0); intros.
-  destruct H2.
-  specialize(tc_inact em Gs Gt H2 H3); intros. easy.
-    
+  intros P. induction P using process_ind_ref.
   
   (* var *)
+  
   intros.
-  specialize(_a23_e (p_var n) em n T Gs (extendT Gt X T) H (eq_refl (p_var n))); intros.
-  inversion H1. subst. easy. subst. 
-  specialize(not_eq_sym H6); intros.
-  specialize(remove_unusedT_var em Gs Gt X n T T H3 H); intros. easy.
-  subst. inversion H4.
-
+  specialize(inv_subst_var X Q (p_var n) Q' n); intros.
+  specialize(typable_implies_wtyped H1); intros.
+  specialize(typable_after_subst H3 H H5); intros.
+  specialize(H4 H H5 H6 H3); intros.
+  destruct H4. easy.
+  destruct H4. 
+  specialize(typable_alpha H7 H2); intros; try easy.
+  destruct H4. subst.
+  specialize(remove_unusedT_var em Gs Gt X n T T' (not_eq_sym H4) H1); intros. easy.  
+  
+  (* inact *)
+  intros.
+  specialize(inv_subst_inact X Q p_inact Q' H3 (eq_refl p_inact)); intros. subst.
+  specialize(remove_unusedT_inact em Gs Gt X T T' H1); intros. easy.
+  
   (* send *)
-  intros. 
-  specialize(_a23_b em s n e P (p_send s n e P) Gs (extendT Gt X T) T H (eq_refl (p_send s n e P))); intros.
-  destruct H2. destruct H2. destruct H2. destruct H2. destruct H3. destruct H4.
+  intros.
   
-  
-  
-(*   inversion H1; intros; try easy. 
-  
-  subst.
-  specialize(tc_send); intros. *)
-  
-  
-  
-  
-  admit.
   (* recv *)
-  intros. 
-  admit.
+  
   
   (* ite *)
-  intros.
-  
-  specialize(_a23_c (p_ite e P1 P2) em e P1 P2 T Gs (extendT Gt X T) H (eq_refl (p_ite e P1 P2))); intros.
-  destruct H2. destruct H2. destruct H2. destruct H3. destruct H4. destruct H5.  
-
-  (* -> want better inversion for subst that doesn't use the alpha case *)
-  inversion H1. subst.
-  specialize(IHP2 Q em T Gs Gt X Q2); intros.
-  specialize(tc_sub em Gs (extendT Gt X T) P2 x0 T H3 H5); intros.
-  specialize(IHP2 H7 H0 H14); intros. 
-  specialize(IHP1 Q em T Gs Gt X Q1); intros.
-  specialize(tc_sub em Gs (extendT Gt X T) P1 x T H2 H4); intros.
-  specialize(IHP1 H8 H0 H13); intros.
-  specialize(tc_ite em Gs Gt e Q1 Q2 T H6 IHP1 IHP2); intros.
-  easy.
-  
-  inversion H8. subst.
-  specialize(alphaP_typ_eq (alphaP_sym H16) H2); intros.
-  specialize(alphaP_typ_eq (alphaP_sym H18) H3); intros.
-  
-  specialize(IHP2 Q em T Gs Gt X P5); intros.
-  specialize(tc_sub em Gs (extendT Gt X T) P2 x0 T H3 H5); intros.
-  specialize(IHP2 H11 H0 H14); intros. 
-  specialize(IHP1 Q em T Gs Gt X Q1); intros.
-  specialize(tc_sub em Gs (extendT Gt X T) P1 x T H2 H4); intros.
-  specialize(IHP1 H8 H0 H13); intros.
-  specialize(tc_ite em Gs Gt e Q1 Q2 T H6 IHP1 IHP2); intros.
   
   
+  (* rec *)
   
-  (* mu *)
-  intros. 
-  specialize(_a23_d); intros.
   
-  admit.
    
 Admitted.
 

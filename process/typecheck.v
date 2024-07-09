@@ -13,18 +13,6 @@ Inductive ctxT : Type :=
   | emptyT : ctxT 
   | consT : fin -> ltt -> ctxT -> ctxT.
 
-(* Fixpoint memS (n: fin) (s: sort) (m: ctxS): Prop :=
-  match m with
-    | consS u v m1 => (n = u /\ (subsort s v \/ v = s)) \/ memS n s m1
-    | _            => False
-  end.
-
-Fixpoint memT (n: fin) (t: ltt) (m: ctxT): Prop :=
-  match m with
-    | consT u v m1 => (n = u /\ (subtypeC t v \/ v = t)) \/ memT n t m1
-    | _            => False
-  end. *)
-
 Definition extendS (m: ctxS) (s: fin) (t: expressions.sort) :=
   consS s t m.
 
@@ -42,18 +30,6 @@ Fixpoint lookupT (m: ctxT) (s: fin): option ltt :=
     | consT s' t' xs => if Nat.eqb s s' then Some t' else lookupT xs s
     | emptyT          => None
   end.
-
-(* Fixpoint existsbS (n : fin) (l: ctxS) : bool :=
-    match l with
-      | emptyS => false
-      | consS f _ l => (Nat.eqb n f) || existsbS n l
-    end.
-
-Fixpoint existsbT (n : fin) (l: ctxT) : bool :=
-    match l with
-      | emptyT => false
-      | consT f _ l => (Nat.eqb n f) || existsbT n l
-    end. *)
 
 Fixpoint consistent_ctxS (m : ctxS) : Prop := 
   match m with 
@@ -112,6 +88,16 @@ Fixpoint findCtxT (n: fin) (t: ltt) (m: ctxT): Prop :=
     | _            => False
   end.
 
+Search (Forall2).
+
+(* Inductive Forall5 : forall [A B C D E : Type], (A -> B -> C -> D -> E -> Prop) -> seq A -> seq B -> seq C -> seq D -> seq E -> Prop :=
+  | Forall5_nil  : forall [A B C D E : Type] (R : A -> B -> C -> D -> E -> Prop), Forall5 R [] [] [] [] []
+  | Forall5_cons : forall [A B C D E : Type] [R : A -> B -> C -> D -> E -> Prop] (a : A) (b : B) (c : C) (d : D) (e : E) [l0 : seq A] [l1 : seq B] [l2 : seq C] [l3 : seq D] [l4 : seq E], R a b c d e -> Forall5 R l0 l1 l2 l3 l4 -> Forall5 R (a :: l0) (b :: l1) (c :: l2) (d :: l3) (e :: l4).
+  
+Inductive Forall3 : forall [A B C : Type], (A -> B -> C -> Prop) -> seq A -> seq B -> seq C -> Prop :=
+  | Forall3_nil  : forall [A B C : Type] (R : A -> B -> C -> Prop), Forall3 R [] [] []
+  | Forall3_cons : forall [A B C : Type] [R : A -> B -> C -> Prop] (a : A) (b : B) (c : C) [l0 : seq A] [l1 : seq B] [l2 : seq C], R a b c -> Forall3 R l0 l1 l2 -> Forall3 R (a :: l0) (b :: l1) (c :: l2). *)
+
 Inductive typ_proc: fin -> ctxS -> ctxT -> process -> ltt -> Prop :=
   | tc_inact: forall em cs ct, consistent_ctxS cs -> consistent_ctxT ct -> typ_proc em cs ct (p_inact) (ltt_end)
   | tc_var  : forall em cs ct s t, consistent_ctxS cs -> consistent_ctxT ct -> Some t = lookupT ct s ->
@@ -127,18 +113,47 @@ Inductive typ_proc: fin -> ctxS -> ctxT -> process -> ltt -> Prop :=
   | tc_sub  : forall em cs ct p t t', typ_proc em cs ct p t ->
                                               subtypeC t t' ->
                                               typ_proc em cs ct p t'
-  | tc_recv : forall em cs ct p lb st pr ty L ST P T,
+  | tc_recv : forall em cs ct p L ST P T,
                      length L = length ST ->
                      length ST = length P ->
                      length P = length T ->
-                     typ_proc (S em) (extendS cs em st) ct pr ty ->
-                     List.Forall (fun u => typ_proc (S em) (extendS cs em (fst u)) ct (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
-                     typ_proc em cs ct (p_recv p lb pr L P) (ltt_recv p (zip (zip (lb::L) (st::ST)) (ty::T)))
+                     SSortedNList L ->
+                     Forall2 (fun u v => typ_proc (S em) (extendS cs em (fst v)) ct u (snd v)) P (zip ST T) ->
+                     typ_proc em cs ct (p_recv p L P) (ltt_recv p (zip (zip L ST) T))
   | tc_send: forall em cs ct p l e P S T, typ_expr cs e S ->
                                           typ_proc em cs ct P T ->
                                           typ_proc em cs ct (p_send p l e P) (ltt_send p [(l,S,T)]).
 
 Print typ_proc_ind.
+
+Section typ_proc_ind_ref.
+  Variable P : fin -> ctxS -> ctxT -> process -> ltt -> Prop.
+  Hypothesis P_inact : forall em cs ct, consistent_ctxS cs -> consistent_ctxT ct -> P em cs ct p_inact ltt_end.
+  Hypothesis P_var   : forall em cs ct s t, consistent_ctxS cs -> consistent_ctxT ct -> Some t = lookupT ct s -> P em cs ct (p_var s) t.
+  Hypothesis P_mu    : forall em cs ct x p t t', let ct' := extendT ct x t in P em cs ct' p t -> subtypeC t t' -> P  em cs ct (p_rec x p) t'.
+  Hypothesis P_ite   : forall em cs ct e p1 p2 T, typ_expr cs e sbool -> P em cs ct p1 T -> P em cs ct p2 T -> P em cs ct (p_ite e p1 p2) T.
+  Hypothesis P_sub   : forall em cs ct p t t', P em cs ct p t -> subtypeC t t' -> P em cs ct p t'.
+  Hypothesis P_recv  : forall em cs ct p L ST Pr T, length L = length ST -> length ST = length Pr -> length Pr = length T ->
+                     SSortedNList L ->
+                     List.Forall2 (fun u v => P (S em) (extendS cs em (fst v)) ct u (snd v)) Pr (zip ST T) ->
+                     P em cs ct (p_recv p L Pr) (ltt_recv p (zip (zip L ST) T)).
+  Hypothesis P_send  : forall em cs ct p l e Pr S T, typ_expr cs e S -> P em cs ct Pr T -> P em cs ct (p_send p l e Pr) (ltt_send p [(l,S,T)]).
+  
+  Fixpoint typ_proc_ind_ref (em : fin) (cs : ctxS) (ct : ctxT) (p : process) (T : ltt) (a : typ_proc em cs ct p T) {struct a} : P em cs ct p T.
+    refine (match a with
+      | tc_inact e s t Hs Ht => P_inact e s t Hs Ht
+      | tc_var e s t s1 t1 Hs Ht Hsl => P_var e s t s1 t1 Hs Ht Hsl
+      | tc_mu e sc tc x pr t t' Ht Hst => P_mu e sc tc x pr t t' (typ_proc_ind_ref e sc (extendT tc x t) pr t Ht) Hst
+      | tc_ite e sc tc ex p1 p2 t He Hp1 Hp2 => P_ite e sc tc ex p1 p2 t He (typ_proc_ind_ref e sc tc p1 t Hp1) (typ_proc_ind_ref e sc tc p2 t Hp2)
+      | tc_sub e sc tc pr t t' Ht Hst => P_sub e sc tc pr t t' (typ_proc_ind_ref e sc tc pr t Ht) Hst
+      | tc_recv e sc st p L ST Pr Tr HL HST HP HsL Hm => P_recv e sc st p L ST Pr Tr HL HST HP HsL _
+      | tc_send e sc tc p l ex Pr Sr Tr He HT => P_send e sc tc p l ex Pr Sr Tr He (typ_proc_ind_ref e sc tc Pr Tr HT)
+    end); try easy.
+    revert Hm.
+    apply Forall2_mono. intros. apply (typ_proc_ind_ref (S e) (extendS sc e (fst y)) st x (snd y) H).
+  Qed.
+
+End typ_proc_ind_ref.
 
 Lemma natb_to_prop : forall a b, (a =? b)%nat = true -> a = b.
 Proof. 

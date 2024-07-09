@@ -58,45 +58,28 @@ Proof. intros A B l1.
          apply IHl1. easy.
 Qed.
 
-Lemma remove_S : forall {a b : fin}, S a = S b -> a = b.
+(* Lemma remove_S : forall {a b : fin}, S a = S b -> a = b.
 Proof.
   intros.
   inversion H. easy.
 Qed.
-
-Lemma _a23_a: forall em p lb pr L Q P Gs Gt T, 
+ *)
+Lemma _a23_a: forall em p L Q P Gs Gt T, 
   typ_proc em Gs Gt P T ->
-  P = (p_recv p lb pr L Q) -> 
-  (exists ty st T' S, length (ty::T') = length (lb::L) -> length (ty::T') = length (st::S) -> length (ty::T') = length (pr::Q) -> subtypeC (ltt_recv p (zip (zip (lb::L) (st::S)) (ty::T'))) T /\  
-  typ_proc (Datatypes.S em) (extendS Gs em st) Gt pr ty /\
-  List.Forall (fun u => typ_proc (Datatypes.S em) (extendS Gs em (fst u)) Gt (fst (snd u)) (snd (snd u))) (zip S (zip Q T'))).
+  P = (p_recv p L Q) -> 
+  (exists T' S, length T' = length L -> length T' = length S -> length T' = length Q -> subtypeC (ltt_recv p (zip (zip L S) T')) T /\ SSortedNList L /\ 
+  List.Forall2 (fun u v => typ_proc (Datatypes.S em) (extendS Gs em (fst v)) Gt u (snd v)) Q (zip S T')).
 Proof. intros.
        induction H; intros; try easy.
        specialize(IHtyp_proc H0).
        destruct IHtyp_proc as (q',IHtyp_proc).
-       destruct IHtyp_proc. destruct H2. destruct H2. simpl in H2.
-       exists q'. exists x. exists x0. exists x1. simpl.
-       intros.
-       specialize(H2 H3 H4 H5); intros.
-       destruct H2. destruct H6. split.
-       specialize(stTrans (ltt_recv p ((lb, x, q') :: zip (zip L x1) x0)) t t' H2 H1); intros.
+       destruct IHtyp_proc.
+       exists q'. exists x. intros. destruct H2; try easy.
+       destruct H6. split.
+       specialize(stTrans (ltt_recv p (zip (zip L x) q')) t t' H2 H1); intros.
        easy.
-       split. easy.
-       apply Forall_forall.
-       intros (y1, (y2, y3)) Hx.
-       simpl in *.
-       rewrite Forall_forall in H7.
-       specialize(H7 (y1,(y2,y3)) Hx); intros. 
-       simpl in H7. easy.
-       
-       clear IHtyp_proc.
-       inversion H0. subst. 
-       exists ty. exists st. exists T. exists ST.
-       intros. simpl in *.
-       specialize(remove_S H5); intros. 
-       specialize(remove_S H6); intros. 
-       specialize(remove_S H7); intros.
-       clear H5 H6 H7. 
+       split. easy. easy.
+       inversion H0. subst. exists T. exists ST. intros.       
        split. easy. split. easy. easy.
 Qed.
 
