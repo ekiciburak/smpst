@@ -231,9 +231,6 @@ Section alphaP_ind_ref.
   Hypothesis P_recv : forall p llb xs ys, List.Forall2 P xs ys -> P (p_recv p llb xs) (p_recv p llb ys).
   Hypothesis P_ite  : forall e P1 P2 Q1 Q2, P P1 Q1 -> P P2 Q2 -> P (p_ite e P1 P2) (p_ite e Q1 Q2).
   Hypothesis P_rec  : forall x y z P1 P2, fresh_in z (p_rec x P1) -> fresh_in z (p_rec y P2) -> P (rename_force x z P1) (rename_force y z P2) -> P (p_rec x P1) (p_rec y P2).
-(*   Hypothesis P_recl : forall x y P1 P2, fresh_in y (p_rec x P1) -> alphaP (rename_force x y P1) P2 -> P (p_rec x P1) (p_rec y P2).
-  Hypothesis P_recr : forall x y P1 P2, fresh_in x (p_rec y P2) -> alphaP (rename_force y x P2) P1  -> P (p_rec x P1) (p_rec y P2).
-  Hypothesis P_recn : forall x P1 P2, P P1 P2 -> P (p_rec x P1) (p_rec x P2).  *)
 
   Fixpoint alphaP_ind_ref (P1 P2 : process) (a : alphaP P1 P2) {struct a} : P P1 P2 :=
     match a with 
@@ -243,9 +240,6 @@ Section alphaP_ind_ref.
       | a_recv p llb xs ys La => P_recv p llb xs ys (Forall2_mono alphaP_ind_ref xs ys La)
       | a_ite e P1 P2 Q1 Q2 H1 H2 => P_ite e P1 P2 Q1 Q2 (alphaP_ind_ref P1 Q1 H1) (alphaP_ind_ref P2 Q2 H2)
       | a_rec x y z P1 P2 Hfx Hfy Hr => P_rec x y z P1 P2 Hfx Hfy (alphaP_ind_ref (rename_force x z P1) (rename_force y z P2) Hr)
-(*       | a_recl x y P1 P2 Hfy Hr => P_recl x y P1 P2 Hfy Hr
-      | a_recr x y P1 P2 Hfy Hr => P_recr x y P1 P2 Hfy Hr
-      | a_rec2 x P1 P2 Ha => P_recn x P1 P2 (alphaP_ind_ref P1 P2 Ha) *)
     end.
 
 End alphaP_ind_ref.
@@ -306,9 +300,6 @@ Proof.
   - specialize(a_ite e Q1 Q2 P1 P2 IHalphaP IHalphaP0); intros. easy.
   - specialize(a_rec y x z P2 P1 H0 H IHalphaP); intros. easy.
 Qed.
-
-Lemma rename_trans : forall x1 x2 x3 P, rename_force x2 x3 (rename_force x1 x2 P) = rename_force x1 x3 P.
-Admitted.
 
 Lemma strong_ind (P : nat -> Prop) :
   (forall m, (forall k : nat, lt k m -> P k) -> P m) ->
@@ -383,6 +374,38 @@ Proof.
     - simpl. replace (process_size P) with (process_size (rename_force m n P)). easy.
 Qed.
 
+Lemma wtyped_renaming_helper : forall k p q, (k < 1 + q)%coq_nat -> (k < 1 + max p q)%coq_nat.
+Proof.
+        intros. specialize(Nat.le_max_r p q); intros.
+        specialize(PeanoNat.lt_n_Sm_le k q H); intros.
+        specialize(Nat.le_succ_l k (1 + Init.Nat.max p q)); intros. destruct H2. apply H2. clear H2 H3.
+        specialize(Nat.le_trans k q (Nat.max p q) H1 H0); intros.
+        apply le_n_S. easy.
+Qed.
+
+Lemma wtyped_renaming_helper2 : forall k p q, (k < 1 + p)%coq_nat -> (k < 1 + max p q)%coq_nat.
+Proof.
+        intros. specialize(Nat.le_max_l p q); intros.
+        specialize(PeanoNat.lt_n_Sm_le k p H); intros.
+        specialize(Nat.le_succ_l k (1 + Init.Nat.max p q)); intros. destruct H2. apply H2. clear H2 H3.
+        specialize(Nat.le_trans k p (Nat.max p q) H1 H0); intros.
+        apply le_n_S. easy.
+Qed.
+
+
+Lemma alphaP_refl_list : forall x s l l0,
+    (forall k : fin,
+    (k < x)%coq_nat ->
+    forall P : process, process_size P = k -> alphaP P P) -> process_size (p_recv s l l0) = x ->  Forall2 alphaP l0 l0.
+Proof.
+  intros x s l l0. induction l0.
+  intros. easy.
+  intros.
+  specialize(IHl0 H); intros.
+  
+  
+  Admitted.
+
 Lemma alphaP_refl : forall P, alphaP P P.
 Proof.
   intro P.
@@ -394,74 +417,24 @@ Proof.
   - intros. apply a_inact.
   - intros. apply a_send. simpl in H0.
     specialize(H (process_size P)); intros. 
-    admit.
-  - intros. apply a_recv. simpl in H0.
-    admit.
-  - admit.
-  - admit.
-Admitted.
-  
-
-Lemma alphaP_refl_rename : forall m n P, alphaP P P -> fresh_in n P -> alphaP (rename_force m n P) (rename_force m n P).
-Proof.
-  intros m n P. 
-  induction P using process_ind_ref; intros; try easy.
-  - simpl.
-    case_eq (Nat.eqb n0 m); intros.
-     - replace (n0 =? m)%nat with true.
-       admit.
-     - easy.
-  - simpl. inversion H. subst.
-    specialize(IHP H2); intros.
-    apply a_send. simpl in H0. apply IHP. easy.
-  - admit.
-  - simpl. inversion H. subst. 
-    simpl in H0. destruct H0.
-    specialize(IHP1 H3 H0); intros. specialize(IHP2 H7 H1); intros.
-    apply a_ite. easy. easy.
-  - simpl.
-    case_eq (Nat.eqb m n0); intros.
-    - easy.
-    - 
-      
-      
-  
-  Admitted.
-
-Lemma alphaP_refl : forall P, wtyped P -> alphaP P P.
-Proof.
-  intros. 
-  induction P using process_ind_ref.
-  - specialize(a_var n); intros; try easy.
-  - specialize(a_inact); intros; try easy.
-  - inversion H.
-  
-    specialize(IHP H1); intros.
-    specialize(a_send pt lb ex P P IHP); intros; try easy.
-    
-  - specialize(a_recv); intros.
-    inversion H. subst.
-    specialize(H1 pt llb llp llp H5 H5); intros.
-    specialize(refl_alphaP_helper llp H7 H0); intros.
-    specialize(H1 H2); intros. easy.
-    
-  - specialize(a_ite e P1 P2 P1 P2); intros.
-    inversion H. subst.
-    specialize(IHP1 H3); intros.
-    specialize(IHP2 H5); intros.
-    specialize(H0 IHP1 IHP2); intros; try easy.
-  
-  - inversion H. subst. specialize(IHP H1); intros.
-    specialize(exists_fresh (p_rec n P)); intros.
-    destruct H0.
-    specialize(a_rec n n x P P H0 H0); intros.
-    specialize(alphaP_refl_rename n x P IHP); intros. simpl in H0. destruct H0.
-    specialize(H3 H4); intros.
-    specialize(H2 H3); easy. 
+    replace x with (1 + process_size P) in H. 
+    specialize(H (Nat.lt_succ_diag_r (process_size P)) P); intros.
+    apply H. easy.
+  - intros. apply a_recv.
+    specialize(alphaP_refl_list x s l l0 H H0); intros. easy.
+  - intros. apply a_ite. simpl in H0.
+    specialize(wtyped_renaming_helper2 (process_size P1) (process_size P1) (process_size P2)); intros.
+    apply H with (k := (process_size P1)); intros; try easy. subst. apply H1.
+    apply Nat.lt_succ_diag_r.
+    specialize(wtyped_renaming_helper (process_size P2) (process_size P1) (process_size P2)); intros.
+    apply H with (k := process_size P2); intros; try easy. subst. apply H1. 
+    apply Nat.lt_succ_diag_r.
+  - intros. specialize(exists_fresh (p_rec n P)); intros. destruct H1.
+    apply a_rec with (z := x0); intros; try easy.
+    apply H with (k := process_size (rename_force n x0 P)); intros; try easy. subst. simpl.
+    specialize(size_cons_rename n x0 P); intros. replace (process_size (rename_force n x0 P)) with (process_size P); intros.
+    apply Nat.lt_succ_diag_r.
 Qed.
-
-  
-
 
 Lemma inv_alphaP_inact : forall P, alphaP P p_inact -> P = p_inact.
 Proof.
@@ -506,12 +479,11 @@ Proof.
   specialize(Forall2_cons x a H4 IHxs); intros. easy.
 Qed.
 
-Lemma inv_alphaP_recv : forall P pt llb llp, alphaP P (p_recv pt llb llp) -> exists Q, P = p_recv pt llb Q /\ List.Forall2 alphaP llp Q /\ length llb = length Q /\ length llb = length llp.
+Lemma inv_alphaP_recv : forall P pt llb llp, alphaP P (p_recv pt llb llp) -> exists Q, P = p_recv pt llb Q /\ List.Forall2 alphaP llp Q.
 Proof.
   intros. inversion H. exists xs. 
-  split. easy. split. subst.
-  specialize(forall2_alphaP_sym xs llp H6); intros. easy.
-  easy.
+  split. easy. subst.
+  specialize(forall2_alphaP_sym xs llp H2); intros. easy.
 Qed.
 
 Lemma inv_alphaP_ite : forall P e P1 P2, alphaP P (p_ite e P1 P2) -> exists Q1 Q2, P = p_ite e Q1 Q2 /\ alphaP P1 Q1 /\ alphaP P2 Q2.
@@ -562,116 +534,6 @@ Proof.
     specialize(alphaP_sym (rename_force x z P0) (rename_force n z Q) H5); intros. easy. easy.
 Qed.
 
-
-(* 
-Lemma renaming_reversal_list : forall n m x llp, Forall (fresh_in m) llp -> Forall2 alphaP (list_map (rename_force n m) llp) x -> Forall
-      (fun P : process =>
-       forall (Q : process) (n m : fin),
-       alphaP (rename_force n m P) Q ->
-       fresh_in m P -> alphaP (rename_force m n Q) P) llp -> Forall2 alphaP (list_map (rename_force m n) x) llp.
-Proof.
-  intros n m x llp. revert x.
-  induction llp.
-  intros. 
-  simpl in H0. 
-  specialize(Forall2_length H0); intros. simpl in H2.
-  specialize(length_zero_iff_nil x); intros. destruct H3.
-  specialize(H3 (esym H2)); intros. subst. easy.
-  intros.
-  specialize(Forall_cons_iff (fresh_in m) a llp); intros. destruct H2.
-  specialize(H2 H); intros. clear H3. destruct H2.
-  specialize(Forall2_length H0); intros. simpl in H4.
-  specialize(positive_list_length_dst x (length (list_map (rename_force n m) llp))); intro.
-  specialize(H5 (esym H4)). destruct H5. destruct H5. subst. 
-  specialize(Forall2_cons_iff alphaP (rename_force n m a) x0 (list_map (rename_force n m) llp) x1); intros. destruct H5.
-  simpl in H0. 
-  specialize(H5 H0); intros. destruct H5. clear H6.
-  simpl in IHllp.
-  specialize(IHllp x1 H3 H7); intros.
-  specialize(Forall_cons_iff (fun P : process =>
-        forall (Q : process) (n m : fin),
-        alphaP (rename_force n m P) Q ->
-        fresh_in m P -> alphaP (rename_force m n Q) P) a llp); intros. 
-  destruct H6. specialize(H6 H1); intros. clear H7 H8. destruct H6.
-  specialize(IHllp H7); intros.       
-  specialize(H6 x0 n m H5 H2); intros.
-  simpl.
-  clear H H0 H1 H2 H3 H4 H5 H7.
-  specialize(Forall2_cons_iff alphaP (rename_force m n x0) a (list_map (rename_force m n) x1) llp); intros.
-  destruct H. simpl in H0. apply H0. clear H0 H. split.
-  easy. easy.
-Qed.
-
-Lemma renaming_reversal_alphaP : forall P Q n m, alphaP (rename_force n m P) Q -> fresh_in m P -> alphaP (rename_force m n Q) P.
-Proof.
-  intro P. induction P using process_ind_ref; intros; try easy.
-  - simpl in H.
-    case_eq(Nat.eqb n n0); intros.
-    - replace (n =? n0)%nat with true in H.
-      specialize(inv_alphaP_var Q m (alphaP_sym (p_var m) Q H)); intros. subst.
-      simpl. 
-      specialize(Nat.eqb_refl m); intros.
-      replace (m =? m)%nat with true.
-      specialize(Nat.eqb_eq n n0); intros. destruct H3. specialize(H3 H1). subst.
-      specialize(alphaP_refl (p_var n0)); intros; try easy.
-      specialize(wp_var n0); intros.
-      specialize(H3 H5); easy.
-    - replace (n =? n0)%nat with false in H. 
-      specialize(inv_alphaP_var Q n (alphaP_sym (p_var n) Q H)); intros. subst.
-      simpl. specialize(freshness_in_var m n H0); intros.
-      specialize(Nat.eqb_neq n m); intros. destruct H3.
-      specialize(nesym H2); intros.
-      specialize(H4 H5); intros. replace (n =? m)%nat with false. 
-      apply (a_var n).
-    - simpl in H. specialize(inv_alphaP_inact Q (alphaP_sym p_inact Q H)); intros.
-      subst. simpl. apply a_inact.
-    - specialize(freshness_in_send m pt lb ex P H0); intros.
-      simpl in H. specialize(inv_alphaP_send Q (rename_force n m P) pt lb ex); intros.
-      specialize(H2 (alphaP_sym (p_send pt lb ex (rename_force n m P)) Q H)); intros. 
-      destruct H2. destruct H2. subst.
-      specialize(IHP x n m (alphaP_sym x (rename_force n m P) H3) H1); intros.
-      simpl. 
-      specialize(a_send pt lb ex (rename_force m n x) P IHP); intros. easy.
-    - simpl in *. specialize(inv_alphaP_recv Q pt llb (list_map (rename_force n m) llp)); intros.
-      specialize(H2 (alphaP_sym (p_recv pt llb (list_map (rename_force n m) llp)) Q H0)); intros.
-      destruct H2. destruct H2. destruct H3. destruct H4.
-      subst. specialize(freshness_in_recv m pt llb llp H1); intros.
-      simpl.
-      specialize(renaming_reversal_list n m x llp H2 H3 H); intros.
-      specialize(a_recv pt llb (list_map (rename_force m n) x) llp); intros.
-      specialize(map_length (rename_force m n) x); intros. 
-      specialize(map_length (rename_force n m) llp); intros.
-      specialize(eq_trans H5 H9); intros.
-      specialize(eq_trans H4 (esym H8)); intros.
-      specialize(H7 H11 H10 H6); intros. easy.
-    - simpl in H.
-      specialize(inv_alphaP_ite Q e (rename_force n m P1) (rename_force n m P2)); intros.
-      specialize(alphaP_sym (p_ite e (rename_force n m P1) (rename_force n m P2)) Q H); intros.
-      specialize(H1 H2); intros. destruct H1. destruct H1. destruct H1. destruct H3.
-      inversion H0. subst.
-      specialize(IHP1 x n m H3 H5); intros.
-      specialize(IHP2 x0 n m H4 H6); intros.
-      simpl. 
-      specialize(a_ite e (rename_force m n x) (rename_force m n x0) P1 P2 IHP1 IHP2); intros. easy.
-    - simpl in H.
-      case_eq (Nat.eqb n0 n); intros. replace (n0 =? n)%nat with true in H.
-      specialize(inv_alphaP_rec Q n P (alphaP_sym (p_rec n P) Q H)); intros.
-      destruct H2. destruct H2. 
-      destruct H2. destruct H2. destruct H3. subst.
-      simpl in H0. destruct H0. simpl in H4. destruct H4. specialize(IHP x0 n x H3 H5); intros.
-      simpl.
-       - case_eq (Nat.eqb m x); intros. apply (alphaP_sym (p_rec n P) (p_rec x x0) H).
-       - specialize(a_recr); intros. 
-      
-      
-      
-      
-Admitted. 
-    *)
-    
-Lemma wtyped_through_fresh : forall P x z, wtyped P -> fresh_in z P -> wtyped (rename_force x z P).
-Admitted.
-
 Lemma wtyped_alphaP_helper : forall llp x, Forall
       (fun P : process => forall Q : process, alphaP P Q -> wtyped P -> wtyped Q)
       llp -> Forall2 alphaP llp x -> Forall wtyped llp -> Forall wtyped x.
@@ -700,87 +562,208 @@ Proof.
     specialize(Forall_cons x0 H3 IHllp); intros. easy.
 Qed.
 
+Lemma wtyped_renaming : forall m n P, wtyped P -> wtyped (rename_force m n P).
+Proof.
+  intros m n P.
+  specialize(psize_exists P); intros.
+  destruct H.
+  revert H H0. revert m n P. 
+  induction x using strong_ind.
+  intros. destruct P; try easy.
+  - simpl. case_eq (Nat.eqb n0 m); intros. 
+    apply wp_var. apply wp_var.
+  - simpl. apply wp_send. simpl in H0.
+    specialize(H (process_size P)); intros. 
+    inversion H1. subst. 
+    specialize(Nat.lt_succ_diag_r (process_size P)); intros.
+    specialize(H H0 m n P); intros. apply H. easy. easy.
+  - simpl. 
+    inversion H1. subst. 
+    apply wp_recv; try easy. specialize(map_length (rename_force m n) l0); intros.
+    specialize(eq_trans H5 (esym H0)); intros. easy.
+    clear H1 H5 H6. 
+    induction l0. easy.
+    assert((forall k : fin,
+        (k < process_size (p_recv s l l0))%coq_nat ->
+        forall (m n : fin) (P : process),
+        process_size P = k -> wtyped P -> wtyped (rename_force m n P))).
+    
+    {
+      intros. specialize(H k); intros.
+      simpl in H.
+      
+      specialize(wtyped_renaming_helper k (process_size a) ((fix mx_siz (lis : seq process) : fin :=
+           match lis with
+           | [] => 0
+           | (x :: xs)%list => Init.Nat.max (process_size x) (mx_siz xs)
+           end) l0)%coq_nat H0); intros.
+      specialize(H H3 m0 n0 P H1 H2); intros. easy. 
+    }
+    specialize(IHl0 H0); intros.
+    specialize(Forall_cons_iff wtyped a l0); intros. destruct H1.
+    specialize(H1 H7); intros. destruct H1.
+    specialize(H (process_size a)); intros. clear H0 H2.
+    specialize(IHl0 H3); intros. clear H3.
+    simpl in H.
+    specialize(wtyped_renaming_helper2 (process_size a) (process_size a) 
+       (((fix mx_siz (lis : seq process) : fin :=
+           match lis with
+           | [] => 0
+           | (x :: xs)%list => Init.Nat.max (process_size x) (mx_siz xs)
+           end) l0))%coq_nat); intros.
+    specialize(Nat.lt_succ_diag_r (process_size a)); intros.
+    specialize(H0 H2); intros. clear H2.
+    specialize(H H0 m n a); intros.
+    specialize(H (erefl (process_size a)) H1); intros. clear H0.
+    specialize(Forall_cons_iff wtyped (rename_force m n a) (list_map (rename_force m n) l0)); intros.
+    destruct H0.
+    apply H2. split. easy. easy.
+  - simpl. inversion H1. subst. apply wp_ite. 
+    apply H with (k := process_size P1); try easy.
+    simpl. specialize(wtyped_renaming_helper2 (process_size P1) (process_size P1) (process_size P2)); intros.
+    apply H0. apply Nat.lt_succ_diag_r.
+    apply H with (k := process_size P2); try easy.
+    simpl. specialize(wtyped_renaming_helper (process_size P2) (process_size P1) (process_size P2)); intros.
+    apply H0. apply Nat.lt_succ_diag_r.
+  - simpl. case_eq (Nat.eqb m n0); intros. easy.
+    apply wp_rec. inversion H1. subst.
+    apply H with (k := (process_size P)); intros; try easy.
+    simpl.
+    apply Nat.lt_succ_diag_r.
+Qed.
+    
+Lemma wtyped_renamingb : forall m n P, wtyped (rename_force m n P) -> wtyped P.
+Proof.
+  intros m n P. 
+  induction P using process_ind_ref; intros; try easy.
+  - apply wp_var.
+  - apply wp_send. simpl in H. inversion H. subst. 
+    specialize(IHP H1); intros; try easy.
+  - inversion H0. subst.
+    apply wp_recv; try easy.
+    specialize(map_length (rename_force m n) llp); intros.
+    specialize(eq_trans H4 H1); intros; try easy.
+    clear H0 H4 H5.
+    specialize(Forall_map (rename_force m n) wtyped llp); intros.
+    destruct H0. specialize(H0 H6); intros.
+    clear H1.
+    induction llp. easy.
+    specialize(Forall_cons_iff (fun P : process => wtyped (rename_force m n P) -> wtyped P) a llp); intros.
+    destruct H1. specialize(H1 H); intros. clear H2.
+    specialize(Forall_cons_iff wtyped (rename_force m n a) (list_map (rename_force m n) llp)); intros.
+    destruct H2. specialize(H2 H6); intros. clear H3. destruct H1. destruct H2.
+    specialize(Forall_cons_iff (fun x : process => wtyped (rename_force m n x)) a llp); intros.
+    destruct H5. specialize(H5 H0); intros. destruct H5. clear H7.
+    specialize(IHllp H3 H4 H8); intros.
+    specialize(H1 H2); intros.
+    apply Forall_cons; try easy.
+  - inversion H. subst. 
+    apply wp_ite. specialize(IHP1 H2); intros; try easy. specialize(IHP2 H4); intros; try easy.
+  - simpl in H. case_eq (Nat.eqb m n0); intros.
+    - replace (m =? n0)%nat with true in *. easy.
+    - replace (m =? n0)%nat with false in *. inversion H. subst.
+      specialize(IHP H2); intros. 
+      apply wp_rec. easy.
+Qed.
+
+Lemma wtyped_alphaP_list : forall s l l0 x0,
+    (forall k : fin,
+    (k < process_size (p_recv s l l0))%coq_nat ->
+    forall P : process,
+    process_size P = k ->
+    forall Q : process, alphaP P Q -> wtyped P -> wtyped Q) -> Forall2 alphaP l0 x0 -> Forall wtyped l0 -> Forall wtyped x0.
+Proof.
+  intros s l l0. revert l. induction l0.
+  intros. specialize(Forall2_length H0); intros.
+  simpl in H1. specialize(length_zero_iff_nil x0); intros.
+  destruct H3. specialize(H3 (esym H2)); intros. subst. easy.
+  intros.
+  specialize (Forall2_length H0); intros. simpl in H2.
+  specialize (positive_list_length_dst x0 (length l0) (esym H2)); intros.
+  destruct H3. destruct H3. subst.
+  specialize(IHl0 l x1); intros.
+  assert ((forall k : fin,
+        (k < process_size (p_recv s l l0))%coq_nat ->
+        forall P : process,
+        process_size P = k ->
+        forall Q : process, alphaP P Q -> wtyped P -> wtyped Q)).
+  {
+    intros. 
+    specialize(H k); intros. simpl in H.
+    specialize(wtyped_renaming_helper k (process_size a) ((((fix mx_siz (lis : seq process) : fin :=
+           match lis with
+           | [] => 0
+           | (x :: xs)%list => Init.Nat.max (process_size x) (mx_siz xs)
+           end) l0))%coq_nat) H3); intros.
+    specialize(H H7 P H4 Q H5 H6); intros. clear H7. easy.
+  }
+  specialize(IHl0 H3); intros.
+  specialize(H (process_size a)); intros.
+  simpl in H.
+  specialize(wtyped_renaming_helper2 (process_size a) (process_size a) ((((fix mx_siz (lis : seq process) : fin :=
+           match lis with
+           | [] => 0
+           | (x :: xs)%list => Init.Nat.max (process_size x) (mx_siz xs)
+           end) l0))%coq_nat)); intros.
+  specialize(H4 (Nat.lt_succ_diag_r (process_size a))); intros.
+  specialize(H H4 a); intros. clear H4.
+  specialize(Forall2_cons_iff alphaP a x l0 x1); intros. destruct H4. specialize(H4 H0); intros. destruct H4.
+  specialize(H (erefl (process_size a)) x H4); intros. 
+  specialize(Forall_cons_iff wtyped a l0); intros. destruct H7. specialize (H7 H1); intros. destruct H7.
+  specialize(H H7); intros. clear H7 H8 H5.
+  specialize(IHl0 H6 H9); intros.
+  apply Forall_cons; try easy.
+Qed.
+
+
 Lemma wtyped_alphaP : forall P Q, alphaP P Q -> wtyped P -> wtyped Q.
 Proof.
-  intro P. induction P using process_ind_ref; intros; try easy.
-  - specialize(inv_alphaP_var Q n); intros. 
-    specialize(alphaP_sym (p_var n) Q H); intros. 
-    specialize(H1 H2); intros; try easy. subst. easy.
+  intro P. specialize(psize_exists P); intro. 
+  destruct H. revert H. revert P.
+  induction x using strong_ind.
+  intros.
+  destruct P.
+  - specialize(inv_alphaP_var Q n); intros.
+    specialize(alphaP_sym (p_var n) Q H1); intros.
+    specialize(H3 H4); intros. subst. easy.
   - specialize(inv_alphaP_inact Q); intros.
-    specialize(alphaP_sym p_inact Q H); intros. 
-    specialize(H1 H2); intros; try easy. subst. easy. 
-  - specialize(inv_alphaP_send Q P pt lb ex); intros.
-    specialize(alphaP_sym (p_send pt lb ex P) Q H); intros. 
-    specialize(H1 H2); intros. destruct H1. destruct H1. subst. 
-    specialize(alphaP_sym x P H3); intros.
-    specialize(IHP x H1); intros.
-    inversion H0. subst. 
-    specialize(IHP H5); intros.
-    apply (wp_send pt lb ex x). easy.
-  - specialize(inv_alphaP_recv Q pt llb llp); intros.
-    specialize(alphaP_sym (p_recv pt llb llp) Q H0); intros.
-    specialize(H2 H3); intros. 
-    destruct H2. destruct H2. destruct H4. destruct H5.
-    inversion H1; subst.
-    specialize(wp_recv pt llb x H5 H11); intros.
-    apply H2.
-    clear H0 H1 H5 H6 H10 H11 H2.
-    specialize(wtyped_alphaP_helper llp x H H4 H12); intros.
-    easy.
-  - specialize(inv_alphaP_ite Q e P1 P2 (alphaP_sym (p_ite e P1 P2) Q H)); intros.
-    destruct H1. destruct H1. destruct H1. destruct H2. subst.
-    inversion H0. subst.
-    specialize(IHP1 x H2 H5); intros.
-    specialize(IHP2 x0 H3 H7); intros.
-    specialize(wp_ite e x x0 IHP1 IHP2); intros. easy.
-  - specialize(inv_alphaP_rec Q n P (alphaP_sym (p_rec n P) Q H)); intros.
-    destruct H1. destruct H1. destruct H1. destruct H1. destruct H2. destruct H3.
-    inversion H0. subst. 
-    specialize(wtyped_through_fresh x1); intros.
-    
-Admitted.    
-    
-    
-    
-    
-
-(* 
-Lemma alphaP_inv_send : forall P P' p l e, alphaP P (p_send p l e P') 
-  -> exists Q, P = p_send p l e Q /\ alphaP Q P'.
-Proof.
-  intros. inversion H. exists P'. split; try easy. apply (a_refl P').
-  exists P0. easy. 
+    specialize(alphaP_sym p_inact Q H1); intros.
+    specialize(H3 H4); intros; subst. easy.
+  - specialize(inv_alphaP_send Q P s n e (alphaP_sym (p_send s n e P) Q H1)); intros.
+    destruct H3. destruct H3. subst.
+    specialize(H (process_size P)); intros. simpl in H.
+    specialize(Nat.lt_succ_diag_r (process_size P)); intros.
+    specialize(H H0 P (erefl (process_size P)) x0 (alphaP_sym x0 P H4)); intros.
+    inversion H2. subst.
+    apply wp_send. specialize(H H5). easy.
+  - specialize(inv_alphaP_recv Q s l l0 (alphaP_sym (p_recv s l l0) Q H1)); intros.
+    destruct H3. destruct H3. subst. revert H.
+    inversion H2. subst. intros.
+    apply wp_recv; try easy.
+    specialize(Forall2_length H4); intros.
+    specialize(eq_trans H5 H0); intros. easy.
+    inversion H1. subst.
+    specialize(wtyped_alphaP_list s l l0 x0 H H3 H7); intros. easy.
+  - specialize(inv_alphaP_ite Q e P1 P2 (alphaP_sym (p_ite e P1 P2) Q H1)); intros.
+    destruct H3. destruct H3. destruct H3. destruct H4. subst.
+    inversion H2. subst.
+    apply wp_ite.
+    apply H with (k := process_size P1) (P := P1); intros; try easy. simpl.
+    specialize(wtyped_renaming_helper2 (process_size P1) (process_size P1) (process_size P2)); intros.
+    specialize(H0 (Nat.lt_succ_diag_r (process_size P1))); intros; try easy.
+    apply H with (k := process_size P2) (P := P2); intros; try easy. simpl.
+    specialize(wtyped_renaming_helper (process_size P2) (process_size P1) (process_size P2)); intros.
+    specialize(H0 (Nat.lt_succ_diag_r (process_size P2))); intros; try easy.
+  - specialize(inv_alphaP_rec Q n P (alphaP_sym (p_rec n P) Q H1)); intros.
+    destruct H3. destruct H3. destruct H3. destruct H3. destruct H4. destruct H5.
+    subst. apply wp_rec.
+    apply wtyped_renamingb with (m := x0) (n := x1).
+    inversion H2. subst. specialize(wtyped_renaming n x1 P H3); intros. 
+    apply H with (k := process_size (rename_force n x1 P)) (P := (rename_force n x1 P)); try easy.
+    specialize(size_cons_rename n x1 P); intros. simpl.
+    replace (process_size (rename_force n x1 P)) with (process_size P).
+    apply Nat.lt_succ_diag_r.
 Qed.
-
-Lemma zipeq {A : Type} : forall (x y : A) (xs : list A), In (x,y) (zip xs xs) -> x = y.
-  intros x y xs.
-  induction xs.
-  easy. 
-  simpl. 
-  intros. destruct H. 
-  specialize(pair_equal_spec a x a y); intros. destruct H0. specialize(H0 H); intros.
-  destruct H0. subst. easy.
-  specialize(IHxs H); intros.
-  easy.
-Qed.
-  
-Lemma alphaP_cong_recv : forall P p lb x llb xs, alphaP P (p_recv p lb x llb xs) 
-  -> exists y ys, P = p_recv p lb y llb ys /\ alphaP x y /\ List.Forall (fun u => alphaP (fst u) (snd u)) (zip xs ys).
-Proof.
-  intros. inversion H. exists x. exists xs. 
-  split. easy. split. apply (a_refl x). 
-  apply Forall_forall. intros.
-  specialize(surjective_pairing x0); intros.
-  specialize(zipeq x0.1 x0.2 xs); intros.
-  replace (x0.1,x0.2) with x0 in H4.
-  specialize(H4 H2); intros. specialize(a_refl x0.1); intros.
-  replace x0.1 with x0.2 in *. easy.
-  exists x0. exists xs0.
-  split. easy. split. 
-  admit.
-  admit.
-Admitted. *)
-     
 
 Inductive multi {X : Type} (R : relation X) : relation X :=
   | multi_refl : forall (x : X), multi R x x 
