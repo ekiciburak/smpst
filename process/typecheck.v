@@ -179,7 +179,6 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> ltt -> Prop :=
                                         typ_proc m em c P T ->
                                         typ_proc m em c (p_send p l e P) (ltt_send p [(l,S,T)]).
 
-
 Lemma _a23_d: forall P m em Q T G,
   typ_proc m em G P T ->
   (P = (p_rec Q) -> typ_proc (S m) em (extendT G m T) Q T).
@@ -279,57 +278,7 @@ Proof. unfold PBob2.
 Qed.
 
 
-Lemma empty_nil: forall {A: Type} (l: list A),
-  0 = length l <-> l = [].
-Proof. intros A l.
-       case l; intros; easy.
-Qed.
 
-Lemma zip_eq: forall {A B: Type} (l1 l3: list A) (l2 l4: list B),
-  length l1 = length l2 -> length l2 = length l3 -> length l3 = length l4 ->
-  (zip l1 l2) = (zip l3 l4) ->
-  l1 = l3 /\ l2 = l4.
-Proof. intros A B l1.
-       induction l1; intros.
-       - simpl in *.
-         rewrite <- H in H0.
-         rewrite <- H0 in H1.
-         rewrite empty_nil in H.
-         rewrite empty_nil in H0.
-         rewrite empty_nil in H1.
-         subst. easy.
-       - simpl in H.
-         case_eq l2; intros.
-         + subst. simpl in *. easy.
-         + subst. simpl in *.
-           case_eq l3; intros.
-           ++ subst. easy.
-           ++ case_eq l4; intros.
-              -- subst. easy.
-              -- subst. simpl in *.
-                 inversion H2. subst.
-                 inversion H.
-                 inversion H1.
-                 inversion H0.
-                 specialize(IHl1 l0 l l2 H4 H7 H5 H6).
-                 split. f_equal. easy.
-                 f_equal. easy.
-Qed.
-
-Lemma zip_len: forall {A B: Type} (l1: list A) (l2: list B),
-  length l1 = length l2 -> length l1 = length (zip l1 l2).
-Proof. intros A B l1.
-       induction l1; intros.
-       - simpl in H. rewrite empty_nil in H.
-         subst. simpl. easy.
-       - simpl in H. simpl.
-         case_eq l2; intros.
-         subst. easy.
-         subst. simpl in H.
-         inversion H.
-         simpl. f_equal.
-         apply IHl1. easy.
-Qed.
 
 (* Lemma ref_ctx_1: forall c c' t t' u,
  refCtxT t t' c c' -> refCtxT u u c c'.
@@ -841,6 +790,7 @@ Proof. intro c.
            apply helper1 with (c := c); easy.
 Qed.
 
+(* Search (?a + ?b = ?b + ?a). *)
 
 Lemma _a23_e: forall P (n: fin) m em n T G,
   typ_proc m em G P T ->
@@ -962,6 +912,16 @@ Proof. intro G.
          easy.
 Qed.
 
+Lemma asd: forall T T' m em, subtypeC T T' ->
+  typ_proc m em (extendT empty m T') (p_var m) T.
+Proof. intros.
+       specialize(tc_sub m em (extendT empty m T) ((extendT empty m T')) (p_var m) T T); intro HH.
+       apply HH.
+       constructor. simpl.
+       rewrite Nat.eqb_refl.
+       
+Fail Qed. *)
+
 Lemma _a21: forall P Q m em T T' G,
   typ_proc m em G Q T' ->
   typ_proc (S m) em (extendT G m T') P T ->
@@ -990,7 +950,7 @@ Proof. intro P.
          + subst. constructor.
            admit.
            apply IHP with (T' := T'). easy.
-           easy.
+           easy. 
        - admit.
        - admit.
        - admit.
