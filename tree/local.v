@@ -149,9 +149,19 @@ Fixpoint wfsend (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list
       end
   end.
 
+Fixpoint unzipF {A B C: Type} (l: list(A*(B*C))): list A :=
+  match l with
+    | []            => []
+    | (u,(v,t))::xs => u::unzipF xs 
+  end.
+
 Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
   | sub_end: subtype R ltt_end ltt_end
   | sub_in : forall p xs ys,
+(*                     NoDup(unzipF xs) ->
+                    NoDup(unzipF xs) ->
+                    xs <> nil ->
+                    ys > nil -> *)
                     Nat.le (length ys) (length xs) ->
                     wfrec subsort R ys xs ->
                     subtype R (ltt_recv p xs) (ltt_recv p ys)
@@ -184,12 +194,6 @@ Proof. induction l; intros.
          exists (ncons a1 L). exists (ncons a2 S). exists(ncons a3 xs).
          simpl. rewrite Hxs. easy.
 Qed.
-
-Fixpoint unzipF {A B C: Type} (l: list(A*(B*C))): list A :=
-  match l with
-    | []            => []
-    | (u,(v,t))::xs => u::unzipF xs 
-  end.
 
 Lemma unzipIn: forall (l1:  list (label*(sort*ltt))) l s t, In (l, (s, t)) l1 -> In l (unzipF l1).
 Proof. intro l1.
@@ -438,7 +442,6 @@ Proof. intro l1.
            easy.
 Qed.
 
-
 Lemma helperR2: forall (l1 l2:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
    Nat.le (length l1) (length l2) ->
    ( forall l s t, In (l,(s,t)) l1 ->
@@ -604,6 +607,35 @@ Proof. intros A B C l1.
            subst. inversion H0. easy.
 Qed.
 
+Lemma reflstH: forall t1 R,
+  Reflexive R ->
+  wfC t1 ->
+  subtype R t1 t1.
+Proof. intros.
+       case_eq t1; intros.
+       constructor.
+       constructor.
+       lia.
+       apply refl_recv.
+       constructor. easy.
+       subst.
+       punfold H0. inversion H0.
+       subst. simpl.
+       unfold wfL in H3.
+       rewrite unzipL. easy. easy. easy.
+       apply mon_wf.
+       constructor.
+       lia.
+       apply refl_send.
+       constructor. easy.
+       subst.
+       punfold H0. inversion H0.
+       subst. simpl.
+       unfold wfL in H3.
+       rewrite unzipL. easy. easy. easy.
+       apply mon_wf.
+Qed.
+
 Lemma transtH: forall t1 t2 t3 R,
   Transitive R ->
   wfC t1 ->
@@ -711,10 +743,66 @@ Proof. unfold monotone2.
          simpl. left. easy.
 Qed.
 
+Lemma stRefl: forall l, wfC l -> subtypeC l l.
+Proof. pcofix CIH.
+       intros.
+       pfold.
+       case_eq l; intros.
+       constructor.
+       constructor. lia.
+       subst.
+       apply refl_recv.
+       constructor.
+       repeat intro.
+       right. apply CIH.
+       admit.
+       punfold H0.
+       inversion H0. subst.
+       rewrite unzipL. unfold wfL in H2. easy.
+       easy. easy.
+       apply mon_wf.
+       constructor. lia.
+       apply refl_send.
+       constructor.
+       repeat intro.
+       right. apply CIH.
+       admit.
+       subst.
+       punfold H0.
+       inversion H0. subst.
+       rewrite unzipL. unfold wfL in H2. easy.
+       easy. easy.
+       apply mon_wf.
+Admitted.
+
+Lemma stReflv2: forall l, subtypeC l l.
+Proof. pcofix CIH.
+       intros.
+       pfold.
+       case_eq l; intros.
+       constructor.
+       constructor. lia.
+       subst.
+       apply refl_recv.
+       constructor.
+       repeat intro.
+       right. apply CIH.
+       admit.
+
+       constructor. lia.
+       apply refl_send.
+       constructor.
+       repeat intro.
+       right. apply CIH.
+       admit.
+Admitted.
+
+
 #[export]
 Declare Instance stTrans: Transitive (subtypeC).
 
-#[export]
-Declare Instance stRefl: Reflexive (subtypeC).
+(* #[export]
+Declare Instance stRefl: Reflexive (subtypeC). *)
+
 
 
