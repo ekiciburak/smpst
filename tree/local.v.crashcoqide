@@ -9,14 +9,14 @@ Require Import Morphisms.
 (* local session trees *)
 CoInductive ltt: Type :=
   | ltt_end : ltt
-  | ltt_recv: part -> (sort*ltt) -> list (label*sort*ltt) -> ltt
-  | ltt_send: part -> (sort*ltt) -> list (label*sort*ltt) -> ltt.
+  | ltt_recv: part -> list (label*sort*ltt) -> ltt
+  | ltt_send: part -> list (label*sort*ltt) -> ltt.
 
 Definition ltt_id (s: ltt): ltt :=
   match s with
     | ltt_end      => ltt_end
-    | ltt_recv ct p l => ltt_recv ct p l
-    | ltt_send ct p l => ltt_send ct p l
+    | ltt_recv p l => ltt_recv p l
+    | ltt_send p l => ltt_send p l
   end.
 
 Lemma ltt_eq: forall s, s = ltt_id s.
@@ -29,7 +29,7 @@ Proof. intro s; destruct s; easy. Defined.
                    List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
                    lttbisim R (ltt_recv p (zip (zip l s) xs)) (ltt_recv p (zip (zip l s) ys)).
  *)
-(* Inductive lt2ltt (R: local -> ltt -> Prop): local -> ltt -> Prop :=
+Inductive lt2ltt (R: local -> ltt -> Prop): local -> ltt -> Prop :=
   | lt2ltt_end: lt2ltt R l_end ltt_end
   | lt2ltt_rcv: forall p l s xs ys,
                 length xs = length ys ->
@@ -43,7 +43,7 @@ Proof. intro s; destruct s; easy. Defined.
                 lt2ltt R (subst_local ((l_rec l) .: l_var) l) t ->
                 lt2ltt R (l_rec l) t.
 
-Definition lt2lttC l t := paco2 lt2ltt bot2 l t. *)
+Definition lt2lttC l t := paco2 lt2ltt bot2 l t.
 
 Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
   | sub_end: subtype R ltt_end ltt_end

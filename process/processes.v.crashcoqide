@@ -783,35 +783,6 @@ Proof.
     apply Nat.lt_succ_diag_r.
 Qed.
 
-
-
-(* Lemma free_to_fresh : forall x n P1 P2, fresh_in x P1 -> fresh_in x P2 -> alphaP P1 P2 -> alphaP (rename_force n x P1) (rename_force n x P2).
-Proof.
-  intros x n P1. induction P1 using process_ind_ref; intros; try easy.
-  admit.
-  admit.
-  admit.
-  admit.
-  admit.
-Admitted.
-
-Lemma renaming_conj : forall m n x P, fresh_in m P -> fresh_in n P -> (rename_force x m P) = (rename_force n m (rename_force x n P)).
-Proof.
-  intros m n x P. 
-  induction P using process_ind_ref; intros; try easy.
-  - admit.
-  - simpl in H. simpl in H0.
-    specialize(IHP H H0); intros. 
-    simpl. replace (rename_force x m P) with (rename_force n m (rename_force x n P)). easy.
-  - admit.
-  - admit.
-  - simpl. destruct H. destruct H0. 
-    case_eq (Nat.eqb x n0); intros; try easy.
-    - simpl.  
-   
- *)
-
-
 Lemma any_freshness [x m n : fin] [P1 P2 : process] : 
           fresh_in x P1 -> fresh_in x P2 -> alphaP (rename_force m x P1) (rename_force n x P2) -> forall z, 
           fresh_in z P1 -> fresh_in z P2 -> alphaP (rename_force m z P1) (rename_force n z P2).
@@ -832,7 +803,6 @@ Proof.
     - replace (n1 =? n)%nat with true in H3. easy. 
     - replace (n1 =? n)%nat with false in H3. easy.
     simpl. case_eq (Nat.eqb n n1); intros.
-    - apply a_rec with (z := z); try easy.
 
   Admitted.
 

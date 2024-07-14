@@ -9,11 +9,11 @@ Require Import Coq.Logic.Classical_Pred_Type Coq.Logic.ClassicalFacts Coq.Logic.
 (* global session trees *)
 CoInductive gtt: Type :=
   | gtt_end    : gtt
-  | gtt_send   : part -> part -> list (label*sort*gtt) -> gtt.
+  | gtt_send   : part -> part -> list (label*(sort*gtt)) -> gtt.
 
 Definition gtt_id (s: gtt): gtt :=
   match s with
-    | gtt_end      => gtt_end
+    | gtt_end        => gtt_end
     | gtt_send p q l => gtt_send p q l
   end.
 
@@ -22,8 +22,8 @@ Proof. intro s; destruct s; easy. Defined.
 
 CoFixpoint gparts (t: gtt): coseq part :=
   match t with
-    | gtt_send p q [(l,s,g')] => Delay (cocons p (Delay (cocons q (gparts g'))))
-    | _                       => Delay conil
+    | gtt_send p q [(l,(s,g'))] => Delay (cocons p (Delay (cocons q (gparts g'))))
+    | _                         => Delay conil
   end.
 
 (* inductive membership check *)
@@ -36,23 +36,29 @@ Inductive gt2gtt (R: global -> gtt -> Prop): global -> gtt -> Prop :=
   | gt2gtt_snd: forall p q l s xs ys,
                 length xs = length ys ->
                 List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
-                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (zip (zip l s) ys))
+                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (zip l (zip s ys)))
   | gt2gtt_mu : forall g t,
                 gt2gtt R (subst_global ((g_rec g) .: g_var) g) t ->
                 gt2gtt R (g_rec g) t.
 
 Definition gt2lttC g t := paco2 gt2gtt bot2 g t.
 
-Fixpoint findpath (l: list (label*sort*gtt)) (lbl: label): option gtt :=
+Fixpoint findpath (l: list (label*(sort*gtt))) (lbl: label): option (sort*gtt) :=
   match l with
-    | []           => Datatypes.None
-    | (l1,s,g)::xs => if Nat.eqb l1 lbl then Datatypes.Some g else findpath xs lbl
+    | []             => Datatypes.None
+    | (l1,(s,g))::xs => if Nat.eqb l1 lbl then Datatypes.Some (s, g) else findpath xs lbl
+  end.
+
+Fixpoint findpathL (l: list (label*(sort*ltt))) (lbl: label): option (sort*ltt) :=
+  match l with
+    | []             => Datatypes.None
+    | (l1,(s,g))::xs => if Nat.eqb l1 lbl then Datatypes.Some (s, g) else findpathL xs lbl
   end.
 
 Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part -> part -> Prop :=
-  | steq : forall p q l xs gc,
+  | steq : forall p q l xs s gc,
 (*                eqb p q = false -> *)
-                  Datatypes.Some gc = findpath xs l -> gttstep R (gtt_send p q xs) gc p q
+                  Datatypes.Some (s, gc) = findpath xs l -> gttstep R (gtt_send p q xs) gc p q
   | stneq: forall p q r s L S xs ys,
 (*                eqb p q = false ->
                   eqb r s = false -> *)
@@ -63,7 +69,7 @@ Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part ->
                   List.Forall (fun u => coseqIn p (gparts u)) xs ->
                   List.Forall (fun u => coseqIn q (gparts u)) xs ->
                   List.Forall (fun u => R (fst u) (snd u) p q) (zip xs ys) ->
-                  gttstep R (gtt_send r s (zip (zip L S) xs)) (gtt_send p q (zip (zip L S) ys)) p q.
+                  gttstep R (gtt_send r s (zip L (zip S xs))) (gtt_send p q (zip L (zip S ys))) p q.
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
 
@@ -74,20 +80,20 @@ Inductive dropM {A : Type} : A -> list A -> list A -> Prop :=
   | drop0: forall a, dropM a [] []
   | drop1: forall x l1 xs, In x l1 -> ~In x xs -> (forall a, In a (x::xs) <-> In a l1) -> dropM x l1 xs.
 
-Inductive mergeH {A B C: Type}: list (A*B*C) -> list (A*B*C) -> list (A*B*C) -> Prop :=
+Inductive mergeH {A B C: Type}: list (A*(B*C)) -> list (A*(B*C)) -> list (A*(B*C)) -> Prop :=
   | merge0: mergeH [] [] []
   | merge1: forall l1 s1 c1 xs L1 L2 L3,
-            In (l1,s1,c1) L1 ->
-            (forall s2 c2, (In (l1,s2,c2) L2) -> False) ->
-            dropM (l1,s1,c1) L1 L3 ->
+            In (l1,(s1,c1)) L1 ->
+            (forall s2 c2, (In (l1,(s2,c2)) L2) -> False) ->
+            dropM (l1,(s1,c1)) L1 L3 ->
             mergeH L3 L2 xs ->
-            mergeH L1 L2 ((l1,s1,c1)::xs)
+            mergeH L1 L2 ((l1,(s1,c1))::xs)
   | merge2: forall l2 s2 c2 xs L1 L2 L3,
-            In (l2,s2,c2) L2 ->
-            (forall s1 c1, (In (l2,s1,c1) L1) -> False) ->
-            dropM (l2,s2,c2) L2 L3 ->
+            In (l2,(s2,c2)) L2 ->
+            (forall s1 c1, (In (l2,(s1,c1)) L1) -> False) ->
+            dropM (l2,(s2,c2)) L2 L3 ->
             mergeH L1 L3 xs ->
-            mergeH L1 L2 ((l2,s2,c2)::xs)
+            mergeH L1 L2 ((l2,(s2,c2))::xs)
   | merge3: forall x xs L1 L2 L3 L4,
             In x L1 ->
             In x L2 ->
@@ -96,7 +102,7 @@ Inductive mergeH {A B C: Type}: list (A*B*C) -> list (A*B*C) -> list (A*B*C) -> 
             mergeH L3 L4 xs ->
             mergeH L1 L2 (x::xs).
 
-Definition merge {A B C: Type} (l1 l2 l3: list (A*B*C)) :=
+Definition merge {A B C: Type} (l1 l2 l3: list (A*(B*C))) :=
   mergeH l1 l2 l3 /\ dropDups (l1 ++ l2) l3.
 
 Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
@@ -113,24 +119,24 @@ Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop
   | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
   | proj_in  : forall p r l s xs ys,
                List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send p r (zip (zip l s) xs)) (ltt_recv p (zip (zip l s) ys))
+               projection R r (gtt_send p r (zip l (zip s xs))) (ltt_recv p (zip l (zip s ys)))
   | proj_out : forall p r l s xs ys,
                List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send r p (zip (zip l s) xs)) (ltt_send p (zip (zip l s) ys))
-  | proj_cont: forall p q r l s xs ys T,
+               projection R r (gtt_send r p (zip l (zip s xs))) (ltt_send p (zip l (zip s ys))).
+(*   | proj_cont: forall p q r l s xs ys T,
                r <> p ->
                r <> q ->
                List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
                @mergeList ltt ys T ->
-               projection R r (gtt_send p q (zip (zip l s) xs)) T.
+               projection R r (gtt_send p q (zip (zip l s) xs)) T. *)
 
 Definition projectionC r g t := paco3 projection bot3 r g t.
 
-Definition t1 := [(3,sint,ltt_end); (5,snat,ltt_end)].
+Definition t1 := [(3,(sint,ltt_end)); (5,(snat,ltt_end))].
 
-Definition t2 := [(4,sint,ltt_end); (5,snat,ltt_end)].
+Definition t2 := [(4,(sint,ltt_end)); (5,(snat,ltt_end))].
 
-Definition t3 := [(3,sint,ltt_end); (5,snat,ltt_end); (4,sint,ltt_end)].
+Definition t3 := [(3,(sint,ltt_end)); (5,(snat,ltt_end)); (4,(sint,ltt_end))].
 
 Example _39_d: merge_branch (ltt_recv "q" t1) (ltt_recv "q" t2) (ltt_recv "q" t3).
 Proof. constructor.
@@ -138,9 +144,9 @@ Proof. constructor.
        split.
        unfold t1, t2, t3.
        specialize (merge1 3 sint ltt_end
-                   ([(5, snat, ltt_end); (4, sint, ltt_end)])
-                   [(3, sint, ltt_end); (5, snat, ltt_end)] [(4, sint, ltt_end); (5, snat, ltt_end)]
-                   [(5, snat, ltt_end)] 
+                   ([(5, (snat, ltt_end)); (4,(sint, ltt_end))])
+                   [(3, (sint, ltt_end)); (5,(snat, ltt_end))] [(4, (sint, ltt_end)); (5, (snat, ltt_end))]
+                   [(5, (snat, ltt_end))] 
                    ); intros HS.
        apply HS;  clear HS.
        simpl. left. easy.
@@ -154,9 +160,9 @@ Proof. constructor.
        simpl. unfold not.  intro H. destruct H; easy.
        easy.
 
-       specialize (merge3 (5,snat,ltt_end) [(4, sint, ltt_end)]
-                  [(5, snat, ltt_end)] [(4, sint, ltt_end); (5, snat, ltt_end)]
-                  [] [(4, sint, ltt_end)]
+       specialize (merge3 (5,(snat,ltt_end)) [(4,(sint, ltt_end))]
+                  [(5, (snat, ltt_end))] [(4,(sint, ltt_end)); (5, (snat, ltt_end))]
+                  [] [(4, (sint, ltt_end))]
                   ); intro HS.
        apply HS; clear HS.
        simpl. left. easy.
@@ -170,7 +176,7 @@ Proof. constructor.
        simpl. right. left. easy.
        simpl. intro H.
        destruct H; easy.
-       intros ((u,v),y).
+       intros (u,(v,y)).
 
        simpl. split. intro Hc.
        simpl in Hc. 
@@ -187,7 +193,7 @@ Proof. constructor.
 
        specialize (merge2 4 sint ltt_end
                    nil
-                   [] [(4, sint, ltt_end)] []
+                   [] [(4, (sint, ltt_end))] []
                   ); intros HS.
        apply HS;  clear HS.
        simpl. left. easy.
@@ -203,7 +209,7 @@ Proof. constructor.
 
        unfold dropDups.
        split.
-       intros ((l1,s1),c1).
+       intros (l1,(s1,c1)).
        split.
        intro Hx.
        simpl in Hx.
@@ -245,9 +251,9 @@ Proof. constructor.
        apply NoDup_nil.
 Qed.
 
-Definition t4 := [(0,snat,ltt_end)].
+Definition t4 := [(0,(snat,ltt_end))].
 
-Definition t5 := [(0,sint,ltt_end)].
+Definition t5 := [(0,(sint,ltt_end))].
 
 Example _39_f: forall l, merge_branch (ltt_recv "q" t4) (ltt_recv "q" t5) (ltt_recv "q" l) -> False.
 Proof. intro l.
@@ -283,9 +289,9 @@ Proof. intro l.
          + subst. easy.
 Qed.
 
-Definition t6 := [(3,snat,ltt_end)].
+Definition t6 := [(3,(snat,ltt_end))].
 
-Definition t7 := [(3,snat,ltt_recv "q" [(3,snat,ltt_end)])].
+Definition t7 := [(3,(snat,ltt_recv "q" [(3,(snat,ltt_end))]))].
 
 Example _39_e: forall l, merge_branch (ltt_recv "q" t6) (ltt_recv "q" t7) (ltt_recv "q" l) -> False.
 Proof. intro l.
@@ -300,7 +306,7 @@ Proof. intro l.
          + subst.
            inversion H5. inversion H3.
            subst.
-           specialize (H6 snat (ltt_recv "q" [(3,snat,ltt_end)])).
+           specialize (H6 snat (ltt_recv "q" [(3,(snat,ltt_end))])).
            apply H6. simpl. left. easy.
            simpl in H3. easy.
          + subst.
@@ -318,24 +324,51 @@ Proof. intro l.
          + subst. easy.
 Qed.
 
-Example _39_c: forall l, merge_branch (ltt_send "q" [(3,snat,ltt_end)]) (ltt_send "q" [(4,snat,ltt_end)]) l -> False.
+Example _39_c: forall l, merge_branch (ltt_send "q" [(3,(snat,ltt_end))]) (ltt_send "q" [(4,(snat,ltt_end))]) l -> False.
 Proof. intros.
        inversion H.
        subst. easy.
 Qed.
 
-Example _39_a: merge_branch (ltt_send "q" [(0,snat,ltt_end)]) (ltt_send "q" [(0,snat,ltt_end)]) (ltt_send "q" [(0,snat,ltt_end)]).
+Example _39_a: merge_branch (ltt_send "q" [(0,(snat,ltt_end))]) (ltt_send "q" [(0,(snat,ltt_end))]) (ltt_send "q" [(0,(snat,ltt_end))]).
 Proof. constructor.
        easy.
 Qed.
 
-Example _39_b: forall l, merge_branch (ltt_send "p" [(0,snat,ltt_end)]) (ltt_send "q" [(0,snat,ltt_end)]) l -> False.
+Example _39_b: forall l, merge_branch (ltt_send "p" [(0,(snat,ltt_end))]) (ltt_send "q" [(0,(snat,ltt_end))]) l -> False.
 Proof. intros l H.
        inversion H.
        easy.
 Qed.
 
-Lemma _37: forall {A B C: Type} (t1 t2 t3 t4 t5 t6: list (A * B * C)), 
+Check findpath.
+
+Lemma shelp: forall p q l s T L G,
+  projectionC p G L ->
+  subtypeC (ltt_send q [(l,(s,T))]) L -> 
+  exists lk sk Tk xs, Datatypes.Some (sk,Tk) = lkp lk xs -> 
+  l = lk /\ subsort s sk /\ subtypeC T Tk /\ L = (ltt_send q xs).
+Proof. intros.
+       punfold H0.
+       inversion H0.
+       subst.
+       specialize(helperR [(l, (s, T))] ys l s T subsort (upaco2 subtype bot2)); intro HH.
+       apply HH in H5.
+       destruct H5 as (s',(t',(Ha,(Hb,Hc)))).
+       exists l. exists s'. exists t'. exists ys.
+       
+       intros.
+       split. easy. split. easy. split. unfold upaco2.
+       unfold upaco2 in Hb.
+       destruct Hb. easy. easy.
+       rewrite H1 in Hc.
+       easy.
+       simpl in H3. easy.
+       simpl. left. easy.
+       apply st_mon.
+Qed.
+
+Lemma _37: forall {A B C: Type} (t1 t2 t3 t4 t5 t6: list (A * (B * C))), 
            mergeH t1 t2 t5 ->
            mergeH t3 t5 t6 ->
            mergeH t2 t3 t4 ->
@@ -375,5 +408,3 @@ Proof. intros.
        punfold H3.
        inversion H3.
 Admitted. *)
-
-
