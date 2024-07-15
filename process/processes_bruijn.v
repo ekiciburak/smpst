@@ -47,11 +47,11 @@ Section process_ind_ref.
 End process_ind_ref.
 
 Compute (length []) <> 0%nat.
-
+(* 
 Inductive SSortedNList : list fin -> Prop :=
   | sort1 : forall a, SSortedNList [a]
   | sort2 : forall (z1 z2 : fin), forall l, le z1 z2 -> SSortedNList (z2 :: l) -> SSortedNList (z1 :: z2 :: l).
-  
+   *)
 (* Lemma test : not (SSortedNList []).
 Proof. 
   intros. intuition.

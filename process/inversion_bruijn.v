@@ -5,65 +5,7 @@ From mathcomp Require Import ssreflect.seq.
 Import ListNotations.
 From Paco Require Import paco.
 
-Lemma empty_nil: forall {A: Type} (l: list A),
-  0 = length l <-> l = [].
-Proof. intros A l.
-       case l; intros; easy.
-Qed.
-   
 
-Lemma zip_eq: forall {A B: Type} (l1 l3: list A) (l2 l4: list B),
-  length l1 = length l2 -> length l2 = length l3 -> length l3 = length l4 ->
-  (zip l1 l2) = (zip l3 l4) ->
-  l1 = l3 /\ l2 = l4.
-Proof. intros A B l1.
-       induction l1; intros.
-       - simpl in *.
-         rewrite <- H in H0.
-         rewrite <- H0 in H1.
-         rewrite empty_nil in H.
-         rewrite empty_nil in H0.
-         rewrite empty_nil in H1.
-         subst. easy.
-       - simpl in H.
-         case_eq l2; intros.
-         + subst. simpl in *. easy.
-         + subst. simpl in *.
-           case_eq l3; intros.
-           ++ subst. easy.
-           ++ case_eq l4; intros.
-              -- subst. easy.
-              -- subst. simpl in *.
-                 inversion H2. subst.
-                 inversion H.
-                 inversion H1.
-                 inversion H0.
-                 specialize(IHl1 l0 l l2 H4 H7 H5 H6).
-                 split. f_equal. easy.
-                 f_equal. easy.
-Qed.
-
-Lemma zip_len: forall {A B: Type} (l1: list A) (l2: list B),
-  length l1 = length l2 -> length l1 = length (zip l1 l2).
-Proof. intros A B l1.
-       induction l1; intros.
-       - simpl in H. rewrite empty_nil in H.
-         subst. simpl. easy.
-       - simpl in H. simpl.
-         case_eq l2; intros.
-         subst. easy.
-         subst. simpl in H.
-         inversion H.
-         simpl. f_equal.
-         apply IHl1. easy.
-Qed.
-
-(* Lemma remove_S : forall {a b : fin}, S a = S b -> a = b.
-Proof.
-  intros.
-  inversion H. easy.
-Qed.
- *)
 Lemma _a23_a: forall p L Q P Gs Gt T, 
   typ_proc Gs Gt P T ->
   P = (p_recv p L Q) -> 
@@ -83,6 +25,13 @@ Proof. intros.
        specialize(eq_trans H H5); intros.
        split; try easy.     
 Qed.
+
+(* Lemma _a23_af : forall p L Q P Gs Gt T T' ST,
+  typ_proc Gs Gt P T ->
+    P = (p_recv p L Q) -> 
+    length T' = length L -> length T' = length ST -> length T' = length Q -> SSortedNList L -> 
+    List.Forall2 (fun u v => typ_proc (Some (fst v) :: Gs) Gt u (snd v)) Q (zip ST T')) -> 
+    subtypeC (ltt_recv p (zip L (zip ST T'))) T. *)
 
 
 Lemma _a23_b: forall p l e Q P Gs Gt T, 
@@ -121,7 +70,19 @@ Proof.
   inversion H1. subst.
   exists S. exists T. split; try easy. 
 Qed.
-
+(* 
+Lemma _a23_bs: forall p l e Q P Gs Gt T, 
+  typ_proc Gs Gt P T ->
+  P = (p_send p l e Q) -> forall S T', subtypeC (ltt_send p [(l,(S,T'))]) T -> 
+  typ_expr Gs e S /\ typ_proc Gs Gt Q T'.
+Proof.
+  intros. revert H0. induction H; intros; try easy.
+  specialize(IHtyp_proc H1); intros. 
+  specialize(stTrans (ltt_send p [(l, (S, T'))]) t t' IHtyp_proc H0); intros; try easy.
+  inversion H3. subst.
+  exists S. exists T. split; try easy. 
+Qed.
+ *)
 Lemma _a23_c: forall P e Q1 Q2 T Gs Gt,
   typ_proc Gs Gt P T ->
   P = (p_ite e Q1 Q2) -> exists T1 T2, typ_proc Gs Gt Q1 T1 /\ typ_proc Gs Gt Q2 T2 /\ subtypeC T1 T /\ subtypeC T2 T /\ typ_expr Gs e sbool.
