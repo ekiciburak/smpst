@@ -11,9 +11,10 @@ type/global.v
 tree/local.v
 tree/global.v
 process/processes.v
+process/typecheck.v
+process/inversion.v
+process/inversion_expr.v
+process/substitution.v
+process/typecheck_examples.v
 process/sessions.v
 process/beta.v
-process/typecheck.v
-process/typecheck_examples.v
-process/inversion.v
-process/substitution.v
