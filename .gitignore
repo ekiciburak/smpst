@@ -18,6 +18,7 @@
 *.o
 *.v.d
 *.vio
+*.crashcoqide
 *.vo
 *.vok
 *.vos

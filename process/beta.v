@@ -19,6 +19,44 @@ Proof.
 Qed.
 
 
+(* substitute e into e_var 0 of e1, assuming e has no occurence of e_var*)
+Fixpoint subst_expr (e : expr) (e1 : expr) : expr :=
+  match e1 with 
+    | e_var n => (e .: e_var) n
+    | e_succ e' => e_succ (subst_expr e e')
+    | e_neg e' => e_neg (subst_expr e e')
+    | e_not e' => e_not (subst_expr e e')
+    | e_gt e' e'' => e_gt (subst_expr e e') (subst_expr e e'')
+    | e_plus e' e'' => e_plus (subst_expr e e') (subst_expr e e'')
+    | _ => e1
+  end.
+  
+(* For a choice function, substitutes expr to e_var 0 (decr everything else), return process continuation of choice with label l with e substituted for e_var 0. anything else is kept as is. If label doesn't appear in the list we return p
+ *)
+Definition subst_expr_proc (p : process) (l : label) (e : expr) : (option process) :=
+  match p with
+    | p_recv pt xs => 
+      let fix next lst := 
+        match lst with
+          | (lbl,P)::ys => 
+            if Nat.eqb lbl l then 
+              let fix rec p' :=
+                match p' with 
+                  | p_send pt' l' e' P' => p_send pt' l' (subst_expr e e') (rec P')
+                  | p_ite e' P' Q' => p_ite (subst_expr e e') (rec P') (rec Q')
+                  | p_recv pt' lst' => p_recv pt' (list_map (prod_map (fun x => x) (rec)) lst')
+                  | p_rec n P' => p_rec n (rec P')
+                  | _ => p'
+                end 
+              in Some (rec P)
+            else next ys 
+          | _ => None
+        end
+      in next xs
+    | _ => None
+  end.
+
+
 Inductive betaP: relation session :=
   | r_comm  : forall p q xs l e Q M,
               betaP ((p <-- Some (p_recv q xs)) ||| (q <-- Some (p_send p l e Q)) ||| M)

@@ -83,6 +83,39 @@ Proof.
   replace (x.1, x.2) with x. easy.
 Qed.
 
+Lemma typable_implies_wfC_helper : forall (T : seq ltt) (Pr : seq process) (ST : seq sort),
+  length ST = length Pr ->
+  length Pr = length T ->
+  Forall2 (fun=> (fun v : sort * ltt => wfC v.2)) Pr (zip ST T) ->
+  Forall (upaco1 wf bot1) T.
+Proof.
+  intro T. induction T; intros; try easy.
+  destruct Pr; try easy. destruct ST; try easy.
+  simpl in *.
+  specialize(Forall2_cons_iff (fun=> (fun v : sort * ltt => wfC v.2)) p (s,a) Pr (zip ST T)); intros.
+  destruct H2. clear H3. specialize(H2 H1). clear H1. destruct H2.
+  specialize(IHT Pr ST); intros.
+  apply Forall_cons; try easy.
+  simpl in H1. unfold wfC in H1. unfold upaco1. left. easy.
+  apply IHT; try easy.
+  apply eq_add_S. easy. apply eq_add_S. easy.
+Qed.
+
+Lemma typable_implies_wfC [P : process] [Gs : ctxS] [Gt : ctxT] [T : ltt] :
+  typ_proc Gs Gt P T -> wfC T.
+Proof.
+  intros. induction H using typ_proc_ind_ref; try easy.
+  - unfold wfC. pfold. constructor.
+  - unfold wfC. pfold. constructor; try easy.
+    apply eq_trans with (y := length Pr); try easy.
+    apply typable_implies_wfC_helper with (Pr := Pr) (ST := ST); try easy.
+  - unfold wfC. pfold. 
+    specialize(wf_send (upaco1 wf bot1) p [l] [S] [T]); intros.
+    simpl in *. apply H0; try easy. apply sort1.
+    apply Forall_cons; try easy.
+    unfold upaco1. left. easy.
+Qed.
+
 Lemma slideT_helper : forall llp x0 x X m k l Gs Gtl Gtr tm,
     Forall
       (fun Q : process =>
@@ -170,10 +203,12 @@ Proof.
       apply tc_sub with (t := x); try easy. 
       apply tc_var; try easy.
       apply onth_more with (l := l); try easy.
+      specialize(typable_implies_wfC H); intros; try easy.
     - replace (l <= n) with false in H, H1.
       apply tc_sub with (t := x); try easy.
       apply tc_var; try easy.
       apply onth_less with (l := l); try easy.
+      specialize(typable_implies_wfC H); intros; try easy.
   - simpl in *. 
     specialize(_a23_f p_inact T Gs (Gtl++Gtr) H (erefl p_inact)); intros. subst. 
     apply tc_inact.
@@ -183,6 +218,7 @@ Proof.
     apply tc_sub with (t := (ltt_send pt [(lb, (x, x0))])); try easy.
     apply tc_send; try easy.
     apply IHQ. easy. easy.
+    specialize(typable_implies_wfC H); intros; try easy.
   - simpl in *.
     specialize(_a23_a pt llb (list_map (incr_free l k.+1 X m) llp) (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)) Gs (Gtl ++ Gtr) T H0 (erefl (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)))); intros.
     destruct H2. destruct H2. destruct H2. destruct H3. destruct H4. destruct H5. destruct H6.
@@ -197,14 +233,17 @@ Proof.
     specialize(eq_trans H13 (esym H10)); intros.
     apply tc_recv; try easy. clear H2 H3 H4 H6 H8 H9 H10 H11 H12 H13 H14.
     apply slideT_helper; try easy.
+    specialize(typable_implies_wfC H0); intros; try easy.
   - simpl in *.
     specialize(_a23_c (p_ite (incr_freeE k m e) (incr_free l k X m Q1) (incr_free l k X m Q2)) (incr_freeE k m e) (incr_free l k X m Q1) (incr_free l k X m Q2) T Gs (Gtl ++ Gtr) H (erefl (p_ite (incr_freeE k m e) (incr_free l k X m Q1) (incr_free l k X m Q2)))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2. destruct H3. destruct H4.
     apply tc_ite; try easy.
     apply tc_sub with (t := x); try easy.
     apply IHQ1; try easy.
+    specialize(typable_implies_wfC H); intros; try easy.
     apply tc_sub with (t := x0); try easy.
-    apply IHQ2; try easy. 
+    apply IHQ2; try easy.
+    specialize(typable_implies_wfC H); intros; try easy. 
   - simpl in *. 
     specialize(_a23_d (p_rec (incr_free l.+1 k X m Q)) (incr_free l.+1 k X m Q) T Gs (Gtl++Gtr) H (erefl (p_rec (incr_free l.+1 k X m Q)))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2.
@@ -216,6 +255,8 @@ Proof.
     specialize(IHQ H4). clear H0 H4.
     apply tc_sub with (t := x0); try easy.
     apply tc_mu with (t := x); try easy.
+    specialize(typable_implies_wfC H1); intros; try easy.
+    specialize(typable_implies_wfC H); intros; try easy.
 Qed.
 
 Lemma slideT : forall Q X m tm Gs Gt T,
@@ -316,7 +357,8 @@ Proof.
     destruct H1. destruct H1.
     apply tc_sub with (t := x); try easy. 
     apply tc_var; try easy.
-  - simpl in *. 
+    specialize(typable_implies_wfC H); intros; try easy.
+  - simpl in *.
     specialize(_a23_f p_inact T (Gsl ++ Gsr) Gt H (erefl p_inact)); intros. subst.
     apply tc_inact.
   - simpl in *.
@@ -325,7 +367,8 @@ Proof.
     apply tc_sub with (t := (ltt_send pt [(lb, (x, x0))])); try easy.
     apply tc_send; try easy.
     apply slideSp_e; try easy.
-    apply IHQ; try easy. 
+    apply IHQ; try easy.
+    specialize(typable_implies_wfC H); intros; try easy. 
   - simpl in *.
     specialize(_a23_a pt llb (list_map (incr_free l k.+1 X m) llp) (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)) (Gsl ++ Gsr) Gt T H0 (erefl (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)))); intros.
     destruct H2. destruct H2. destruct H2. destruct H3. destruct H4. destruct H5. destruct H6.
@@ -338,19 +381,24 @@ Proof.
     specialize(eq_trans (esym H3) H12); intros.
     apply tc_recv; try easy. clear H2 H3 H4 H6 H8 H9 H10 H11 H12 H13.
     apply slideS_helper; try easy.
+    specialize(typable_implies_wfC H0); intros; try easy.
   - simpl in *.
     specialize(_a23_c (p_ite (incr_freeE k m e) (incr_free l k X m Q1) (incr_free l k X m Q2)) (incr_freeE k m e) (incr_free l k X m Q1) (incr_free l k X m Q2) T (Gsl ++ Gsr) Gt H (erefl (p_ite (incr_freeE k m e) (incr_free l k X m Q1) (incr_free l k X m Q2)))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2. destruct H3. destruct H4.
     apply tc_ite; try easy.
     apply slideSp_e; try easy.
     apply tc_sub with (t := x); try easy. apply IHQ1; try easy.
+    specialize(typable_implies_wfC H); intros; try easy.
     apply tc_sub with (t := x0); try easy. apply IHQ2; try easy.
+    specialize(typable_implies_wfC H); intros; try easy.
   - simpl in *.
     specialize(_a23_d (p_rec (incr_free l.+1 k X m Q)) (incr_free l.+1 k X m Q) T (Gsl ++ Gsr) Gt H (erefl (p_rec (incr_free l.+1 k X m Q)))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2.
     apply tc_sub with (t := x0); try easy.
     apply tc_mu with (t := x); try easy.
     apply IHQ; try easy.
+    specialize(typable_implies_wfC H1); intros; try easy.
+    specialize(typable_implies_wfC H); intros; try easy.
 Qed.
 
 Lemma slideS : forall Q X m tm Gs Gt T,
@@ -436,11 +484,13 @@ Proof.
   apply tc_sub with (t := T); intros; try easy.
   
   subst.
+  specialize(typable_implies_wfC H0); intros; try easy. subst.
   specialize(_a23_e (p_var n) n T' Gs (extendT X T Gt) H0 (erefl (p_var n))); intros.
   destruct H4. destruct H4.
   apply tc_sub with (t := x); try easy.
   apply tc_var.
-  apply ssrfun.esym. apply remove_var with (X := X) (T:= T); try easy.
+  apply ssrfun.esym. apply remove_var with (X := X) (T:= T); try easy. destruct H5. easy.
+  specialize(typable_implies_wfC H0); intros; try easy.
   
   (* inact *)
   intros.
@@ -456,6 +506,7 @@ Proof.
   specialize(IHP Q T x0 Gs Gt X Q'0 m n H H5 H1 H13 H3); intros.
   apply tc_sub with (t := (ltt_send pt [(lb, (x, x0))])); try easy.
   apply tc_send; try easy.
+  specialize(typable_implies_wfC H0); intros; try easy.
   
   (* recv *)
   intros.
@@ -468,6 +519,7 @@ Proof.
   specialize(eq_trans H5 H13); intros.
   apply tc_recv; try easy.
   apply _a21_recv_helper with (llp := llp) (m := m) (n := n) (Q := Q) (X := X) (T := T); try easy.
+  specialize(typable_implies_wfC H1); intros; try easy.
   
   (* ite *)
   intros. 
@@ -478,7 +530,9 @@ Proof.
   specialize(IHP2 Q T x0 Gs Gt X Q2 m n H H5 H1 H13 H3); intros.
   apply tc_ite; intros; try easy.
   apply tc_sub with (t := x); intros; try easy.
-  apply tc_sub with (t := x0); intros; try easy. 
+  specialize(typable_implies_wfC H0); intros; try easy.
+  apply tc_sub with (t := x0); intros; try easy.
+  specialize(typable_implies_wfC H0); intros; try easy. 
     
   (* rec *)
   intros.
@@ -489,7 +543,9 @@ Proof.
   apply tc_sub with (t := x0); try easy.
   apply tc_mu with (t := x); try easy.
   apply IHP.
-  apply slideT; try easy. 
+  apply slideT; try easy.
+  specialize(typable_implies_wfC H4); intros; try easy.
+  specialize(typable_implies_wfC H0); intros; try easy. 
 Qed.
 
 Lemma Forall2_to_Forall {A B : Type} [P : A -> Prop] [P1 : list A] [P2 : list B] :

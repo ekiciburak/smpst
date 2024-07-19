@@ -14,16 +14,18 @@ Lemma _a23_a: forall p L Q P Gs Gt T,
 Proof. intros.
        induction H; intros; try easy.
        specialize(IHtyp_proc H0).
-       destruct IHtyp_proc. destruct H2. destruct H2. destruct H3. destruct H4. destruct H5. destruct H6.
+       destruct IHtyp_proc. destruct H3. destruct H3. destruct H4. destruct H5. destruct H6. destruct H7.
        exists x. exists x0.
        split; try easy. split; try easy. split; try easy. split.
-       specialize(stTrans (ltt_recv p (zip L (zip x0 x))) t t' H5 H1); intros.
+       specialize(stTrans (ltt_recv p (zip L (zip x0 x))) t t' H6 H1); intros.
        easy.
        split. easy. easy.
        inversion H0. subst. exists T. exists ST.   
        specialize(eq_trans H1 H2); intros.
        specialize(eq_trans H H5); intros.
-       split; try easy.     
+       
+       split; try easy. split; try easy. split; try easy. split; try easy. 
+       apply stRefl.     
 Qed.
 
 (* Lemma _a23_af : forall p L Q P Gs Gt T T' ST,
@@ -39,21 +41,15 @@ Lemma _a23_b: forall p l e Q P Gs Gt T,
   P = (p_send p l e Q) -> exists S S' T', typ_expr Gs e S /\ typ_proc Gs Gt Q T' /\ subsort S' S /\ subtypeC (ltt_send p [(l,(S',T'))]) T.
 Proof. intros p l e Q P Gs Gt T H.
        induction H; intros; try easy.
-       specialize(IHtyp_proc H1).
+       specialize(IHtyp_proc H2).
        destruct IHtyp_proc as (S,(S',(T',Ha))).
        exists S. exists S'. exists T'.
-       split.
-       specialize(sc_sub cs e S S); intro HSS.
-       apply HSS. easy. apply srefl. 
-       split.
-       specialize(tc_sub cs ct Q T' T'); intro HTS.
-       apply HTS. easy.
-       apply stRefl. split. easy.
-       destruct Ha as (Ha,(Hb,(Hc,Hd))).
-       specialize(stTrans (ltt_send p [(l, (S', T'))]) t t' Hd H0); intro HT.
-       apply HT.
-       exists S. exists S. exists T.
+       destruct Ha. destruct H4. destruct H5. 
+       split; try easy. split. easy. split. easy.
+       specialize(stTrans (ltt_send p [(l, (S', T'))]) t t'); intros.
+       apply H7; try easy.
        inversion H1. subst.
+       exists S. exists S. exists T.
        split. easy. split. easy.
        split. apply srefl.
        apply stRefl. 
@@ -64,11 +60,12 @@ Lemma _a23_bf: forall p l e Q P Gs Gt T,
   P = (p_send p l e Q) -> exists S T', typ_expr Gs e S /\ typ_proc Gs Gt Q T' /\  subtypeC (ltt_send p [(l,(S,T'))]) T.
 Proof.
   intros. revert H0. induction H; intros; try easy.
-  specialize(IHtyp_proc H1); intros. destruct IHtyp_proc. destruct H2. destruct H2. destruct H3.
+  specialize(IHtyp_proc H2); intros. destruct IHtyp_proc. destruct H3. destruct H3. destruct H4.
   exists x. exists x0. split; try easy. split; try easy.
-  specialize(stTrans (ltt_send p [(l, (x, x0))]) t t' H4 H0); intros; try easy.
+  specialize(stTrans (ltt_send p [(l, (x, x0))]) t t' H5 H0); intros; try easy.
   inversion H1. subst.
-  exists S. exists T. split; try easy. 
+  exists S. exists T. split; try easy.
+  split; try easy. apply stRefl.
 Qed.
 (* 
 Lemma _a23_bs: forall p l e Q P Gs Gt T, 
@@ -91,18 +88,14 @@ Proof. intros.
        inversion H0.
        subst.
        exists T. exists T.
-       split. easy. split. easy. split. easy. easy.
+       split. easy. split. easy. split. apply stRefl. split; try easy. apply stRefl. 
        
        specialize(IHtyp_proc H0).
        destruct IHtyp_proc as (T1,(T2,(Ha,(Hb,(Hc,Hd))))).
        exists T1. exists T2.
-       split.
-       specialize(tc_sub cs ct Q1 T1 T1); intro HTS.
-       apply HTS. easy. apply stRefl. split. easy. split. 
-       specialize(stTrans T1 t t' Hc H1); intro HT. easy.
-       split. destruct Hd.
-       specialize(stTrans T2 t t' H2 H1); intro HT. easy.
-       destruct Hd. easy.
+       split. easy. split. easy. destruct Hd.
+       specialize(stTrans T1 t t' Hc H1); intro HT. split. easy. split; try easy.
+       specialize(stTrans T2 t t' H3 H1); intros. easy.
 Qed.
 
 Lemma _a23_d: forall P Q T'' Gs Gt,
@@ -112,29 +105,28 @@ Proof. intros.
        induction H; intros; try easy.
        inversion H0. subst.
        exists t. exists t'. 
-       split. easy. split. easy. easy.
+       split. easy. split. easy. apply stRefl.
        
        specialize(IHtyp_proc H0).
-       destruct IHtyp_proc. destruct H2. 
+       destruct IHtyp_proc. destruct H3. destruct H3. destruct H4. 
        exists x. exists x0.
-       destruct H2. destruct H3. 
        split. easy. split. easy. 
-       specialize(stTrans x0 t t' H4 H1); intros. easy.
+       specialize(stTrans x0 t t' H5 H1); intros. easy.
 Qed. 
 
 
 Lemma _a23_e: forall P X T Gs Gt,
   typ_proc Gs Gt P T ->
-  (P = (p_var X) -> exists T', onth X Gt = Some T' /\ subtypeC T' T).
+  (P = (p_var X) -> exists T', onth X Gt = Some T' /\ subtypeC T' T /\ wfC T').
 Proof. intros.
        induction H; intros; try easy.
        inversion H0. subst.
-       exists t. split. easy. easy.
+       exists t. split. easy. split; try easy. apply stRefl.
        
        specialize(IHtyp_proc H0); intros. destruct IHtyp_proc.
-       destruct H2.
-       exists x. split. easy.
-       specialize(stTrans x t t' H3 H1); intros; try easy.
+       destruct H3.
+       exists x. split. easy. destruct H4. split; try easy.
+       specialize(stTrans x t t' H4 H1); intros; try easy.
 Qed.
        
 

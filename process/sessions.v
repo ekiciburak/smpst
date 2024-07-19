@@ -15,6 +15,10 @@ Inductive session: Type :=
 Notation "p '<--' P"   :=  (s_ind p P) (at level 50, no associativity).
 Notation "s1 '|||' s2" :=  (s_par s1 s2) (at level 50, no associativity).
 
+Inductive scongP : relation process := 
+  | pc_rec : forall P Q, substitutionP 0 0 0 (p_rec P) P Q -> scongP (p_rec P) Q.
+
+
 Inductive scong: relation session :=
   | sc_multi: forall p P Q M, scongP P Q -> scong (p <-- Some P ||| M) (p <-- Some Q ||| M) 
   | sc_par1 : forall p M, scong (p <-- Some p_inact ||| M) M
@@ -22,7 +26,7 @@ Inductive scong: relation session :=
   | sc_par3 : forall M M' M'', scong ((M ||| M') ||| M'') (M ||| (M' ||| M''))
   | sc_par4 : forall M M' M'', scong ((M ||| M') ||| M'') (M ||| (M'' ||| M')).
 
-(* Declare Instance Equivalence_pcong : Equivalence pcong. *)
+Declare Instance Equivalence_pcong : Equivalence scongP. 
 Declare Instance Equivalence_scong : Equivalence scong.
 
 Inductive sForall (P: session -> Prop): session -> Prop :=

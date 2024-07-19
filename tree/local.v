@@ -1,11 +1,15 @@
 From mathcomp Require Import all_ssreflect.
 From Paco Require Import paco.
 From SST Require Import type.local.
-Require Import String List ZArith.
-Local Open Scope string_scope.
+Require Import List String Datatypes ZArith Relations PeanoNat.
+Local Open Scope list_scope.
 Import ListNotations.
 Require Import Morphisms.
 Require Import Lia.
+Require Import Coq.Init.Datatypes.
+Require Import Coq.Arith.PeanoNat. 
+From mathcomp Require Import ssreflect.seq.
+From Paco Require Import paco.
 
 (* 
 Class nlist (A: Type): Type :=
@@ -76,7 +80,7 @@ Definition nonE {A: Type} (l: list A): Prop :=
     | x::xs => True
   end.
 
-Definition wfL {A: Type} (l: list A) := NoDup l /\ nonE l.
+Definition wfL (l: list fin) := SSortedNList l.
 
 Inductive wf (R: ltt -> Prop): ltt -> Prop :=
   | wf_end : wf R ltt_end
@@ -126,34 +130,33 @@ Fixpoint lkp (x: label) (l: list (label*(sort*ltt))): option(sort*ltt) :=
     | (u,(v,t))::xs => if Nat.eqb x u then Datatypes.Some(v,t) else lkp x xs
   end.
 
-
 Fixpoint wfrec (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (label*(sort*ltt))): Prop :=
-  match l1 with
-    | []              => True
-    | (l,(s',t'))::xs => 
-      let R := lkp l l2 in
-      match R with
-        | Datatypes.None      => False
-        | Datatypes.Some(s,t) => R1 s' s /\ R2 t t' /\ wfrec R1 R2 xs l2
-      end
+  match l1, l2 with
+    | [], _ => True  
+    | ((l,(s,t))::xs), ((l',(s',t'))::ys) => if Nat.eqb l l' then R1 s s' /\ R2 t t' /\ wfrec R1 R2 xs ys
+                                                             else wfrec R1 R2 xs l2 
+    | _, [] => False
   end.
 
 Fixpoint wfsend (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (label*(sort*ltt))): Prop :=
-  match l1 with
-    | []              => True
-    | (l,(s,t))::xs => 
-      let R := lkp l l2 in
-      match R with
-        | Datatypes.None      => False
-        | Datatypes.Some(s',t') => R1 s s' /\ R2 t t' /\ wfsend R1 R2 xs l2
-      end
+  match l1, l2 with 
+    | _, [] => True  
+    | ((l,(s,t))::xs), ((l',(s',t'))::ys) => if Nat.eqb l l' then R1 s s' /\ R2 t t' /\ wfsend R1 R2 xs ys
+                                                             else wfsend R1 R2 l1 ys 
+    | [], _ => False
+  end.
+
+Fixpoint unzipF {A B C: Type} (l: list(A*(B*C))): list A :=
+  match l with
+    | []            => []
+    | (u,(v,t))::xs => u::unzipF xs 
   end.
 
 Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
   | sub_end: subtype R ltt_end ltt_end
   | sub_in : forall p xs ys,
                     Nat.le (length ys) (length xs) ->
-                    wfrec subsort R ys xs ->
+                    wfrec subsort R xs ys ->
                     subtype R (ltt_recv p xs) (ltt_recv p ys)
   | sub_out : forall p xs ys,
                      Nat.le (length xs) (length ys) ->
@@ -184,12 +187,6 @@ Proof. induction l; intros.
          exists (ncons a1 L). exists (ncons a2 S). exists(ncons a3 xs).
          simpl. rewrite Hxs. easy.
 Qed.
-
-Fixpoint unzipF {A B C: Type} (l: list(A*(B*C))): list A :=
-  match l with
-    | []            => []
-    | (u,(v,t))::xs => u::unzipF xs 
-  end.
 
 Lemma unzipIn: forall (l1:  list (label*(sort*ltt))) l s t, In (l, (s, t)) l1 -> In l (unzipF l1).
 Proof. intro l1.
@@ -356,189 +353,119 @@ Proof. intros.
        easy.
 Qed.
 
-Lemma helperL: forall (l1 l2:  list (label*(sort*ltt))) l (s: sort) (t: ltt) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
-   Nat.le (length l1) (length l2) ->
-   wfrec R1 R2 l1 l2 ->
-   ( In (l,(s,t)) l1 ->
-     exists s' t', R1 s s' /\ R2 t' t /\ lkp l l2 = Datatypes.Some (s', t')
-   ).
-Proof. intro l1.
-       induction l1; intros.
-       - simpl in H1. easy.
-       - simpl in *.
-         destruct a as (l',(s',t')).
-         destruct H1.
-         inversion H1. subst.
-         case_eq(lkp l l2); intros.
-         + destruct p.
-           rewrite H2 in H0.
-           exists s0. exists l0. split; easy.
-         + rewrite H2 in H0. easy.
-           eapply IHl1. lia.
-           case_eq(lkp l' l2); intros.
-           rewrite H2 in H0. destruct p.
-           easy.
-           rewrite H2 in H0. easy.
-           easy.
-Qed.
-
-Lemma helperL2: forall (l1 l2:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
-   Nat.le (length l1) (length l2) ->
-   ( forall l s t, In (l,(s,t)) l1 ->
-     exists s' t', R1 s s' /\ R2 t' t /\ lkp l l2 = Datatypes.Some (s', t')
-   ) -> wfrec R1 R2 l1 l2.
-Proof. intros.
-       revert l2 H H0.
-       induction l1; intros.
-       - simpl. easy.
-       - simpl.
-         destruct a as (l',(s',t')).
-         pose proof H0 as H00.
-         specialize(H0 l' s' t').
-         simpl in H0.
-         assert((l', (s', t')) = (l', (s', t')) \/ In (l', (s', t')) l1) by (left; easy).
-         specialize(H0 H1).
-         destruct H0 as (u,(v,(z,(Ha,Hb)))).
-         rewrite Hb.
-         split. easy. split. easy.
-         apply IHl1.
-         simpl in H. lia.
-         intros.
-         specialize(H00 l s t).
-         simpl in H00.
-         assert((l', (s', t')) = (l, (s, t)) \/ In (l, (s, t)) l1) by (right; easy).
-         specialize(H00 H2).
-         destruct H00 as (u1,(v1,(z1,(Ha1,Hb1)))).
-         exists u1. exists v1. split; easy.
-Qed.
-
-Lemma helperR: forall (l1 l2:  list (label*(sort*ltt))) l (s: sort) (t: ltt) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
-   Nat.le (length l1) (length l2) ->
-   wfsend R1 R2 l1 l2 ->
-   ( In (l,(s,t)) l1 ->
-     exists s' t', R1 s s' /\ R2 t t' /\ lkp l l2 = Datatypes.Some (s', t')
-   ).
-Proof. intro l1.
-       induction l1; intros.
-       - simpl in H1. easy.
-       - simpl in *.
-         destruct a as (l',(s',t')).
-         destruct H1.
-         inversion H1. subst.
-         case_eq(lkp l l2); intros.
-         + destruct p.
-           rewrite H2 in H0.
-           exists s0. exists l0. split; easy.
-         + rewrite H2 in H0. easy.
-           eapply IHl1. lia.
-           case_eq(lkp l' l2); intros.
-           rewrite H2 in H0. destruct p.
-           easy.
-           rewrite H2 in H0. easy.
-           easy.
-Qed.
-
-
-Lemma helperR2: forall (l1 l2:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
-   Nat.le (length l1) (length l2) ->
-   ( forall l s t, In (l,(s,t)) l1 ->
-     exists s' t', R1 s s' /\ R2 t t' /\ lkp l l2 = Datatypes.Some (s', t')
-   ) -> wfsend R1 R2 l1 l2.
-Proof. intros.
-       revert l2 H H0.
-       induction l1; intros.
-       - simpl. easy.
-       - simpl.
-         destruct a as (l',(s',t')).
-         pose proof H0 as H00.
-         specialize(H0 l' s' t').
-         simpl in H0.
-         assert((l', (s', t')) = (l', (s', t')) \/ In (l', (s', t')) l1) by (left; easy).
-         specialize(H0 H1).
-         destruct H0 as (u,(v,(z,(Ha,Hb)))).
-         rewrite Hb.
-         split. easy. split. easy.
-         apply IHl1.
-         simpl in H. lia.
-         intros.
-         specialize(H00 l s t).
-         simpl in H00.
-         assert((l', (s', t')) = (l, (s, t)) \/ In (l, (s, t)) l1) by (right; easy).
-         specialize(H00 H2).
-         destruct H00 as (u1,(v1,(z1,(Ha1,Hb1)))).
-         exists u1. exists v1. split; easy.
-Qed.
-
 Lemma refl_recv: forall (l1:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
    Reflexive R1 -> Reflexive R2 ->
-   NoDup(unzipF l1) ->
    wfrec R1 R2 l1 l1.
 Proof. intros.
-       apply helperL2.
-       lia.
-       intros.
-       exists s. exists t.
-       split. easy. split. easy.
-       rewrite <- inLkp. easy.
-       easy.
-Qed.
-
-Lemma trans_recv: forall (l1 l2 l3:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
-   Transitive R1 -> Transitive R2 ->
-   NoDup(unzipF l1) -> NoDup(unzipF l2) -> NoDup(unzipF l3) ->
-   Nat.le (length l1) (length l2) ->
-   Nat.le (length l2) (length l3) ->
-   wfrec R1 R2 l1 l2 -> wfrec R1 R2 l2 l3 -> wfrec R1 R2 l1 l3.
-Proof. intro l1.
-       induction l1; intros.
-       - simpl in H6. easy.
-       - destruct a as (l,(s,t)).
-         specialize(helperL ((l, (s, t)) :: l1) l2 l s t R1 R2 ); intro HH.
-         pose proof H6 as H60.
-         pose proof H7 as H70.
-         apply HH in H6.
-         destruct H6 as (s1,(t1,H6)).
-         specialize(helperL l2 l3 l s1 t1 R1 R2 ); intro HHH.
-         apply HHH in H7.
-         destruct H7 as (s2,(t2,H7)).
+       induction l1.
+       - easy.
+       - destruct a. destruct p. 
          simpl.
-         destruct H7 as (H7a,(H7b,H7c)).
-         rewrite H7c.
-         split.
-         transitivity s1. easy. easy.
-         split.
-         transitivity t1. easy. easy.
-         eapply IHl1 with (l2 := l2).
-         easy. easy.
-         simpl in H1. inversion H1. easy.
-         easy. easy.
-         simpl in H4. lia.
-         easy.
-         simpl in H60.
-         destruct H6 as (H6a,(H6b,H6c)).
-         rewrite H6c in H60. easy.
-         easy. easy.
-         destruct H6 as (H6a,(H6b,H6c)).
-         rewrite inLkp.
-         easy.
-         easy.
-         simpl in H4. simpl. lia.
-         simpl. left. easy.
+         assert ((n =? n)%nat = true). 
+         {
+          induction n. easy. simpl. easy.
+         }
+         replace (n =? n)%nat with true. easy. 
 Qed.
 
 Lemma refl_send: forall (l1:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
    Reflexive R1 -> Reflexive R2 ->
-   NoDup(unzipF l1) ->
    wfsend R1 R2 l1 l1.
 Proof. intros.
-       apply helperR2.
-       lia.
-       intros.
-       exists s. exists t.
-       split. easy. split. easy.
-       rewrite <- inLkp. easy.
-       easy.
+       induction l1.
+       - easy.
+       - destruct a. destruct p.
+         simpl.
+         assert ((n =? n)%nat = true). 
+         {
+          induction n. easy. simpl. easy.
+         }
+         replace (n =? n)%nat with true.
+         easy.
 Qed.
+
+Lemma stRefl: forall l, subtypeC l l.
+Proof. pcofix CIH.
+       intros.
+       pfold.
+       case_eq l; intros.
+       constructor.
+       constructor. lia.
+       subst.
+       apply refl_recv.
+       constructor.
+       repeat intro.
+       right. apply CIH.
+
+       constructor. lia.
+       apply refl_send.
+       constructor.
+       repeat intro.
+       right. apply CIH.
+Qed.
+
+Theorem le_Sn_le : forall n m, Nat.le (S n) m -> Nat.le n m.
+Proof.
+  intros n m H. unfold Nat.le in *. 
+  specialize(Nat.le_succ_l n m); intros. destruct H0. clear H1. specialize(H0 H); intros.
+  apply Nat.lt_le_incl; try easy.
+Qed.
+
+
+Lemma trans_recv: forall (l1 l2 l3:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
+   Transitive R1 -> Transitive R2 ->
+   Nat.le (length l1) (length l2) ->
+   Nat.le (length l2) (length l3) ->
+   wfrec R1 R2 l1 l2 -> wfrec R1 R2 l2 l3 -> wfrec R1 R2 l1 l3.
+Proof. intros l1.
+       induction l1; intros.
+       - simpl in *.  easy.
+       - destruct a as (l,(s,t)). 
+         destruct l2; try easy. destruct p; try easy. destruct p; try easy.
+         destruct l3; try easy. destruct p; try easy. destruct p; try easy.
+         simpl in *.
+         case_eq (Nat.eqb l n); intros; try easy.
+         - replace (l =? n )%nat with true in H3.
+           case_eq (Nat.eqb n n0)%nat; intros; try easy.
+           - replace (n =? n0)%nat with true in H4.
+             specialize(Nat.eqb_eq l n); intros. destruct H7. clear H8. specialize(H7 H5); intros.
+             specialize(Nat.eqb_eq n n0); intros. destruct H8. clear H9. specialize(H8 H6); intros.
+             specialize(Nat.eqb_eq l n0); intros. destruct H9. clear H9.
+             specialize(eq_trans H7 H8); intros. specialize(H10 H9); intros.
+             replace (l =? n0)%nat with true.
+             destruct H3. destruct H11. destruct H4. destruct H13.
+             pose proof H as T1. pose proof H0 as T2.
+             specialize(H s s0 s1 H3 H4); intros.
+             specialize(H0 t l0 l4 H11 H13); intros.
+             split; try easy. split; try easy. apply IHl1 with (l2 := l2); try easy.
+             specialize(le_S_n (length l1) (length l2) H1); intros. easy.
+             specialize(le_S_n (length l2) (length l3) H2); intros. easy.
+           - replace (n =? n0)%nat with false in H4.
+             specialize(Nat.eqb_eq l n); intros. destruct H7. clear H8. specialize(H7 H5); intros.
+             specialize(Nat.eqb_neq n n0); intros. destruct H8. clear H9. specialize(H8 H6); intros.
+             case_eq (Nat.eqb l n0); intros; try easy.
+             - specialize(Nat.eqb_eq l n0); intros. destruct H10. clear H11. specialize(H10 H9).
+               specialize(eq_trans (esym H7) H10); intros. easy.
+             apply IHl1 with (l2 := l2); intros; try easy.
+             specialize(le_S_n (length l1) (length l2) H1); intros. easy.
+             specialize(le_Sn_le (length l2) ((length l3).+1) H2); intros. easy.
+         - replace (l =? n)%nat with false in H3.
+           - case_eq (Nat.eqb n n0); intros.
+             replace (n =? n0)%nat with true in H4.
+             specialize(Nat.eqb_neq l n); intros. destruct H7. clear H8. specialize(H7 H5); intros.
+             specialize(Nat.eqb_eq n n0); intros. destruct H8. clear H9. specialize(H8 H6); intros.
+             case_eq (Nat.eqb l n0); intros.
+             - specialize(Nat.eqb_eq l n0); intros. destruct H10. clear H11. specialize(H10 H9).
+               specialize(esym (eq_trans H8 (esym H10))); intros. easy.
+             apply IHl1 with (l2 := ((n, (s0, l0)) :: l2)); try easy.
+             apply le_Sn_le; try easy.
+             simpl. replace (n =? n0)%nat with true; try easy.
+           - replace (n =? n0)%nat with false in H4.
+             case_eq (Nat.eqb l n0); intros.
+             - 
+                       
+Admitted.
+
 
 Lemma trans_send: forall (l1 l2 l3:  list (label*(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
    Transitive R1 -> Transitive R2 ->
@@ -548,40 +475,8 @@ Lemma trans_send: forall (l1 l2 l3:  list (label*(sort*ltt))) (R1: sort -> sort 
    wfsend R1 R2 l1 l2 -> wfsend R1 R2 l2 l3 -> wfsend R1 R2 l1 l3.
 Proof. intro l1.
        induction l1; intros.
-       - simpl in H6. easy.
-       - destruct a as (l,(s,t)).
-         specialize(helperR ((l, (s, t)) :: l1) l2 l s t R1 R2 ); intro HH.
-         pose proof H6 as H60.
-         pose proof H7 as H70.
-         apply HH in H6.
-         destruct H6 as (s1,(t1,H6)).
-         specialize(helperR l2 l3 l s1 t1 R1 R2 ); intro HHH.
-         apply HHH in H7.
-         destruct H7 as (s2,(t2,H7)).
-         simpl.
-         destruct H7 as (H7a,(H7b,H7c)).
-         rewrite H7c.
-         split.
-         transitivity s1. easy. easy.
-         split.
-         transitivity t1. easy. easy.
-         eapply IHl1 with (l2 := l2).
-         easy. easy.
-         simpl in H1. inversion H1. easy.
-         easy. easy.
-         simpl in H4. lia.
-         easy.
-         simpl in H60.
-         destruct H6 as (H6a,(H6b,H6c)).
-         rewrite H6c in H60. easy.
-         easy. easy.
-         destruct H6 as (H6a,(H6b,H6c)).
-         rewrite inLkp.
-         easy.
-         easy.
-         simpl in H4. simpl. lia.
-         simpl. left. easy.
-Qed.
+       - simpl in H6. 
+Admitted.
 
 Lemma unzipL: forall {A B C: Type} (l1: list A) (l2: list B) (l3: list C),
   length l1 = length l2 ->
@@ -603,6 +498,36 @@ Proof. intros A B C l1.
            subst. inversion H. easy.
            subst. inversion H0. easy.
 Qed.
+
+Lemma reflstH: forall t1 R,
+  Reflexive R ->
+  wfC t1 ->
+  subtype R t1 t1.
+Proof. intros.
+       case_eq t1; intros.
+       constructor.
+       constructor.
+       lia.
+       apply refl_recv.
+       constructor. easy.
+       subst.
+       punfold H0. inversion H0.
+       subst. simpl.
+       unfold wfL in H3.
+(*        rewrite unzipL. easy. easy. easy.
+       apply mon_wf.
+       constructor.
+       lia.
+       apply refl_send.
+       constructor. easy.
+       subst.
+       punfold H0. inversion H0.
+       subst. simpl.
+       unfold wfL in H3.
+       rewrite unzipL. easy. easy. easy.
+       apply mon_wf.
+Qed. *)
+Admitted.
 
 Lemma transtH: forall t1 t2 t3 R,
   Transitive R ->
@@ -626,7 +551,7 @@ Proof. intros.
        punfold H2.
        inversion H2. subst.
        unfold wfL in H7.
-       rewrite unzipL. easy. easy. easy.
+(*        rewrite unzipL. easy. easy. easy.
        apply mon_wf.
        punfold H1.
        inversion H1. subst.
@@ -670,7 +595,8 @@ Proof. intros.
        lia.
        lia.
        easy. easy.
-Qed.
+Qed. *)
+Admitted.
 
 Lemma st_mon: monotone2 subtype.
 Proof. unfold monotone2.
@@ -679,7 +605,7 @@ Proof. unfold monotone2.
        - constructor.
        - apply sub_in; try easy.
          revert xs H H0.
-         induction ys; intros. easy.
+         induction ys; intros. (* easy.
          destruct a as (l,(s,t)).
          specialize(helperL ((l,(s,t)) :: ys) xs l s t subsort r); intro HH.
          pose proof H0 as HN.
@@ -710,9 +636,13 @@ Proof. unfold monotone2.
          lia.
          simpl. left. easy.
 Qed.
+ *)
+Admitted.
+
+
 
 #[export]
 Declare Instance stTrans: Transitive (subtypeC).
 
-#[export]
-Declare Instance stRefl: Reflexive (subtypeC).
+(* #[export]
+Declare Instance stRefl: Reflexive (subtypeC). *)

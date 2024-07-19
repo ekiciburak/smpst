@@ -342,7 +342,7 @@ Proof. intros l H.
 Qed.
 
 Check findpath.
-
+(* 
 Lemma shelp: forall p q l s T L G,
   projectionC p G L ->
   subtypeC (ltt_send q [(l,(s,T))]) L -> 
@@ -387,7 +387,7 @@ Proof. intros A B C t1.
          + subst. inversion H1.
            subst. simpl in H12. easy.
 Admitted.
-       
+        *)
 
 
 (* Parameter (l: list (label*sort*ltt)).
