@@ -32,6 +32,11 @@ Proof.
   split. easy. unfold upaco1. left. easy.
 Qed.
 
+Lemma extended_SList : forall l S T, SList (extendLTT l [] (Some (S, T))).
+Proof.
+  intro l. induction l; try easy.
+Qed.
+
 Lemma typable_implies_wfC_helper2 : forall p l S T,
   wfC T ->
   wf (upaco1 wf bot1) (ltt_send p (extendLTT l [] (Some (S, T)))).
@@ -41,9 +46,33 @@ Proof.
   apply wf_send; try easy. apply Forall_cons; try easy. right.
   exists S, T. split. easy. unfold upaco1. unfold wfC in H. left. easy.
   simpl. 
-  constructor. apply Forall_cons; try easy. left. easy.
+  constructor. simpl. apply extended_SList.
+  apply Forall_cons; try easy. left. easy.
   specialize(IHl S T H); intros. inversion IHl; try easy.
 Qed.
+
+Lemma typable_implies_wfC_helper3 : forall Pr STT,
+    SList Pr ->
+    Forall2
+       (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ wfC t)) Pr STT ->
+    SList STT.
+Proof.
+  intro Pr. induction Pr; intros; try easy.
+  destruct STT; try easy.
+  specialize(Forall2_cons_iff (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ wfC t)) a o Pr STT); intros.
+  destruct H1. specialize(H1 H0). clear H0 H2.
+  destruct H1. destruct H0.
+  destruct H0. subst. simpl. apply IHPr; try easy.
+  destruct H0. destruct H0. destruct H0. destruct H0. destruct H2. subst.
+  easy.
+Qed.
+  
 
 Lemma typable_implies_wfC [P : process] [Gs : ctxS] [Gt : ctxT] [T : ltt] :
   typ_proc Gs Gt P T -> wfC T.
@@ -51,6 +80,7 @@ Proof.
   intros. induction H using typ_proc_ind_ref; try easy.
   - unfold wfC. pfold. constructor.
   - unfold wfC. pfold. constructor; try easy.
+    apply typable_implies_wfC_helper3 with (Pr := Pr); try easy.
     apply typable_implies_wfC_helper with (Pr := Pr); try easy.
   - unfold wfC. pfold. 
     apply typable_implies_wfC_helper2; try easy.

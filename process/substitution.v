@@ -71,7 +71,7 @@ Proof.
   exists a. exists xs. easy.
 Qed.
 
-Lemma SList_map : forall f lis,  
+Lemma SList_map {A} : forall (f : A -> A) lis,  
   SList (list_map (fun u => match u with
     | Some x => Some (f x)
     | None   => None
@@ -81,7 +81,7 @@ Proof.
   destruct a; try easy. simpl. apply IHlis; try easy.
 Qed.
 
-Lemma SList_map2 : forall f lis, SList lis -> 
+Lemma SList_map2 {A} : forall (f : A -> A) lis, SList lis -> 
   SList (list_map (fun u => match u with
     | Some x => Some (f x)
     | None   => None

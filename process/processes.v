@@ -64,13 +64,6 @@ Section process_ind_ref.
   Qed.
 End process_ind_ref.
 
-Fixpoint SList (lis : list (option process)) : Prop := 
-  match lis with 
-    | Some x :: xs => True 
-    | None :: xs   => SList xs
-    | []           => False
-  end.
-
 Inductive wtyped : process -> Prop := 
   | wp_var : forall n, wtyped (p_var n)
   | wp_inact : wtyped p_inact

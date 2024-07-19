@@ -36,12 +36,21 @@ Fixpoint ozip{A B: Type} (l1: list A) (l2: list B): list (option(A*B)) :=
     | _              => [Datatypes.None]
   end.
 
+Fixpoint SList {A} (lis : list (option A)) : Prop := 
+  match lis with 
+    | Datatypes.Some x :: xs => True 
+    | Datatypes.None :: xs   => SList xs
+    | []           => False
+  end.
+
 Inductive wf (R: ltt -> Prop): ltt -> Prop :=
   | wf_end : wf R ltt_end
   | wf_recv: forall p lis,
+             SList lis ->
              Forall (fun u => u = Datatypes.None \/ (exists s t, u = Datatypes.Some (s,t) /\ R t)) lis ->
              wf R (ltt_recv p lis)
   | wf_send: forall p lis,
+             SList lis ->
              Forall (fun u => u = Datatypes.None \/ (exists s t, u = Datatypes.Some (s,t) /\ R t)) lis ->
              wf R (ltt_send p lis).
 
