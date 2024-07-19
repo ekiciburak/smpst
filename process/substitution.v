@@ -56,12 +56,12 @@ Qed.
 
 Lemma extend_extract : forall n (T : ltt) Gt, onth n (extendT n T Gt) = Some T.
 Proof.
-  intro n. induction n using strong_ind.
+  intro n. induction n.
   intros t gt. revert t. induction gt.
-  - intros. destruct n. easy.
-    simpl. apply H; try easy. apply Nat.lt_succ_diag_r.
-  - intros. destruct n. easy.
-    simpl. apply H; try easy. apply Nat.lt_succ_diag_r.
+  - intros. easy. intros. easy.
+  - destruct Gt; try easy. simpl.
+    - apply IHn.
+    - simpl. apply IHn.
 Qed.
 
 Lemma positive_list_length_dst {A} : forall (xs : list A) n, length xs = S(n) -> exists y ys, y::ys = xs.
@@ -69,6 +69,26 @@ Proof.
   intros.
   induction xs. easy.
   exists a. exists xs. easy.
+Qed.
+
+Lemma SList_map : forall f lis,  
+  SList (list_map (fun u => match u with
+    | Some x => Some (f x)
+    | None   => None
+  end) lis) -> SList lis.
+Proof.
+  intros f lis. induction lis; intros; try easy. 
+  destruct a; try easy. simpl. apply IHlis; try easy.
+Qed.
+
+Lemma SList_map2 : forall f lis, SList lis -> 
+  SList (list_map (fun u => match u with
+    | Some x => Some (f x)
+    | None   => None
+  end) lis).
+Proof.
+  intros f lis. induction lis; intros; try easy.
+  destruct a; try easy. simpl. apply IHlis; try easy.
 Qed.
 
 Lemma positive_list_length_dst_zip {A B} : forall (xs : list A) (ys : list B) n, length (zip xs ys) = S n -> exists t ts u us, (t,u) :: zip ts us = zip xs ys.
@@ -83,78 +103,74 @@ Proof.
   replace (x.1, x.2) with x. easy.
 Qed.
 
-Lemma typable_implies_wfC_helper : forall (T : seq ltt) (Pr : seq process) (ST : seq sort),
-  length ST = length Pr ->
-  length Pr = length T ->
-  Forall2 (fun=> (fun v : sort * ltt => wfC v.2)) Pr (zip ST T) ->
-  Forall (upaco1 wf bot1) T.
-Proof.
-  intro T. induction T; intros; try easy.
-  destruct Pr; try easy. destruct ST; try easy.
-  simpl in *.
-  specialize(Forall2_cons_iff (fun=> (fun v : sort * ltt => wfC v.2)) p (s,a) Pr (zip ST T)); intros.
-  destruct H2. clear H3. specialize(H2 H1). clear H1. destruct H2.
-  specialize(IHT Pr ST); intros.
-  apply Forall_cons; try easy.
-  simpl in H1. unfold wfC in H1. unfold upaco1. left. easy.
-  apply IHT; try easy.
-  apply eq_add_S. easy. apply eq_add_S. easy.
-Qed.
-
-Lemma typable_implies_wfC [P : process] [Gs : ctxS] [Gt : ctxT] [T : ltt] :
-  typ_proc Gs Gt P T -> wfC T.
-Proof.
-  intros. induction H using typ_proc_ind_ref; try easy.
-  - unfold wfC. pfold. constructor.
-  - unfold wfC. pfold. constructor; try easy.
-    apply eq_trans with (y := length Pr); try easy.
-    apply typable_implies_wfC_helper with (Pr := Pr) (ST := ST); try easy.
-  - unfold wfC. pfold. 
-    specialize(wf_send (upaco1 wf bot1) p [l] [S] [T]); intros.
-    simpl in *. apply H0; try easy. apply sort1.
-    apply Forall_cons; try easy.
-    unfold upaco1. left. easy.
-Qed.
-
-Lemma slideT_helper : forall llp x0 x X m k l Gs Gtl Gtr tm,
-    Forall
-      (fun Q : process =>
-       forall (X m l k : fin) (tm : option ltt) (Gs : ctxS) (Gtl Gtr : seq (option ltt))
-         (T : ltt),
-       typ_proc Gs (Gtl ++ Gtr) (incr_free l k X m Q) T ->
-       length Gtl = l -> typ_proc Gs (Gtl ++ tm :: Gtr) (incr_free l k X.+1 m Q) T) llp ->
-    Forall2 (fun (u : process) (v : sort * ltt) => typ_proc (Some v.1 :: Gs) (Gtl ++ Gtr) u v.2)
-       (list_map (incr_free l k.+1 X m) llp) (zip x0 x) ->
+Lemma slideT_helper : forall llp Gs Gtl tm Gtr l X m k x,
     length Gtl = l ->
+    Forall
+      (fun u : option process =>
+       match u with
+       | Some k =>
+           forall (X m l k0 : fin) (tm : option ltt) (Gs : ctxS) (Gtl Gtr : seq (option ltt)) (T : ltt),
+           typ_proc Gs (Gtl ++ Gtr) (incr_free l k0 X m k) T ->
+           length Gtl = l -> typ_proc Gs (Gtl ++ tm :: Gtr) (incr_free l k0 X.+1 m k) T
+       | None => True
+       end) llp ->
     Forall2
-      (fun (u : process) (v : sort * ltt) => typ_proc (Some v.1 :: Gs) (Gtl ++ tm :: Gtr) u v.2)
-      (list_map (incr_free l k.+1 X.+1 m) llp) (zip x0 x).
+       (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (Gtl ++ Gtr) p t))
+       (list_map
+          (fun u : option process =>
+           match u with
+           | Some p' => Some (incr_free l k.+1 X m p')
+           | None => None
+           end) llp) x ->
+    Forall2
+      (fun (u : option process) (v : option (sort * ltt)) =>
+       u = None /\ v = None \/
+       (exists (p : process) (s : sort) (t : ltt),
+          u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (Gtl ++ tm :: Gtr) p t))
+      (list_map
+         (fun u : option process =>
+          match u with
+          | Some p' => Some (incr_free l k.+1 X.+1 m p')
+          | None => None
+          end) llp) x.
 Proof.
   intro llp. induction llp; intros; try easy.
-  - specialize(Forall2_length H0); intros.
-    specialize(map_length (incr_free 0 1 X m) []); intros.
-    specialize(eq_trans (esym H2) H3); intros. simpl in H4.
-    specialize(length_zero_iff_nil (zip x0 x)); intros. destruct H5. specialize(H5 H4); intros.
-    replace (zip x0 x) with (@nil (sort * ltt)). easy.
-  - specialize(Forall2_length H0); intros.
-    specialize(map_length (incr_free l k.+1 X m) (a::llp)); intros.
-    specialize(eq_trans (esym H2) H3); intros. simpl in H4.
-    specialize(positive_list_length_dst_zip x0 x (length llp) H4); intros.
-    destruct H5. destruct H5. destruct H5. destruct H5. 
-    replace (zip x0 x) with ((x1,x3) :: zip x2 x4) in *. clear H2 H3 H4 H5.
-    simpl in H0.
-    specialize(Forall2_cons_iff (fun (u : process) (v : sort * ltt) => typ_proc (Some v.1 :: Gs) (Gtl ++ Gtr) u v.2) (incr_free l k.+1 X m a) (x1,x3) (list_map (incr_free l k.+1 X m) llp) (zip x2 x4)); intros.
-    destruct H2. clear H3. specialize(H2 H0); intros. clear H0. destruct H2.
-    specialize(Forall_cons_iff (fun Q : process =>
-       forall (X m l k : fin) (tm : option ltt) (Gs : ctxS) (Gtl Gtr : seq (option ltt))
-         (T : ltt),
-       typ_proc Gs (Gtl ++ Gtr) (incr_free l k X m Q) T ->
-       length Gtl = l -> typ_proc Gs (Gtl ++ tm :: Gtr) (incr_free l k X.+1 m Q) T)  a llp); intros. destruct H3. clear H4.
-    specialize(H3 H); intros. clear H. destruct H3.
-    specialize(IHllp x2 x4 X m k l Gs Gtl Gtr tm H3 H2 H1); intros. clear H2 H3.
+  - destruct x; try easy.
+  - destruct x; try easy.
+    simpl in *.
+    specialize(Forall2_cons_iff (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (Gtl ++ Gtr) p t)) (match a with
+        | Some p' => Some (incr_free l k.+1 X m p')
+        | None => None
+        end) o (list_map
+             (fun u : option process =>
+              match u with
+              | Some p' => Some (incr_free l k.+1 X m p')
+              | None => None
+              end) llp) x); intros. destruct H2. clear H3. specialize(H2 H1). clear H1.
+    destruct H2.
+    specialize(Forall_cons_iff (fun u : option process =>
+        match u with
+        | Some k =>
+            forall (X m l k0 : fin) (tm : option ltt) (Gs : ctxS) (Gtl Gtr : seq (option ltt)) (T : ltt),
+            typ_proc Gs (Gtl ++ Gtr) (incr_free l k0 X m k) T ->
+            length Gtl = l -> typ_proc Gs (Gtl ++ tm :: Gtr) (incr_free l k0 X.+1 m k) T
+        | None => True
+        end) a llp); intros. destruct H3. clear H4. specialize(H3 H0). clear H0. destruct H3.
     apply Forall2_cons; try easy.
-    apply H. easy. easy.
-Qed. 
+    - destruct a; try easy. destruct H1. easy.
+      destruct H1. destruct H1. destruct H1. destruct H1. destruct H4. subst.
+      right. exists (incr_free (length Gtl) k.+1 X.+1 m p), x1, x2. split. easy. split. easy. 
+      inversion H1. subst. apply H0; try easy.
+    - destruct H1. destruct H1. subst. left. easy.
+      destruct H1. destruct H1. destruct H1. destruct H1. easy.
+    apply IHllp; try easy.
+Qed.
 
 Lemma onth_more {A} : forall l Gtl Gtr n X x (tm : option A),
       (l <= n) = true ->
@@ -215,23 +231,42 @@ Proof.
   - simpl in *.
     specialize(_a23_bf pt lb (incr_freeE k m ex) (incr_free l k X m Q) (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q)) Gs (Gtl ++ Gtr) T H (erefl (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q)))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2.
-    apply tc_sub with (t := (ltt_send pt [(lb, (x, x0))])); try easy.
+    apply tc_sub with (t := (ltt_send pt (extendLTT lb [] (Some (x, x0))))); try easy.
     apply tc_send; try easy.
     apply IHQ. easy. easy.
     specialize(typable_implies_wfC H); intros; try easy.
   - simpl in *.
-    specialize(_a23_a pt llb (list_map (incr_free l k.+1 X m) llp) (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)) Gs (Gtl ++ Gtr) T H0 (erefl (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)))); intros.
-    destruct H2. destruct H2. destruct H2. destruct H3. destruct H4. destruct H5. destruct H6.
-    apply tc_sub with (t := (ltt_recv pt (zip llb (zip x0 x)))); try easy.
-    
-    specialize(eq_trans (esym H2) H3); intros; try easy.
-    specialize(map_length (incr_free l k.+1 X m) llp); intros.
-    specialize(map_length (incr_free l k.+1 X.+1 m) llp); intros.
-    specialize(eq_trans H4 H9); intros.
-    specialize(eq_trans H11 (esym H10)); intros.
-    specialize(eq_trans (esym H3) H11); intros.
-    specialize(eq_trans H13 (esym H10)); intros.
-    apply tc_recv; try easy. clear H2 H3 H4 H6 H8 H9 H10 H11 H12 H13 H14.
+    specialize(_a23_a pt (list_map
+             (fun u : option process =>
+              match u with
+              | Some p' => Some (incr_free l k.+1 X m p')
+              | None => None
+              end) llp) (p_recv pt
+          (list_map
+             (fun u : option process =>
+              match u with
+              | Some p' => Some (incr_free l k.+1 X m p')
+              | None => None
+              end) llp)) Gs (Gtl ++ Gtr) T H0 (erefl (p_recv pt
+          (list_map
+             (fun u : option process =>
+              match u with
+              | Some p' => Some (incr_free l k.+1 X m p')
+              | None => None
+              end) llp)))); intros.
+    destruct H2. destruct H2. destruct H3. destruct H4. 
+    apply tc_sub with (t := (ltt_recv pt x)); try easy. constructor.
+    specialize(Forall2_length H4); intros.
+    specialize(map_length (fun u : option process =>
+           match u with
+           | Some p' => Some (incr_free l k.+1 X m p')
+           | None => None
+           end) llp); intros.
+    specialize(eq_trans (esym H6) H7); intros. clear H6 H7.
+    apply eq_trans with (y := length llp); try easy. 
+    apply map_length; try easy.
+    apply SList_map2 with (f := (incr_free l k.+1 X.+1 m)); try easy.
+    specialize(SList_map (incr_free l k.+1 X m) llp H5); intros. easy.
     apply slideT_helper; try easy.
     specialize(typable_implies_wfC H0); intros; try easy.
   - simpl in *.
@@ -313,38 +348,77 @@ Proof.
     subst. apply sc_plus. apply IHex1; try easy. apply IHex2; try easy.
 Qed.
 
-Lemma slideS_helper : forall llp l k X m x0 x Gsl Gsr Gt tm,
+Lemma slideS_helper : forall llp l k X m x Gsl Gsr Gt tm,
     length Gsl = k ->
     Forall
-          (fun Q : process =>
-           forall (X m l k : fin) (tm : option sort) (Gsl Gsr : seq (option sort)) (Gt : ctxT) (T : ltt),
-           typ_proc (Gsl ++ Gsr) Gt (incr_free l k X m Q) T ->
-           length Gsl = k -> typ_proc (Gsl ++ tm :: Gsr) Gt (incr_free l k X m.+1 Q) T) llp ->
-    Forall2 (fun (u : process) (v : sort * ltt) => typ_proc (Some v.1 :: Gsl ++ Gsr) Gt u v.2)
-           (list_map (incr_free l k.+1 X m) llp) (zip x0 x) ->
-    Forall2 (fun (u : process) (v : sort * ltt) => typ_proc (Some v.1 :: Gsl ++ tm :: Gsr) Gt u v.2)
-      (list_map (incr_free l k.+1 X m.+1) llp) (zip x0 x).
+      (fun u : option process =>
+       match u with
+       | Some k =>
+           forall (X m l k0 : fin) (tm : option sort) (Gsl Gsr : seq (option sort)) 
+             (Gt : ctxT) (T : ltt),
+           typ_proc (Gsl ++ Gsr) Gt (incr_free l k0 X m k) T ->
+           length Gsl = k0 -> typ_proc (Gsl ++ tm :: Gsr) Gt (incr_free l k0 X m.+1 k) T
+       | None => True
+       end) llp ->
+    Forall2
+       (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gsl ++ Gsr) Gt p t))
+       (list_map
+          (fun u : option process =>
+           match u with
+           | Some p' => Some (incr_free l k.+1 X m p')
+           | None => None
+           end) llp) x ->
+    Forall2
+      (fun (u : option process) (v : option (sort * ltt)) =>
+       u = None /\ v = None \/
+       (exists (p : process) (s : sort) (t : ltt),
+          u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gsl ++ tm :: Gsr) Gt p t))
+      (list_map
+         (fun u : option process =>
+          match u with
+          | Some p' => Some (incr_free l k.+1 X m.+1 p')
+          | None => None
+          end) llp) x.
 Proof.
   intro llp. induction llp; intros; try easy.
-  - specialize(Forall2_length H1); intros. simpl in *.
-    specialize(length_zero_iff_nil (zip x0 x)); intros. destruct H3.
-    specialize(H3 (esym H2)). clear H2 H4. replace (zip x0 x) with (@nil (sort * ltt)). easy.
-  - specialize(Forall2_length H1); intros. simpl in *.
-    specialize(positive_list_length_dst_zip x0 x (length (list_map (incr_free l k.+1 X m) llp)) (esym H2)); intros.
-    destruct H3. destruct H3. destruct H3. destruct H3. 
-    replace (zip x0 x) with ((x1,x3) :: zip x2 x4) in *. clear H2 H3.
-    specialize(Forall2_cons_iff (fun (u : process) (v : sort * ltt) => typ_proc (Some v.1 :: Gsl ++ Gsr) Gt u v.2) (incr_free l k.+1 X m a) (x1,x3) (list_map (incr_free l k.+1 X m) llp) (zip x2 x4)); intros.
-    destruct H2. clear H3. specialize(H2 H1); intros. clear H1. destruct H2.
-    specialize(Forall_cons_iff (fun Q : process =>
-        forall (X m l k : fin) (tm : option sort) (Gsl Gsr : seq (option sort)) (Gt : ctxT) (T : ltt),
-        typ_proc (Gsl ++ Gsr) Gt (incr_free l k X m Q) T ->
-        length Gsl = k -> typ_proc (Gsl ++ tm :: Gsr) Gt (incr_free l k X m.+1 Q) T) a llp); intros.
-    destruct H3. specialize(H3 H0); intros. clear H4 H0. destruct H3.
-    specialize(IHllp l k X m x2 x4 Gsl Gsr Gt tm H H3 H2); intros. 
-    specialize(H0 X m l k.+1 tm (Some (x1, x3).1 :: Gsl) Gsr Gt (x1, x3).2); intros.
+  - destruct x; try easy.
+  - destruct x; try easy.
+    specialize(Forall_cons_iff (fun u : option process =>
+        match u with
+        | Some k =>
+            forall (X m l k0 : fin) (tm : option sort) (Gsl Gsr : seq (option sort)) 
+              (Gt : ctxT) (T : ltt),
+            typ_proc (Gsl ++ Gsr) Gt (incr_free l k0 X m k) T ->
+            length Gsl = k0 -> typ_proc (Gsl ++ tm :: Gsr) Gt (incr_free l k0 X m.+1 k) T
+        | None => True
+        end) a llp); intros. destruct H2. specialize(H2 H0). clear H0 H3. destruct H2.
+    simpl in *.
+    specialize(Forall2_cons_iff (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gsl ++ Gsr) Gt p t)) (match a with
+        | Some p' => Some (incr_free l k.+1 X m p')
+        | None => None
+        end) o (list_map
+             (fun u : option process =>
+              match u with
+              | Some p' => Some (incr_free l k.+1 X m p')
+              | None => None
+              end) llp) x); intros.
+    destruct H3. specialize(H3 H1). clear H1 H4. destruct H3.
     apply Forall2_cons; try easy.
-    apply H0; try easy. simpl.
-    apply eq_S. easy.
+    - destruct a; try easy. destruct H1. easy.
+      destruct H1. destruct H1. destruct H1. destruct H1. inversion H1. subst.
+      right. destruct H4. subst. exists (incr_free l (length Gsl).+1 X m.+1 p), x1, x2.
+      split. easy. split. easy. 
+      specialize(H0 X m l (length Gsl).+1 tm (Some x1 :: Gsl) Gsr Gt x2 H4).
+      simpl in H0. apply H0. easy.
+    - destruct H1. destruct H1. subst. left; easy.
+      destruct H1. destruct H1. destruct H1. destruct H1. easy.
+    apply IHllp; try easy.
 Qed.
 
 Lemma slideSp : forall Q X m l k tm Gsl Gsr Gt T,
@@ -364,22 +438,43 @@ Proof.
   - simpl in *.
     specialize(_a23_bf pt lb (incr_freeE k m ex) (incr_free l k X m Q) (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q)) (Gsl ++ Gsr) Gt T H (erefl (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q) ))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2.
-    apply tc_sub with (t := (ltt_send pt [(lb, (x, x0))])); try easy.
+    apply tc_sub with (t := (ltt_send pt (extendLTT lb [] (Some (x, x0))))); try easy.
     apply tc_send; try easy.
     apply slideSp_e; try easy.
     apply IHQ; try easy.
     specialize(typable_implies_wfC H); intros; try easy. 
   - simpl in *.
-    specialize(_a23_a pt llb (list_map (incr_free l k.+1 X m) llp) (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)) (Gsl ++ Gsr) Gt T H0 (erefl (p_recv pt llb (list_map (incr_free l k.+1 X m) llp)))); intros.
-    destruct H2. destruct H2. destruct H2. destruct H3. destruct H4. destruct H5. destruct H6.
-    apply tc_sub with (t := (ltt_recv pt (zip llb (zip x0 x)))); try easy.
-    specialize(eq_trans (esym H2) H3); intros.
-    specialize(map_length (incr_free l k.+1 X m) llp); intros.
-    specialize(map_length (incr_free l k.+1 X m.+1) llp); intros.
-    specialize(eq_trans H4 H9); intros.
-    specialize(eq_trans H11 (esym H10)); intros.
-    specialize(eq_trans (esym H3) H12); intros.
-    apply tc_recv; try easy. clear H2 H3 H4 H6 H8 H9 H10 H11 H12 H13.
+    specialize(_a23_a pt (list_map
+             (fun u : option process =>
+              match u with
+              | Some p' => Some (incr_free l k.+1 X m p')
+              | None => None
+              end) llp) (p_recv pt
+       (list_map
+          (fun u : option process =>
+           match u with
+           | Some p' => Some (incr_free l k.+1 X m p')
+           | None => None
+           end) llp)) (Gsl ++ Gsr) Gt T H0 (erefl (p_recv pt
+       (list_map
+          (fun u : option process =>
+           match u with
+           | Some p' => Some (incr_free l k.+1 X m p')
+           | None => None
+           end) llp)))); intros. 
+    destruct H2. destruct H2. destruct H3. destruct H4. 
+    apply tc_sub with (t := (ltt_recv pt x)); try easy. 
+    constructor.
+    specialize(Forall2_length H4); intros. 
+    specialize(map_length (fun u : option process =>
+           match u with
+           | Some p' => Some (incr_free l k.+1 X m p')
+           | None => None
+           end) llp); intros. 
+    specialize(eq_trans (esym H6) H7); intros.
+    apply eq_trans with (y := length llp); try easy. apply map_length. clear H2.
+    apply SList_map2; try easy.
+    specialize(SList_map (incr_free l k.+1 X m) llp H5); intros; try easy.
     apply slideS_helper; try easy.
     specialize(typable_implies_wfC H0); intros; try easy.
   - simpl in *.
@@ -409,61 +504,93 @@ Proof.
   apply H0; try easy.
 Qed.
 
-Lemma _a21_recv_helper : forall llp X m n Q T Gs Gt x x0 ys,
+Lemma _a21_recv_helper : forall llp X m n Q T Gs Gt x ys,
   wtyped Q ->
   onth X Gt = None ->
   typ_proc Gs Gt (incr_free 0 0 m n Q) T ->
   Forall
-      (fun P : process =>
-       forall (Q : process) (T T' : ltt) (Gs : ctxS) (Gt : ctxT) 
-         (X : fin) (Q' : process) (m n : fin),
-       wtyped Q ->
-       typ_proc Gs (extendT X T Gt) P T' ->
-       onth X Gt = None ->
-       substitutionP X m n Q P Q' ->
-       typ_proc Gs Gt (incr_free 0 0 m n Q) T -> typ_proc Gs Gt Q' T') llp ->
+      (fun u : option process =>
+       match u with
+       | Some k =>
+           forall (Q : process) (T T' : ltt) (Gs : ctxS) (Gt : ctxT) (X : fin) 
+             (Q' : process) (m n : fin),
+           wtyped Q ->
+           typ_proc Gs (extendT X T Gt) k T' ->
+           onth X Gt = None ->
+           substitutionP X m n Q k Q' -> typ_proc Gs Gt (incr_free 0 0 m n Q) T -> typ_proc Gs Gt Q' T'
+       | None => True
+       end) llp ->
   Forall2
-        (fun (u : process) (v : sort * ltt) =>
-         typ_proc (Some v.1 :: Gs) (extendT X T Gt) u v.2) llp 
-        (zip x0 x) ->
-  Forall2 (substitutionP X m n.+1 Q) llp ys ->
-  Forall2 (fun (u : process) (v : sort * ltt) => typ_proc (Some v.1 :: Gs) Gt u v.2) ys
-  (zip x0 x).
+        (fun u v : option process =>
+         u = None /\ v = None \/
+         (exists k l : process, u = Some k /\ v = Some l /\ substitutionP X m n.+1 Q k l)) llp ys ->
+  Forall2
+       (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (extendT X T Gt) p t)) llp x ->
+  Forall2
+      (fun (u : option process) (v : option (sort * ltt)) =>
+       u = None /\ v = None \/
+       (exists (p : process) (s : sort) (t : ltt),
+          u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) Gt p t)) ys x. 
 Proof.
   intro llp. induction llp; intros; try easy.
-  specialize(Forall2_length H3); intros. simpl in H5.
-  specialize(Forall2_length H4); intros. simpl in H6.
-  specialize(length_zero_iff_nil (zip x0 x)); intros. destruct H7. specialize(H7 (esym H5)); intros.
-  specialize(length_zero_iff_nil ys); intros. destruct H9. specialize(H9 (esym H6)); intros.
-  subst. replace (zip x0 x) with (@nil (sort * ltt)). easy.
-  
-  specialize(Forall2_length H3); intros. simpl in H5.
-  specialize(positive_list_length_dst_zip x0 x (length llp) (esym H5)); intros.
-  destruct H6. destruct H6. destruct H6. destruct H6.
-  replace (zip x0 x) with ((x1, x3) :: zip x2 x4) in *. simpl in *.
-  specialize(Forall2_length H4); intros. simpl in H7.
-  specialize(positive_list_length_dst ys (length llp) (esym H7)); intros.
-  destruct H8. destruct H8. subst. clear H5 H6 H7.
-  specialize(Forall2_cons_iff (fun (u : process) (v : sort * ltt) =>
-       typ_proc (Some v.1 :: Gs) (extendT X T Gt) u v.2) a (x1,x3) llp (zip x2 x4)); intros.
-  destruct H5. specialize(H5 H3); intros. clear H6 H3. destruct H5.
-  specialize(Forall2_cons_iff (substitutionP X m n.+1 Q) a x5 llp x6); intros.
-  destruct H6. specialize(H6 H4); intros. clear H7 H4. destruct H6.
-  specialize(Forall_cons_iff (fun P : process =>
-        forall (Q : process) (T T' : ltt) (Gs : ctxS) (Gt : ctxT) 
-          (X : fin) (Q' : process) (m n : fin),
-        wtyped Q ->
-        typ_proc Gs (extendT X T Gt) P T' ->
-        onth X Gt = None ->
-        substitutionP X m n Q P Q' ->
-        typ_proc Gs Gt (incr_free 0 0 m n Q) T -> typ_proc Gs Gt Q' T') a llp); intros.
-  destruct H7. specialize(H7 H2); intros. clear H8 H2. destruct H7.
-  specialize(H2 Q T (x1, x3).2 (Some (x1, x3).1 :: Gs) Gt X x5 m n.+1 H H3 H0 H4); intros.
-  specialize(IHllp X m n Q T Gs Gt x4 x2 x6 H H0 H1 H7 H5 H6); intros.
+  - destruct ys; try easy. destruct x; try easy.
+  - destruct ys; try easy. destruct x; try easy.
+  specialize(Forall_cons_iff (fun u : option process =>
+        match u with
+        | Some k =>
+            forall (Q : process) (T T' : ltt) (Gs : ctxS) (Gt : ctxT) (X : fin) 
+              (Q' : process) (m n : fin),
+            wtyped Q ->
+            typ_proc Gs (extendT X T Gt) k T' ->
+            onth X Gt = None ->
+            substitutionP X m n Q k Q' -> typ_proc Gs Gt (incr_free 0 0 m n Q) T -> typ_proc Gs Gt Q' T'
+        | None => True
+        end) a llp); intros. destruct H5. specialize(H5 H2). clear H2 H6. destruct H5.
+  specialize(Forall2_cons_iff (fun u v : option process =>
+        u = None /\ v = None \/
+        (exists k l : process, u = Some k /\ v = Some l /\ substitutionP X m n.+1 Q k l)) a o llp ys); intros.
+  destruct H6. specialize(H6 H3). clear H3 H7. destruct H6.
+  specialize(Forall2_cons_iff (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (extendT X T Gt) p t)) a o0 llp x); intros.
+  destruct H7. specialize(H7 H4). clear H4 H8. destruct H7.
   apply Forall2_cons; try easy.
-  apply H2.
-  apply slideS; try easy.
-Qed. 
+  - destruct H3. destruct H3. subst.
+    - destruct H4. destruct H3. subst. left. easy.
+    - destruct H3. destruct H3. destruct H3. destruct H3. easy.
+  - destruct H3. destruct H3. destruct H3. destruct H8. subst. right.
+    - destruct H4. destruct H3. easy.
+    - destruct H3. destruct H3. destruct H3. destruct H3. destruct H4. subst.
+      exists x1, x3, x4. split. easy. split. easy. inversion H3. subst.
+      apply H2 with (Q := Q) (T := T) (X := X) (m := m) (n := n.+1); try easy.
+      apply slideS. easy.
+  apply IHllp with (X := X) (m := m) (n := n) (Q := Q) (T := T); try easy.
+Qed.
+
+Lemma SList_Forall2_a21 : forall llp ys X m n Q,
+  SList llp -> 
+  Forall2
+        (fun u v : option process =>
+         u = None /\ v = None \/
+         (exists k l : process, u = Some k /\ v = Some l /\ substitutionP X m n.+1 Q k l)) llp ys ->
+  SList ys.
+Proof.
+  intro llp. induction llp; intros; try easy.
+  destruct ys; try easy.
+  specialize(Forall2_cons_iff (fun u v : option process =>
+        u = None /\ v = None \/
+        (exists k l : process, u = Some k /\ v = Some l /\ substitutionP X m n.+1 Q k l)) a o llp ys); intros.
+  destruct H1. specialize(H1 H0). clear H0 H2.
+  destruct H1.
+  destruct o; try easy. simpl.
+  apply IHllp with (X := X) (m := m) (n := n) (Q := Q); try easy.
+  destruct a; try easy.
+  destruct H0. destruct H0. easy. destruct H0. destruct H0. destruct H0. destruct H2. easy.
+Qed.
 
 Lemma _a21: forall P Q T T' Gs Gt X Q' m n, wtyped Q 
   -> typ_proc Gs (extendT X T Gt) P T' -> onth X Gt = None 
@@ -504,20 +631,21 @@ Proof.
   specialize(_a23_bf pt lb ex P (p_send pt lb ex P) Gs (extendT X T Gt) T' H0 (erefl (p_send pt lb ex P))); intros. 
   destruct H4. destruct H4. destruct H4. destruct H5. 
   specialize(IHP Q T x0 Gs Gt X Q'0 m n H H5 H1 H13 H3); intros.
-  apply tc_sub with (t := (ltt_send pt [(lb, (x, x0))])); try easy.
+  apply tc_sub with (t := (ltt_send pt (extendLTT lb [] (Some (x, x0))))); try easy.
   apply tc_send; try easy.
   specialize(typable_implies_wfC H0); intros; try easy.
   
   (* recv *)
   intros.
   inversion H3. subst.
-  specialize(_a23_a pt llb llp (p_recv pt llb llp) Gs (extendT X T Gt) T' H1 (erefl (p_recv pt llb llp))); intros.
-  destruct H5. destruct H5. destruct H5. destruct H6. destruct H7. destruct H9. destruct H10.
-  apply tc_sub with (t := (ltt_recv pt (zip llb (zip x0 x)))); try easy.
-  specialize(eq_trans (esym H5) H6); intros.
-  specialize(eq_trans (esym H12) H13); intros.
-  specialize(eq_trans H5 H13); intros.
-  apply tc_recv; try easy.
+  specialize(_a23_a pt llp (p_recv pt llp) Gs (extendT X T Gt) T' H1 (erefl (p_recv pt llp))); intros.
+  destruct H5. destruct H5. destruct H6. destruct H7.
+  apply tc_sub with (t := (ltt_recv pt x)); try easy. constructor.
+  specialize(Forall2_length H12); intros; try easy.
+  specialize(Forall2_length H7); intros.
+  apply eq_trans with (y := length llp); try easy.
+  inversion H3. subst.
+  apply SList_Forall2_a21 with (llp := llp) (X := X) (m := m) (n := n) (Q := Q); try easy.
   apply _a21_recv_helper with (llp := llp) (m := m) (n := n) (Q := Q) (X := X) (T := T); try easy.
   specialize(typable_implies_wfC H1); intros; try easy.
   
@@ -563,6 +691,27 @@ Proof.
   apply Forall_cons; try easy.
 Qed.
 
+Lemma typable_implies_wtyped_helper : forall Pr STT,
+  Forall2
+       (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt), u = Some p /\ v = Some (s, t) /\ wtyped p)) Pr STT ->
+  Forall (fun u : option process => u = None \/ (exists k : process, u = Some k /\ wtyped k)) Pr.
+Proof.
+  intro Pr. induction Pr; intros; try easy.
+  destruct STT; try easy.
+  specialize(Forall2_cons_iff (fun (u : option process) (v : option (sort * ltt)) =>
+       u = None /\ v = None \/
+       (exists (p : process) (s : sort) (t : ltt), u = Some p /\ v = Some (s, t) /\ wtyped p)) a o Pr STT); intros.
+  destruct H0. specialize(H0 H). clear H H1. destruct H0.
+  apply Forall_cons; try easy.
+  destruct H.
+  - destruct H. subst. left. easy.
+  - destruct H. destruct H. destruct H. destruct H. destruct H1. subst.
+    right. exists x. easy.
+  apply IHPr with (STT := STT); try easy.
+Qed.
+
 Lemma typable_implies_wtyped [Gs : ctxS] [Gt : ctxT] [P : process] [T : ltt] : typ_proc Gs Gt P T -> wtyped P.
 Proof.
   intros. induction H using typ_proc_ind_ref.
@@ -571,9 +720,8 @@ Proof.
   apply wp_rec. easy.
   apply wp_ite; try easy. easy.
   apply wp_recv; try easy. 
-  - specialize(eq_trans H H0); intros; try easy. 
-    apply (Forall2_to_Forall H3).
-    apply wp_send. easy.
+  - apply typable_implies_wtyped_helper with (STT := STT); try easy.
+  apply wp_send. easy.
 Qed.
 
 Lemma trivial_incrE : forall n ex, (incr_freeE n 0 ex) = ex.
@@ -596,18 +744,40 @@ Proof.
   - specialize(trivial_incrE n ex); intros.
     specialize(IHQ m n); intros.
     replace (incr_freeE n 0 ex) with ex. replace (incr_free m n 0 0 Q) with Q. easy.
-  - assert (list_map (incr_free m n.+1 0 0) llp = llp).
+  - assert (list_map (fun u => match u with 
+        | Some u => Some (incr_free m n.+1 0 0 u)
+        | None   => None
+      end) llp = llp).
     {
-      induction llp. easy.
-      specialize(Forall_cons_iff (fun Q : process => forall m n : fin, incr_free m n 0 0 Q = Q) a llp); intros.
+      induction llp. easy. simpl in *.
+      specialize(Forall_cons_iff (fun u : option process =>
+       match u with
+       | Some k => forall m n : fin, incr_free m n 0 0 k = k
+       | None => True
+       end) a llp); intros.
       destruct H0. specialize(H0 H); intros. clear H1 H. destruct H0.
       specialize(IHllp H0); intros.
       simpl.
-      specialize(H m n.+1); intros.
-      replace (incr_free m n.+1 0 0 a) with a.
-      replace (list_map (incr_free m n.+1 0 0) llp) with llp. easy.
+      destruct a; try easy. 
+      specialize(H m n.+1). replace (incr_free m n.+1 0 0 p) with p. 
+      replace (list_map
+     (fun u : option process =>
+      match u with
+      | Some u0 => Some (incr_free m n.+1 0 0 u0)
+      | None => None
+      end) llp) with llp. easy.
+      replace (list_map
+     (fun u : option process =>
+      match u with
+      | Some u0 => Some (incr_free m n.+1 0 0 u0)
+      | None => None
+      end) llp) with llp. easy.
     }
-    replace (list_map (incr_free m n.+1 0 0) llp) with llp. easy.
+    replace (list_map (fun u : option process =>
+        match u with
+        | Some u0 => Some (incr_free m n.+1 0 0 u0)
+        | None => None
+        end) llp) with llp. easy.
   - specialize(trivial_incrE n e); intros. 
     specialize(IHQ1 m n); intros. specialize(IHQ2 m n); intros.
     replace (incr_freeE n 0 e) with e.
@@ -629,3 +799,4 @@ Proof.
   specialize(trivial_incr 0 0 Q); intros. 
   replace (incr_free 0 0 0 0 Q) with Q. easy.
 Qed.
+

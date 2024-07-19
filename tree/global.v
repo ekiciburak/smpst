@@ -104,7 +104,7 @@ Inductive mergeH {A B C: Type}: list (A*(B*C)) -> list (A*(B*C)) -> list (A*(B*C
 
 Definition merge {A B C: Type} (l1 l2 l3: list (A*(B*C))) :=
   mergeH l1 l2 l3 /\ dropDups (l1 ++ l2) l3.
-
+(* 
 Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
   | mbc: forall p l1 l2 l3, merge l1 l2 l3 ->
                             merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3)
@@ -342,7 +342,7 @@ Proof. intros l H.
 Qed.
 
 Check findpath.
-(* 
+
 Lemma shelp: forall p q l s T L G,
   projectionC p G L ->
   subtypeC (ltt_send q [(l,(s,T))]) L -> 
@@ -387,9 +387,9 @@ Proof. intros A B C t1.
          + subst. inversion H1.
            subst. simpl in H12. easy.
 Admitted.
-        *)
+       
 
-
+ *)
 (* Parameter (l: list (label*sort*ltt)).
 Check dropDups l l. *)
 

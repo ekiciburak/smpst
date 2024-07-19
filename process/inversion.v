@@ -5,67 +5,110 @@ From mathcomp Require Import ssreflect.seq.
 Import ListNotations.
 From Paco Require Import paco.
 
+Lemma typable_implies_wfC_helper : forall Pr STT,
+  Forall2
+       (fun (u : option process) (v : option (sort * ltt)) =>
+        u = None /\ v = None \/
+        (exists (p : process) (s : sort) (t : ltt),
+           u = Some p /\ v = Some (s, t) /\ wfC t)) Pr STT ->
+  Forall
+  (fun u : option (sort * ltt) =>
+   u = None \/
+   (exists (s : sort) (t : ltt), u = Some (s, t) /\ upaco1 wf bot1 t))
+  STT.
+Proof.
+  intro Pr. induction Pr; intros; try easy.
+  destruct STT; try easy.
+  destruct STT; try easy.
+  specialize(Forall2_cons_iff (fun (u : option process) (v : option (sort * ltt)) =>
+       u = None /\ v = None \/
+       (exists (p : process) (s : sort) (t : ltt),
+          u = Some p /\ v = Some (s, t) /\ wfC t)) a o Pr STT); intros.
+  destruct H0. clear H1. specialize(H0 H); intros. clear H. destruct H0.
+  specialize(IHPr STT H0); intros.
+  apply Forall_cons; try easy.
+  destruct H; try easy. left; easy. right.
+  destruct H. destruct H. destruct H. exists x0, x1. destruct H. destruct H1. 
+  split. easy. unfold upaco1. left. easy.
+Qed.
 
-Lemma _a23_a: forall p L Q P Gs Gt T, 
+Lemma typable_implies_wfC_helper2 : forall p l S T,
+  wfC T ->
+  wf (upaco1 wf bot1) (ltt_send p (extendLTT l [] (Some (S, T)))).
+Proof.
+  intros p l. induction l; intros; try easy.
+  simpl in *.
+  apply wf_send; try easy. apply Forall_cons; try easy. right.
+  exists S, T. split. easy. unfold upaco1. unfold wfC in H. left. easy.
+  simpl. 
+  constructor. apply Forall_cons; try easy. left. easy.
+  specialize(IHl S T H); intros. inversion IHl; try easy.
+Qed.
+
+Lemma typable_implies_wfC [P : process] [Gs : ctxS] [Gt : ctxT] [T : ltt] :
+  typ_proc Gs Gt P T -> wfC T.
+Proof.
+  intros. induction H using typ_proc_ind_ref; try easy.
+  - unfold wfC. pfold. constructor.
+  - unfold wfC. pfold. constructor; try easy.
+    apply typable_implies_wfC_helper with (Pr := Pr); try easy.
+  - unfold wfC. pfold. 
+    apply typable_implies_wfC_helper2; try easy.
+Qed.
+
+Lemma _a23_a: forall p Q P Gs Gt T, 
   typ_proc Gs Gt P T ->
-  P = (p_recv p L Q) -> 
-  (exists T' ST, length T' = length L /\ length T' = length ST /\ length T' = length Q /\ subtypeC (ltt_recv p (zip L (zip ST T'))) T /\ SSortedNList L /\ 
-  List.Forall2 (fun u v => typ_proc (Some (fst v) :: Gs) Gt u (snd v)) Q (zip ST T')).
+  P = (p_recv p Q) -> 
+  (exists STT, length Q = length STT /\ subtypeC (ltt_recv p STT) T /\ 
+  List.Forall2 (fun u v => (u = None /\ v = None) \/ 
+                     (exists p s t, u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) Gt p t)) Q STT /\ SList Q).
 Proof. intros.
        induction H; intros; try easy.
        specialize(IHtyp_proc H0).
-       destruct IHtyp_proc. destruct H3. destruct H3. destruct H4. destruct H5. destruct H6. destruct H7.
-       exists x. exists x0.
-       split; try easy. split; try easy. split; try easy. split.
-       specialize(stTrans (ltt_recv p (zip L (zip x0 x))) t t' H6 H1); intros.
+       destruct IHtyp_proc. destruct H3. destruct H4. 
+       exists x.
+       split; try easy. split; try easy.
+       specialize(stTrans (ltt_recv p x) t t' H4 H1); intros.
        easy.
-       split. easy. easy.
-       inversion H0. subst. exists T. exists ST.   
-       specialize(eq_trans H1 H2); intros.
-       specialize(eq_trans H H5); intros.
-       
-       split; try easy. split; try easy. split; try easy. split; try easy. 
-       apply stRefl.     
+       inversion H0. subst. exists STT.
+       split. easy. split. apply stRefl. easy.
 Qed.
-
-(* Lemma _a23_af : forall p L Q P Gs Gt T T' ST,
-  typ_proc Gs Gt P T ->
-    P = (p_recv p L Q) -> 
-    length T' = length L -> length T' = length ST -> length T' = length Q -> SSortedNList L -> 
-    List.Forall2 (fun u v => typ_proc (Some (fst v) :: Gs) Gt u (snd v)) Q (zip ST T')) -> 
-    subtypeC (ltt_recv p (zip L (zip ST T'))) T. *)
-
-
+(* 
 Lemma _a23_b: forall p l e Q P Gs Gt T, 
   typ_proc Gs Gt P T ->
   P = (p_send p l e Q) -> exists S S' T', typ_expr Gs e S /\ typ_proc Gs Gt Q T' /\ subsort S' S /\ subtypeC (ltt_send p [(l,(S',T'))]) T.
 Proof. intros p l e Q P Gs Gt T H.
        induction H; intros; try easy.
-       specialize(IHtyp_proc H2).
+       specialize(IHtyp_proc H1).
        destruct IHtyp_proc as (S,(S',(T',Ha))).
        exists S. exists S'. exists T'.
-       destruct Ha. destruct H4. destruct H5. 
-       split; try easy. split. easy. split. easy.
-       specialize(stTrans (ltt_send p [(l, (S', T'))]) t t'); intros.
-       apply H7; try easy.
-       inversion H1. subst.
+       split.
+       specialize(sc_sub cs e S S); intro HSS.
+       apply HSS. easy. apply srefl. 
+       split.
+       specialize(tc_sub cs ct Q T' T'); intro HTS.
+       apply HTS. easy.
+       apply stRefl. split. easy.
+       destruct Ha as (Ha,(Hb,(Hc,Hd))).
+       specialize(stTrans (ltt_send p [(l, (S', T'))]) t t' Hd H0); intro HT.
+       apply HT.
        exists S. exists S. exists T.
+       inversion H1. subst.
        split. easy. split. easy.
        split. apply srefl.
        apply stRefl. 
 Qed.
-
+ *)
 Lemma _a23_bf: forall p l e Q P Gs Gt T, 
   typ_proc Gs Gt P T ->
-  P = (p_send p l e Q) -> exists S T', typ_expr Gs e S /\ typ_proc Gs Gt Q T' /\  subtypeC (ltt_send p [(l,(S,T'))]) T.
+  P = (p_send p l e Q) -> exists S T', typ_expr Gs e S /\ typ_proc Gs Gt Q T' /\  subtypeC (ltt_send p (extendLTT l [] (Some (S,T')))) T.
 Proof.
   intros. revert H0. induction H; intros; try easy.
   specialize(IHtyp_proc H2); intros. destruct IHtyp_proc. destruct H3. destruct H3. destruct H4.
   exists x. exists x0. split; try easy. split; try easy.
-  specialize(stTrans (ltt_send p [(l, (x, x0))]) t t' H5 H0); intros; try easy.
+  specialize(stTrans (ltt_send p (extendLTT l [] (Some (x, x0)))) t t' H5 H0); intros; try easy.
   inversion H1. subst.
-  exists S. exists T. split; try easy.
-  split; try easy. apply stRefl.
+  exists S. exists T. split; try easy. split; try easy. apply stRefl. 
 Qed.
 (* 
 Lemma _a23_bs: forall p l e Q P Gs Gt T, 
@@ -88,14 +131,19 @@ Proof. intros.
        inversion H0.
        subst.
        exists T. exists T.
-       split. easy. split. easy. split. apply stRefl. split; try easy. apply stRefl. 
+       split. easy. split. easy. split. apply stRefl. split. apply stRefl. easy.
        
        specialize(IHtyp_proc H0).
        destruct IHtyp_proc as (T1,(T2,(Ha,(Hb,(Hc,Hd))))).
        exists T1. exists T2.
-       split. easy. split. easy. destruct Hd.
-       specialize(stTrans T1 t t' Hc H1); intro HT. split. easy. split; try easy.
-       specialize(stTrans T2 t t' H3 H1); intros. easy.
+       split.
+       specialize(tc_sub cs ct Q1 T1 T1); intro HTS.
+       apply HTS. easy. apply stRefl. specialize(typable_implies_wfC Ha); easy.
+       split. easy. split. 
+       specialize(stTrans T1 t t' Hc H1); intro HT. easy.
+       split. destruct Hd.
+       specialize(stTrans T2 t t' H3 H1); intro HT. easy.
+       destruct Hd. easy.
 Qed.
 
 Lemma _a23_d: forall P Q T'' Gs Gt,
@@ -106,7 +154,7 @@ Proof. intros.
        inversion H0. subst.
        exists t. exists t'. 
        split. easy. split. easy. apply stRefl.
-       
+              
        specialize(IHtyp_proc H0).
        destruct IHtyp_proc. destruct H3. destruct H3. destruct H4. 
        exists x. exists x0.
@@ -121,12 +169,12 @@ Lemma _a23_e: forall P X T Gs Gt,
 Proof. intros.
        induction H; intros; try easy.
        inversion H0. subst.
-       exists t. split. easy. split; try easy. apply stRefl.
+       exists t. split. easy. split. apply stRefl. easy.
        
        specialize(IHtyp_proc H0); intros. destruct IHtyp_proc.
        destruct H3.
-       exists x. split. easy. destruct H4. split; try easy.
-       specialize(stTrans x t t' H4 H1); intros; try easy.
+       exists x. split. easy. split. destruct H4.
+       specialize(stTrans x t t' H4 H1); intros; try easy. easy.
 Qed.
        
 
@@ -139,5 +187,5 @@ Proof. intros.
        specialize(IHtyp_proc eq_refl).
        subst.
        punfold H1. inversion H1. easy.
-       apply st_mon.
-Qed.
+       (* need monotone2 subtype *)
+Admitted.
