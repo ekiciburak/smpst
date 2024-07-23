@@ -77,9 +77,9 @@ Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
   | sub_in : forall p xs ys,
                     wfrec subsort R ys xs ->
                     subtype R (ltt_recv p xs) (ltt_recv p ys)
-  | sub_out : forall p xs ys,
-                     wfsend subsort R xs ys ->
-                     subtype R (ltt_send p xs) (ltt_send p ys).
+  | sub_out: forall p xs ys,
+                    wfsend subsort R xs ys ->
+                    subtype R (ltt_send p xs) (ltt_send p ys).
 
 Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.
 

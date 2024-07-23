@@ -9,7 +9,7 @@ Require Import Coq.Logic.Classical_Pred_Type Coq.Logic.ClassicalFacts Coq.Logic.
 (* global session trees *)
 CoInductive gtt: Type :=
   | gtt_end    : gtt
-  | gtt_send   : part -> part -> list (label*(sort*gtt)) -> gtt.
+  | gtt_send   : part -> part -> list (option(sort*gtt)) -> gtt.
 
 Definition gtt_id (s: gtt): gtt :=
   match s with
@@ -22,8 +22,8 @@ Proof. intro s; destruct s; easy. Defined.
 
 CoFixpoint gparts (t: gtt): coseq part :=
   match t with
-    | gtt_send p q [(l,(s,g'))] => Delay (cocons p (Delay (cocons q (gparts g'))))
-    | _                         => Delay conil
+    | gtt_send p q [(Datatypes.Some(s,g'))] => Delay (cocons p (Delay (cocons q (gparts g'))))
+    | _                                     => Delay conil
   end.
 
 (* inductive membership check *)
@@ -31,17 +31,18 @@ Inductive coseqIn: part -> coseq part -> Prop :=
   | CoInSplit1 x xs y ys: force xs = cocons y ys -> x = y  -> coseqIn x xs
   | CoInSplit2 x xs y ys: force xs = cocons y ys -> x <> y -> coseqIn x ys -> coseqIn x xs.
 
+(*
 Inductive gt2gtt (R: global -> gtt -> Prop): global -> gtt -> Prop :=
   | gt2gtt_end: gt2gtt R g_end gtt_end
   | gt2gtt_snd: forall p q l s xs ys,
                 length xs = length ys ->
                 List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
-                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (zip l (zip s ys)))
+                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (ozip s ys))
   | gt2gtt_mu : forall g t,
                 gt2gtt R (subst_global ((g_rec g) .: g_var) g) t ->
                 gt2gtt R (g_rec g) t.
 
-Definition gt2lttC g t := paco2 gt2gtt bot2 g t.
+Definition gt2lttC g t := paco2 gt2gtt bot2 g t. *)
 
 Fixpoint findpath (l: list (label*(sort*gtt))) (lbl: label): option (sort*gtt) :=
   match l with
@@ -55,24 +56,105 @@ Fixpoint findpathL (l: list (label*(sort*ltt))) (lbl: label): option (sort*ltt) 
     | (l1,(s,g))::xs => if Nat.eqb l1 lbl then Datatypes.Some (s, g) else findpathL xs lbl
   end.
 
+Fixpoint findpathGI (l: list (option(sort*gtt))) (lbl: nat): option (sort*gtt) :=
+  match lbl with
+    | O => 
+      match l with
+        | []                      => Datatypes.None
+        | Datatypes.None::xs      => Datatypes.None
+        | Datatypes.Some(s,g)::xs => Datatypes.Some(s,g) 
+      end
+    | S k =>
+      match l with
+        | []                      => Datatypes.None
+        | Datatypes.None::xs      => findpathGI xs k
+        | Datatypes.Some(s,g)::xs => findpathGI xs k
+      end
+  end.
+
+Fixpoint wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))): Prop :=
+  match (l1,l2) with
+    | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g t r s /\ wfStep r s R xs ys
+    | (Datatypes.None::xs, Datatypes.None::ys)                 => wfStep r s R xs ys
+    | (nil, nil)                                               => True
+    | _                                                        => False
+  end.
+
+Fixpoint ounzip2 (l: list (option(sort*gtt))): list gtt :=
+  match l with
+    | []                      => []
+    | Datatypes.None::xs      => ounzip2 xs
+    | Datatypes.Some(s,g)::xs => g :: ounzip2 xs
+  end.
+
 Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part -> part -> Prop :=
   | steq : forall p q l xs s gc,
-(*                eqb p q = false -> *)
-                  Datatypes.Some (s, gc) = findpath xs l -> gttstep R (gtt_send p q xs) gc p q
-  | stneq: forall p q r s L S xs ys,
-(*                eqb p q = false ->
-                  eqb r s = false -> *)
-                  eqb r p = false ->
-                  eqb r q = false ->
-                  eqb s p = false ->
-                  eqb s q = false ->
-                  List.Forall (fun u => coseqIn p (gparts u)) xs ->
-                  List.Forall (fun u => coseqIn q (gparts u)) xs ->
-                  List.Forall (fun u => R (fst u) (snd u) p q) (zip xs ys) ->
-                  gttstep R (gtt_send r s (zip L (zip S xs))) (gtt_send p q (zip L (zip S ys))) p q.
+                  p <> q ->
+                  Datatypes.Some (s, gc) = findpathGI xs l -> gttstep R (gtt_send p q xs) gc p q
+  | stneq: forall p q r s xs ys,
+                  p <> q ->
+                  r <> s ->
+                  r <> p ->
+                  r <> q ->
+                  s <> p ->
+                  s <> q ->
+                  List.Forall (fun u => coseqIn p (gparts u)) (ounzip2 xs) ->
+                  List.Forall (fun u => coseqIn q (gparts u)) (ounzip2 xs)  ->
+                  wfStep r s R xs ys ->
+                  gttstep R (gtt_send r s xs) (gtt_send r s ys) p q.
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
 
+Fixpoint allSameH {A: Type} (a: A) (l: list (option A)): Prop :=
+  match l with
+    | nil    => True
+    | x::xs  => 
+      match x with
+        | Datatypes.None   => allSameH a xs
+        | Datatypes.Some u => u = a /\ allSameH a xs
+      end
+  end.
+
+Fixpoint allSame {A: Type} (l: list (option A)): Prop := 
+  match l with
+    | nil   => False
+    | x::xs => 
+      match x with
+        | Datatypes.None   => allSame xs
+        | Datatypes.Some u => allSameH u xs
+      end
+  end.
+
+Fixpoint wfProj (r: part) (R: gtt -> part -> ltt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*ltt))): Prop :=
+  match (l1,l2) with
+    | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g r t /\ wfProj r R xs ys
+    | (Datatypes.None::xs, Datatypes.None::ys)                 => wfProj r R xs ys
+    | (nil, nil)                                               => True
+    | _                                                        => False
+  end.
+
+Inductive projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
+  | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R g r (ltt_end)
+  | proj_in  : forall p r xs ys,
+               p <> r ->
+               wfProj r R xs ys ->
+               projection R (gtt_send p r xs) r (ltt_recv p ys)
+  | proj_out : forall r q xs ys,
+               r <> q ->
+               wfProj r R xs ys ->
+               projection R (gtt_send r q xs) r (ltt_send q ys)
+  | proj_cont: forall p q r xs ys s t,
+               p <> q ->
+               q <> r ->
+               p <> r ->
+               allSame ys ->
+               wfProj r R xs ys ->
+               List.In (Datatypes.Some(s,t)) ys ->
+               projection R (gtt_send p q xs) r t.
+
+Definition projectionC g r t := paco3 projection bot3 g r t.
+
+(*
 Definition dropDups {A: Type} (l1 l2: list A) := 
   (forall x, In x l1 <-> In x l2) /\ NoDup l2.
 
@@ -104,7 +186,7 @@ Inductive mergeH {A B C: Type}: list (A*(B*C)) -> list (A*(B*C)) -> list (A*(B*C
 
 Definition merge {A B C: Type} (l1 l2 l3: list (A*(B*C))) :=
   mergeH l1 l2 l3 /\ dropDups (l1 ++ l2) l3.
-(* 
+
 Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
   | mbc: forall p l1 l2 l3, merge l1 l2 l3 ->
                             merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3)
@@ -114,24 +196,9 @@ Inductive mergeList {A: Type}: list ltt -> ltt -> Prop :=
   | ml1  : forall t, mergeList [t] t
   | mlce : forall x y xs t, merge_branch x y t -> xs = [] -> mergeList (x::y::xs) t
   | mlcne: forall x y xs t T T2, merge_branch x y t -> mergeList xs T -> merge_branch t T T2 -> mergeList (x::y::xs) T2.
+*)
 
-Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
-  | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
-  | proj_in  : forall p r l s xs ys,
-               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send p r (zip l (zip s xs))) (ltt_recv p (zip l (zip s ys)))
-  | proj_out : forall p r l s xs ys,
-               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               projection R r (gtt_send r p (zip l (zip s xs))) (ltt_send p (zip l (zip s ys))).
-(*   | proj_cont: forall p q r l s xs ys T,
-               r <> p ->
-               r <> q ->
-               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
-               @mergeList ltt ys T ->
-               projection R r (gtt_send p q (zip (zip l s) xs)) T. *)
-
-Definition projectionC r g t := paco3 projection bot3 r g t.
-
+(*
 Definition t1 := [(3,(sint,ltt_end)); (5,(snat,ltt_end))].
 
 Definition t2 := [(4,(sint,ltt_end)); (5,(snat,ltt_end))].
