@@ -26,6 +26,35 @@ CoFixpoint gparts (t: gtt): coseq part :=
     | _                         => Delay conil
   end.
 
+Fixpoint wfbisim (R: gtt -> gtt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))): Prop :=
+  match (l1, l2) with
+    | ((Datatypes.Some(s1,g1)::xs), (Datatypes.Some(s2,g2)::ys)) => s1 = s2 /\ R g1 g2 /\ wfbisim R xs ys
+    | (Datatypes.None::xs, Datatypes.None::ys)                   => wfbisim R xs ys
+    | (nil, nil)                                                 => True
+    | _                                                          => False
+  end.
+
+Inductive gttb (R: gtt -> gtt -> Prop): gtt -> gtt -> Prop :=
+  | gendb : gttb R gtt_end gtt_end
+  | gsendb: forall p q xs ys, wfbisim R xs ys -> gttb R (gtt_send p q xs) (gtt_send p q ys).
+
+Definition gttbC g1 g2 := paco2 gttb bot2 g1 g2.
+
+Fixpoint wfbisimL (R: ltt -> ltt -> Prop) (l1: list (option(sort*ltt))) (l2: list (option(sort*ltt))): Prop :=
+  match (l1, l2) with
+    | ((Datatypes.Some(s1,t1)::xs), (Datatypes.Some(s2,t2)::ys)) => s1 = s2 /\ R t1 t2 /\ wfbisimL R xs ys
+    | (Datatypes.None::xs, Datatypes.None::ys)                   => wfbisimL R xs ys
+    | (nil, nil)                                                 => True
+    | _                                                          => False
+  end.
+
+Inductive lttb (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
+  | lendb : lttb R ltt_end ltt_end
+  | lsendb: forall p xs ys, wfbisimL R xs ys -> lttb R (ltt_send p xs) (ltt_send p ys)
+  | lrecvb: forall p xs ys, wfbisimL R xs ys -> lttb R (ltt_recv p xs) (ltt_recv p ys).
+
+Definition lttbC t1 t2 := paco2 lttb bot2 t1 t2.
+
 (* inductive membership check *)
 Inductive coseqIn: part -> coseq part -> Prop :=
   | CoInSplit1 x xs y ys: force xs = cocons y ys -> x = y  -> coseqIn x xs
