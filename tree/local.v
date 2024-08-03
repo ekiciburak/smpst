@@ -59,7 +59,7 @@ Definition wfC (t: ltt) := paco1 wf bot1 t.
 Fixpoint wfrec (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
   match (l1,l2) with
     | (Datatypes.None::xs, Datatypes.None::ys)               => wfrec R1 R2 xs ys
-    | (Datatypes.Some (s',t')::xs, Datatypes.Some (s,t)::ys) => R1 s' s /\ R2 t t' /\ wfrec R1 R2 xs ys
+    | (Datatypes.Some (s,t)::xs, Datatypes.Some (s',t')::ys) => R1 s' s /\ R2 t t' /\ wfrec R1 R2 xs ys
     | (nil, _)                                               => True
     | _                                                      => False
   end.
@@ -67,7 +67,7 @@ Fixpoint wfrec (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list 
 Fixpoint wfsend (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
   match (l1,l2) with
     | (Datatypes.None::xs, Datatypes.None::ys)               => wfsend R1 R2 xs ys
-    | (Datatypes.Some (s,t)::xs, Datatypes.Some (s',t')::ys) => R1 s s' /\ R2 t t' /\ wfsend R1 R2 xs ys
+    | (Datatypes.Some (s',t')::xs, Datatypes.Some (s,t)::ys) => R1 s s' /\ R2 t t' /\ wfsend R1 R2 xs ys
     | (nil, _)                                               => True
     | _                                                      => False
   end.
@@ -77,9 +77,9 @@ Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
   | sub_in : forall p xs ys,
                     wfrec subsort R ys xs ->
                     subtype R (ltt_recv p xs) (ltt_recv p ys)
-  | sub_out: forall p xs ys,
-                    wfsend subsort R xs ys ->
-                    subtype R (ltt_send p xs) (ltt_send p ys).
+  | sub_out : forall p xs ys,
+                     wfsend subsort R xs ys ->
+                     subtype R (ltt_send p xs) (ltt_send p ys).
 
 Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.
 

@@ -9,7 +9,7 @@ Require Import Coq.Logic.Classical_Pred_Type Coq.Logic.ClassicalFacts Coq.Logic.
 (* global session trees *)
 CoInductive gtt: Type :=
   | gtt_end    : gtt
-  | gtt_send   : part -> part -> list (option(sort*gtt)) -> gtt.
+  | gtt_send   : part -> part -> list (label*(sort*gtt)) -> gtt.
 
 Definition gtt_id (s: gtt): gtt :=
   match s with
@@ -22,8 +22,8 @@ Proof. intro s; destruct s; easy. Defined.
 
 CoFixpoint gparts (t: gtt): coseq part :=
   match t with
-    | gtt_send p q [(Datatypes.Some(s,g'))] => Delay (cocons p (Delay (cocons q (gparts g'))))
-    | _                                     => Delay conil
+    | gtt_send p q [(l,(s,g'))] => Delay (cocons p (Delay (cocons q (gparts g'))))
+    | _                         => Delay conil
   end.
 
 (* inductive membership check *)
@@ -31,34 +31,17 @@ Inductive coseqIn: part -> coseq part -> Prop :=
   | CoInSplit1 x xs y ys: force xs = cocons y ys -> x = y  -> coseqIn x xs
   | CoInSplit2 x xs y ys: force xs = cocons y ys -> x <> y -> coseqIn x ys -> coseqIn x xs.
 
-Fixpoint gLparts (p: part) (l: list (option(sort*gtt))): Prop :=
-  match l with
-    | Datatypes.Some(s,g) :: xs => coseqIn p (gparts g) /\ gLparts p xs
-    | Datatypes.None :: xs      => gLparts p xs
-    | nil                       => True
-  end.
-
-Inductive wfg (R: gtt -> Prop): gtt -> Prop :=
-  | wfg_end : wfg R gtt_end
-  | wfg_send: forall p q lis,
-              SList lis ->
-              Forall (fun u => u = Datatypes.None \/ (exists s g, u = Datatypes.Some (s,g) /\ R g)) lis ->
-              wfg R (gtt_send p q lis).
-
-Definition wfgC (g: gtt) := paco1 wfg bot1 g.
-
-(*
 Inductive gt2gtt (R: global -> gtt -> Prop): global -> gtt -> Prop :=
   | gt2gtt_end: gt2gtt R g_end gtt_end
   | gt2gtt_snd: forall p q l s xs ys,
                 length xs = length ys ->
                 List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
-                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (ozip s ys))
+                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (zip l (zip s ys)))
   | gt2gtt_mu : forall g t,
                 gt2gtt R (subst_global ((g_rec g) .: g_var) g) t ->
                 gt2gtt R (g_rec g) t.
 
-Definition gt2lttC g t := paco2 gt2gtt bot2 g t. *)
+Definition gt2lttC g t := paco2 gt2gtt bot2 g t.
 
 Fixpoint findpath (l: list (label*(sort*gtt))) (lbl: label): option (sort*gtt) :=
   match l with
@@ -72,472 +55,24 @@ Fixpoint findpathL (l: list (label*(sort*ltt))) (lbl: label): option (sort*ltt) 
     | (l1,(s,g))::xs => if Nat.eqb l1 lbl then Datatypes.Some (s, g) else findpathL xs lbl
   end.
 
-Fixpoint findpathGI (l: list (option(sort*gtt))) (lbl: nat): option (sort*gtt) :=
-  match lbl with
-    | O => 
-      match l with
-        | []                      => Datatypes.None
-        | Datatypes.None::xs      => Datatypes.None
-        | Datatypes.Some(s,g)::xs => Datatypes.Some(s,g) 
-      end
-    | S k =>
-      match l with
-        | []                      => Datatypes.None
-        | Datatypes.None::xs      => findpathGI xs k
-        | Datatypes.Some(s,g)::xs => findpathGI xs k
-      end
-  end.
-
-Fixpoint wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))): Prop :=
-  match (l1,l2) with
-    | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g t r s /\ wfStep r s R xs ys
-    | (Datatypes.None::xs, Datatypes.None::ys)                 => wfStep r s R xs ys
-    | (nil, nil)                                               => True
-    | _                                                        => False
-  end.
-
-Fixpoint ounzip2 (l: list (option(sort*gtt))): list gtt :=
-  match l with
-    | []                      => []
-    | Datatypes.None::xs      => ounzip2 xs
-    | Datatypes.Some(s,g)::xs => g :: ounzip2 xs
-  end.
-
 Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part -> part -> Prop :=
   | steq : forall p q l xs s gc,
-                  p <> q ->
-                  Datatypes.Some (s, gc) = findpathGI xs l ->
-                  gttstep R (gtt_send p q xs) gc p q
-  | stneq: forall p q r s xs ys,
-                  p <> q ->
-                  r <> s ->
-                  r <> p ->
-                  r <> q ->
-                  s <> p ->
-                  s <> q ->
-                  List.Forall (fun u => coseqIn p (gparts u)) (ounzip2 xs) ->
-                  List.Forall (fun u => coseqIn q (gparts u)) (ounzip2 xs)  ->
-                  wfStep r s R xs ys ->
-                  gttstep R (gtt_send r s xs) (gtt_send r s ys) p q.
+(*                eqb p q = false -> *)
+                  Datatypes.Some (s, gc) = findpath xs l -> gttstep R (gtt_send p q xs) gc p q
+  | stneq: forall p q r s L S xs ys,
+(*                eqb p q = false ->
+                  eqb r s = false -> *)
+                  eqb r p = false ->
+                  eqb r q = false ->
+                  eqb s p = false ->
+                  eqb s q = false ->
+                  List.Forall (fun u => coseqIn p (gparts u)) xs ->
+                  List.Forall (fun u => coseqIn q (gparts u)) xs ->
+                  List.Forall (fun u => R (fst u) (snd u) p q) (zip xs ys) ->
+                  gttstep R (gtt_send r s (zip L (zip S xs))) (gtt_send p q (zip L (zip S ys))) p q.
 
 Definition gttstepC g1 g2 p q := paco4 gttstep bot4 g1 g2 p q.
 
-Fixpoint allSameH {A: Type} (a: A) (l: list (option A)): Prop :=
-  match l with
-    | nil    => True
-    | x::xs  => 
-      match x with
-        | Datatypes.None   => allSameH a xs
-        | Datatypes.Some u => u = a /\ allSameH a xs
-      end
-  end.
-
-Fixpoint allSame {A: Type} (l: list (option A)): Prop := 
-  match l with
-    | nil   => False
-    | x::xs => 
-      match x with
-        | Datatypes.None   => allSame xs
-        | Datatypes.Some u => allSameH u xs
-      end
-  end.
-
-Fixpoint wfProj (r: part) (R: gtt -> part -> ltt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*ltt))): Prop :=
-  match (l1,l2) with
-    | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g r t /\ wfProj r R xs ys
-    | (Datatypes.None::xs, Datatypes.None::ys)                 => wfProj r R xs ys
-    | (nil, nil)                                               => True
-    | _                                                        => False
-  end.
-
-Check injective2.
-
-Definition injection3 (R: gtt -> part -> ltt -> Prop) := forall a b c d, R a b c -> R a b d -> c = d.
-
-Lemma wps: forall l1 l2 l3 p R, 
-  injection3 R ->
-  wfProj p R l1 l2 ->
-  wfProj p R l1 l3 -> l2 = l3.
-Proof. intro l1.
-       induction l1; intros.
-       - case_eq l2; case_eq l3; intros.
-         + easy.
-         + subst. simpl in H0. easy.
-         + subst. simpl in H. easy.
-         + subst. simpl in H. easy.
-       - case_eq l2; case_eq l3; intros.
-         + easy.
-         + subst. simpl in H. destruct a. destruct p0. easy.
-           easy.
-         + subst.  simpl in H0. destruct a. destruct p0. easy.
-           easy.
-         + subst. simpl in H1, H0.
-           destruct a. destruct o, o0.
-           destruct p0, p1, p2.
-           simpl.
-           pose proof H as HH.
-           specialize(H g p l2 l3).
-           rewrite H; try easy.
-           destruct H0 as (H0a,(H0b,H0c)).
-           destruct H1 as (H1a,(H1b,H1c)).
-           subst. f_equal. 
-           apply IHl1 with (p := p) (R := R); easy. 
-           destruct p0. easy.
-           destruct p0. easy.
-           destruct p0. easy.
-           destruct o, o0.
-           easy. easy. easy.
-           f_equal.
-           apply IHl1 with (p := p) (R := R); easy. 
-Qed.
-
-Inductive projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
-  | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R g r (ltt_end)
-  | proj_in  : forall p r xs ys,
-               p <> r ->
-               wfProj r R xs ys ->
-               projection R (gtt_send p r xs) r (ltt_recv p ys)
-  | proj_out : forall r q xs ys,
-               r <> q ->
-               wfProj r R xs ys ->
-               projection R (gtt_send r q xs) r (ltt_send q ys)
-  | proj_cont: forall p q r xs ys s t,
-               p <> q ->
-               q <> r ->
-               p <> r ->
-               allSame ys ->
-               wfProj r R xs ys ->
-               List.In (Datatypes.Some(s,t)) ys ->
-               projection R (gtt_send p q xs) r t.
-
-Definition projectionC g r t := paco3 projection bot3 g r t.
-
-Axiom injup: injection3 (upaco3 projection bot3).
-
-Lemma help: forall xs ys s p,
-            (gLparts p xs -> False) ->
-            wfProj p (upaco3 projection bot3) xs ys ->
-            allSame ys ->
-            In (Datatypes.Some (s, ltt_end)) ys.
-Proof. intro xs.
-       induction xs; intros.
-       - simpl in H. easy.
-       - case_eq ys; intros.
-         + subst. simpl in H0.
-           destruct a. destruct p0. easy.
-           easy.
-         + subst.
-           simpl in H0.
-           destruct a, o. destruct p0, p1.
-           simpl. right.
-           apply IHxs with (p := p).
-           intro Hn. apply H.
-           admit.
-           easy.
-           simpl in H1. admit.
-           destruct p0. easy.
-           easy.
-           simpl.
-           simpl in H1.
-           right.
-           apply IHxs with (p := p).
-           intro Hn. apply H. admit.
-           easy. easy.
-Admitted.
-
- Lemma projI_same: forall g l1 l2 p,
- wfgC g -> 
- wfC l1 ->
- wfC l2 -> 
- projectionC g p l1 ->
- projectionC g p l2 -> l1 = l2.
-Proof. intros.
-       case_eq g; intros.
-       - subst.
-         pinversion H2. subst.
-         pinversion H3. subst.
-         easy.
-         admit.
-         admit.
-       - subst.
-         pinversion H2. subst.
-         pinversion H3. subst.
-         easy.
-         subst.
-         contradiction H4. admit.
-         subst.
-         contradiction H4. admit.
-         subst.
-         admit.
-         admit.
-         subst.
-         pinversion H3. subst.
-         contradiction H4. admit.
-         subst. 
-         specialize(wps l ys ys0 p (upaco3 projection bot3) injup H10 H12); intro Hwps.
-         subst. easy.
-         subst. 
-         specialize(wps l ys ys0 p (upaco3 projection bot3) injup H10 H12); intro Hwps.
-         subst. easy.
-         subst.
-         easy.
-         admit.
-         subst.
-         pinversion H3. subst.
-         contradiction H4. admit.
-         subst.
-         specialize(wps l ys ys0 p (upaco3 projection bot3) injup H10 H12); intro Hwps.
-         subst. easy.
-         subst.
-         specialize(wps l ys ys0 p (upaco3 projection bot3) injup H10 H12); intro Hwps.
-         subst. easy.
-         subst. easy.
-         admit.
-         subst. 
-         pinversion H3. subst. 
-         admit. (*helper*)
-         subst. easy.
-         subst. easy.
-         subst.
-         specialize(wps l ys ys0 p (upaco3 projection bot3) injup H13 H19); intro Hwps.
-         subst. 
-         admit. (*a fact*)
-         admit.
-         admit.
-Admitted.
-
-
-Lemma projL_same: forall l1 l2 l3 p,
- wfProj p (upaco3 projection bot3) l1 l2 ->
- wfProj p (upaco3 projection bot3) l1 l3 -> l2 = l3.
-Proof. intro l1.
-       induction l1; intros.
-       - case_eq l2; case_eq l3; intros.
-         + subst. easy.
-         + subst. simpl in H0. easy.
-         + subst. simpl in H. easy.
-         + subst. simpl in H. easy.
-       - case_eq l2; case_eq l3; intros.
-         + easy.
-         + subst. simpl in H. destruct a. destruct p0. easy.
-           easy.
-         + subst. simpl in H0. destruct a. destruct p0. easy.
-           easy.
-         + subst.
-           simpl in H. simpl in H0.
-           destruct a. destruct p0, o, o0. destruct p0, p1.
-           f_equal. 
-           destruct H as (Ha,(Hb,Hc)).
-           destruct H0 as (H0a,(H0b,H0c)). 
-           f_equal. subst. f_equal.
-           specialize(injup g p l3 l2 Hb H0b); easy.
-
-           apply IHl1 with (p := p).
-           easy. easy.
-           easy. easy. easy.
-           destruct o, o0. easy. easy. easy.
-           f_equal. 
-           apply IHl1 with (p := p). easy. easy.
-Qed.
-
-Lemma _319_1: forall p q S T G G' L1 L2,
-  wfC L1 ->
-  wfC L2 ->
-  wfC T ->
-  wfgC G ->
-  wfgC G' ->
-  projectionC G p L1 ->
-  subtypeC (ltt_send q [Datatypes.Some(S,T)]) L1 ->
-  gttstepC G G' p q ->
-  projectionC G' p L2 ->
-  subtypeC T L2.
-Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
-       pinversion Hsl1. subst.
-       pinversion Hpg. subst.
-       pinversion Hsg. subst.
-       case_eq xs; intros; subst.
-       - pinversion Hwg.
-         subst. simpl in H1. easy.
-         admit.
-       - case_eq ys; intros; subst.
-         simpl in H5. destruct o. destruct p0. easy.
-         simpl in H2. easy.
-       simpl in H2.
-       destruct o0. destruct p0.
-       destruct o.
-       simpl in H5. destruct p0.
-       case_eq l; intros.
-       - subst. simpl in H9. inversion H9. subst. clear H9.
-         pinversion Hpg'. subst.
-         case_eq T; intros.
-         subst. pfold. constructor.
-         subst. 
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst.
-         contradict H.
-         case_eq xs; intros; subst.
-         pinversion Hwg'. simpl in H1. easy.
-         admit. admit.
-
-         subst.
-         admit. (*merge case*)
-         admit.
-         easy.
-         admit.
-         easy.
-         
-         subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst.
-         contradict H. admit.
-         
-         subst.
-         admit. (*merge case*)
-         admit.
-         easy.
-         admit.
-         easy.
-
-         case_eq T; intros. subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst.
-         contradict H. admit.
-         
-         subst.
-         admit. (*merge case*)
-         admit.
-         easy.
-         admit.
-         easy.
-         
-         subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst.
-         pfold. constructor.
-         admit. (* issue solved here *)
-         
-         subst. easy.
-         admit.
-         easy.
-         admit.
-         easy.
-         
-         subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst.
-         easy.
-         subst. easy.
-         admit.
-         subst. easy.
-         admit. easy.
-         
-         subst.
-         case_eq T; intros. subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst.
-         contradict H1. admit.
-         
-         subst. easy.
-         admit.
-         easy.
-         admit.
-         easy.
-         
-         subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst. easy.
-
-         subst. easy.
-         admit.
-         easy.
-         admit.
-         easy.
-         
-         subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst. 
-         pfold. constructor.
-         admit. (* issue solved here *)
-         
-         subst.
-         easy.
-         admit.
-         easy. 
-         admit. 
-         easy.
-         
-         
-         subst.
-         destruct H5 as (H5a,(H5b,H5c)).
-         destruct H5b as [H5b | H5b].
-         pinversion H5b. subst. 
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         admit. (*helper*)
-         admit.
-         easy.
-         subst.
-         destruct H2 as (H2a,(H2b,H2c)).
-         destruct H2b as [H2b | H2b].
-         pinversion H2b. subst.
-         easy. admit.
-         easy. subst. easy. subst.
-         admit.
-         admit.
-         easy.
-         admit.
-         subst.
-         subst.
-         
-         admit.
-         
-         subst. 
-         simpl in H5. easy.
-         easy. subst. easy.
-         admit. subst.
-         
-         pinversion Hsg.
-         subst. easy. subst.
-         pinversion Hpg'. subst.
-         rewrite Forall_forall in H15.
-         rewrite Forall_forall in H19.
-Admitted.
-
-
-(*
 Definition dropDups {A: Type} (l1 l2: list A) := 
   (forall x, In x l1 <-> In x l2) /\ NoDup l2.
 
@@ -569,7 +104,7 @@ Inductive mergeH {A B C: Type}: list (A*(B*C)) -> list (A*(B*C)) -> list (A*(B*C
 
 Definition merge {A B C: Type} (l1 l2 l3: list (A*(B*C))) :=
   mergeH l1 l2 l3 /\ dropDups (l1 ++ l2) l3.
-
+(* 
 Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
   | mbc: forall p l1 l2 l3, merge l1 l2 l3 ->
                             merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3)
@@ -579,9 +114,24 @@ Inductive mergeList {A: Type}: list ltt -> ltt -> Prop :=
   | ml1  : forall t, mergeList [t] t
   | mlce : forall x y xs t, merge_branch x y t -> xs = [] -> mergeList (x::y::xs) t
   | mlcne: forall x y xs t T T2, merge_branch x y t -> mergeList xs T -> merge_branch t T T2 -> mergeList (x::y::xs) T2.
-*)
 
-(*
+Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
+  | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
+  | proj_in  : forall p r l s xs ys,
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               projection R r (gtt_send p r (zip l (zip s xs))) (ltt_recv p (zip l (zip s ys)))
+  | proj_out : forall p r l s xs ys,
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               projection R r (gtt_send r p (zip l (zip s xs))) (ltt_send p (zip l (zip s ys))).
+(*   | proj_cont: forall p q r l s xs ys T,
+               r <> p ->
+               r <> q ->
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               @mergeList ltt ys T ->
+               projection R r (gtt_send p q (zip (zip l s) xs)) T. *)
+
+Definition projectionC r g t := paco3 projection bot3 r g t.
+
 Definition t1 := [(3,(sint,ltt_end)); (5,(snat,ltt_end))].
 
 Definition t2 := [(4,(sint,ltt_end)); (5,(snat,ltt_end))].
