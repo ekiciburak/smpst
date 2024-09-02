@@ -13,7 +13,7 @@ Set Implicit Arguments. *)
 (* global session trees *)
 CoInductive gtt: Type :=
   | gtt_end    : gtt
-  | gtt_send   : part -> part -> list (option(sort*gtt)) -> gtt.
+  | gtt_send   : part -> part -> list (label*(sort*gtt)) -> gtt.
 
 Definition gtt_id (s: gtt): gtt :=
   match s with
@@ -26,7 +26,11 @@ Proof. intro s; destruct s; easy. Defined.
 
 CoFixpoint gparts (t: gtt): coseq part :=
   match t with
+<<<<<<< HEAD
     | gtt_send p q [Datatypes.Some(s,g')] => Delay (cocons p (Delay (cocons q (gparts g'))))
+=======
+    | gtt_send p q [(l,(s,g'))] => Delay (cocons p (Delay (cocons q (gparts g'))))
+>>>>>>> refs/remotes/origin/apiros3_branch
     | _                         => Delay conil
   end.
 
@@ -188,34 +192,17 @@ Inductive coseqIn: part -> coseq part -> Prop :=
   | CoInSplit1 x xs y ys: force xs = cocons y ys -> x = y  -> coseqIn x xs
   | CoInSplit2 x xs y ys: force xs = cocons y ys -> x <> y -> coseqIn x ys -> coseqIn x xs.
 
-Fixpoint gLparts (p: part) (l: list (option(sort*gtt))): Prop :=
-  match l with
-    | Datatypes.Some(s,g) :: xs => coseqIn p (gparts g) \/ gLparts p xs
-    | Datatypes.None :: xs      => gLparts p xs
-    | nil                       => False
-  end.
-
-Inductive wfg (R: gtt -> Prop): gtt -> Prop :=
-  | wfg_end : wfg R gtt_end
-  | wfg_send: forall p q lis,
-              SList lis ->
-              Forall (fun u => u = Datatypes.None \/ (exists s g, u = Datatypes.Some (s,g) /\ R g)) lis ->
-              wfg R (gtt_send p q lis).
-
-Definition wfgC (g: gtt) := paco1 wfg bot1 g.
-
-(*
 Inductive gt2gtt (R: global -> gtt -> Prop): global -> gtt -> Prop :=
   | gt2gtt_end: gt2gtt R g_end gtt_end
   | gt2gtt_snd: forall p q l s xs ys,
                 length xs = length ys ->
                 List.Forall (fun u => R (fst u) (snd u)) (zip xs ys) ->
-                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (ozip s ys))
+                gt2gtt R (g_send p q (zip (zip l s) xs)) (gtt_send p q (zip l (zip s ys)))
   | gt2gtt_mu : forall g t,
                 gt2gtt R (subst_global ((g_rec g) .: g_var) g) t ->
                 gt2gtt R (g_rec g) t.
 
-Definition gt2lttC g t := paco2 gt2gtt bot2 g t. *)
+Definition gt2lttC g t := paco2 gt2gtt bot2 g t.
 
 Fixpoint findpath (l: list (label*(sort*gtt))) (lbl: label): option (sort*gtt) :=
   match l with
@@ -229,6 +216,7 @@ Fixpoint findpathL (l: list (label*(sort*ltt))) (lbl: label): option (sort*ltt) 
     | (l1,(s,g))::xs => if Nat.eqb l1 lbl then Datatypes.Some (s, g) else findpathL xs lbl
   end.
 
+<<<<<<< HEAD
 Fixpoint findpathGI (l: list (option(sort*gtt))) (lbl: nat): option (sort*gtt) :=
   match lbl with
     | O => 
@@ -283,6 +271,23 @@ Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> pa
                   List.Forall (fun u => isgPartsC q u) (ounzip2 xs) ->
                   wfStep p q R xs ys n ->
                   gttstep R (gtt_send r s xs) (gtt_send r s ys) p q n.
+=======
+Inductive gttstep (R: gtt -> gtt -> part -> part -> Prop): gtt -> gtt -> part -> part -> Prop :=
+  | steq : forall p q l xs s gc,
+(*                eqb p q = false -> *)
+                  Datatypes.Some (s, gc) = findpath xs l -> gttstep R (gtt_send p q xs) gc p q
+  | stneq: forall p q r s L S xs ys,
+(*                eqb p q = false ->
+                  eqb r s = false -> *)
+                  eqb r p = false ->
+                  eqb r q = false ->
+                  eqb s p = false ->
+                  eqb s q = false ->
+                  List.Forall (fun u => coseqIn p (gparts u)) xs ->
+                  List.Forall (fun u => coseqIn q (gparts u)) xs ->
+                  List.Forall (fun u => R (fst u) (snd u) p q) (zip xs ys) ->
+                  gttstep R (gtt_send r s (zip L (zip S xs))) (gtt_send p q (zip L (zip S ys))) p q.
+>>>>>>> refs/remotes/origin/apiros3_branch
 
 Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n.
 
@@ -320,6 +325,7 @@ Notation "g1 ⟶ g2 p q" := (gfp bstep g1 g2 p q) (at level 70).
 Notation "g1 ⟶[ R ] g2 p q" := (`R g1 g2 p q) (at level 79).
 Notation "g1 [⟶] g2 p q" := (bstep `_ g1 g2 p q) (at level 79). *)
 
+<<<<<<< HEAD
 Fixpoint allSameH {A: Type} (a: A) (l: list A): Prop :=
   match l with
     | nil   => True
@@ -955,6 +961,8 @@ Admitted.
 
 
 (*
+=======
+>>>>>>> refs/remotes/origin/apiros3_branch
 Definition dropDups {A: Type} (l1 l2: list A) := 
   (forall x, In x l1 <-> In x l2) /\ NoDup l2.
 
@@ -986,7 +994,7 @@ Inductive mergeH {A B C: Type}: list (A*(B*C)) -> list (A*(B*C)) -> list (A*(B*C
 
 Definition merge {A B C: Type} (l1 l2 l3: list (A*(B*C))) :=
   mergeH l1 l2 l3 /\ dropDups (l1 ++ l2) l3.
-
+(* 
 Inductive merge_branch: ltt -> ltt -> ltt -> Prop :=
   | mbc: forall p l1 l2 l3, merge l1 l2 l3 ->
                             merge_branch (ltt_recv p l1) (ltt_recv p l2) (ltt_recv p l3)
@@ -996,9 +1004,24 @@ Inductive mergeList {A: Type}: list ltt -> ltt -> Prop :=
   | ml1  : forall t, mergeList [t] t
   | mlce : forall x y xs t, merge_branch x y t -> xs = [] -> mergeList (x::y::xs) t
   | mlcne: forall x y xs t T T2, merge_branch x y t -> mergeList xs T -> merge_branch t T T2 -> mergeList (x::y::xs) T2.
-*)
 
-(*
+Inductive projection (R: part -> gtt -> ltt -> Prop): part -> gtt -> ltt -> Prop :=
+  | proj_end : forall g r, (coseqIn r (gparts g) -> False) -> projection R r g (ltt_end)
+  | proj_in  : forall p r l s xs ys,
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               projection R r (gtt_send p r (zip l (zip s xs))) (ltt_recv p (zip l (zip s ys)))
+  | proj_out : forall p r l s xs ys,
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               projection R r (gtt_send r p (zip l (zip s xs))) (ltt_send p (zip l (zip s ys))).
+(*   | proj_cont: forall p q r l s xs ys T,
+               r <> p ->
+               r <> q ->
+               List.Forall (fun u => R r (fst u) (snd u)) (zip xs ys) ->
+               @mergeList ltt ys T ->
+               projection R r (gtt_send p q (zip (zip l s) xs)) T. *)
+
+Definition projectionC r g t := paco3 projection bot3 r g t.
+
 Definition t1 := [(3,(sint,ltt_end)); (5,(snat,ltt_end))].
 
 Definition t2 := [(4,(sint,ltt_end)); (5,(snat,ltt_end))].

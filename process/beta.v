@@ -19,43 +19,43 @@ Proof.
 Qed.
 
 
-(* substitute e into e_var 0 of e1, assuming e has no occurence of e_var*)
-Fixpoint subst_expr (e : expr) (e1 : expr) : expr :=
+(* substitute e into e_var n of e1 *)
+Fixpoint subst_expr (n : fin) (e : expr) (e1 : expr) : expr :=
   match e1 with 
-    | e_var n => (e .: e_var) n
-    | e_succ e' => e_succ (subst_expr e e')
-    | e_neg e' => e_neg (subst_expr e e')
-    | e_not e' => e_not (subst_expr e e')
-    | e_gt e' e'' => e_gt (subst_expr e e') (subst_expr e e'')
-    | e_plus e' e'' => e_plus (subst_expr e e') (subst_expr e e'')
+    | e_var 0     => if Nat.eqb n 0 then e else e_var 0
+    | e_var (S m) => if Nat.eqb (S m) n then e else 
+                     if Nat.ltb (S m) n then e_var (S m) else e_var m 
+    | e_succ e' => e_succ (subst_expr n e e')
+    | e_neg e' => e_neg (subst_expr n e e')
+    | e_not e' => e_not (subst_expr n e e')
+    | e_gt e' e'' => e_gt (subst_expr n e e') (subst_expr n e e'')
+    | e_plus e' e'' => e_plus (subst_expr n e e') (subst_expr n e e'')
     | _ => e1
   end.
   
 (* For a choice function, substitutes expr to e_var 0 (decr everything else), return process continuation of choice with label l with e substituted for e_var 0. anything else is kept as is. If label doesn't appear in the list we return p
  *)
-Definition subst_expr_proc (p : process) (l : label) (e : expr) : (option process) :=
-  match p with
-    | p_recv pt xs => 
-      let fix next lst := 
-        match lst with
-          | (lbl,P)::ys => 
-            if Nat.eqb lbl l then 
-              let fix rec p' :=
-                match p' with 
-                  | p_send pt' l' e' P' => p_send pt' l' (subst_expr e e') (rec P')
-                  | p_ite e' P' Q' => p_ite (subst_expr e e') (rec P') (rec Q')
-                  | p_recv pt' lst' => p_recv pt' (list_map (prod_map (fun x => x) (rec)) lst')
-                  | p_rec n P' => p_rec n (rec P')
-                  | _ => p'
-                end 
-              in Some (rec P)
-            else next ys 
-          | _ => None
-        end
-      in next xs
-    | _ => None
-  end.
+ 
 
+Definition subst_expr_proc (p : process) (lb : label) (e : expr) : (option process) :=
+  match p with
+    | p_recv pt lst => 
+      match nth lb lst None with 
+        | None => None 
+        | Some y => let fix rec n p' := 
+          match p' with 
+            | p_send pt' l' e' P' => p_send pt' l' (subst_expr n e e') (rec (S n) P')
+            | p_ite e' P' Q'      => p_ite (subst_expr n e e') (rec n P') (rec n Q')
+            | p_recv pt' lst'     => p_recv pt' (list_map (fun x => match x with 
+                                                          | None => None
+                                                          | Some y => Some (rec n y) end) lst')
+            | p_rec P' => p_rec (rec n P')
+            | _ => p'
+          end 
+          in Some (rec 0 y)
+      end 
+    | _ => None 
+  end.
 
 Inductive betaP: relation session :=
   | r_comm  : forall p q xs l e Q M,
@@ -76,15 +76,15 @@ Definition beta_multistep := multi betaP.
 #[global] Declare Instance RW_scong4: Proper (scong ==> scong ==> impl) beta_multistep.
 
 Definition PAlice: process := 
-  p_send "Bob" 1 (e_val (vint 50)) (p_recv "Carol" [(3,p_inact)]).
+  p_send "Bob" 1 (e_val (vint 50)) (p_recv "Carol" [None; None; None; Some p_inact]).
 
 Definition PBob: process :=
-  p_recv "Alice" [(1, p_send "Carol" 2 (e_val (vint 100)) p_inact);
-                  (4, p_send "Carol" 2 (e_val (vint 2)) p_inact)
+  p_recv "Alice" [None; Some (p_send "Carol" 2 (e_val (vint 100)) p_inact); None; None; 
+                  Some (p_send "Carol" 2 (e_val (vint 2)) p_inact)
                  ].
 
 Definition PCarol: process :=
-  p_recv "Bob" [(2, p_send "Alice" 3 (e_plus (e_var 0) (e_val (vint 1))) p_inact)].
+  p_recv "Bob" [None; None; Some (p_send "Alice" 3 (e_plus (e_var 0) (e_val (vint 1))) p_inact)].
 
 Definition MS: session := ("Alice" <-- Some PAlice) ||| ("Bob" <-- Some PBob) ||| ("Carol" <-- Some PCarol).
 
@@ -99,10 +99,10 @@ Proof. unfold beta_multistep, MS, MS', PAlice, PBob.
        setoid_rewrite sc_par2.
        setoid_rewrite sc_par4.
        setoid_rewrite <- sc_par3.
-
+       
        apply multi_step with
        (y := ((("Bob" <-- Some (p_send "Carol" 2 (e_val (vint 100)) p_inact)) |||
-              ("Alice" <-- Some (p_recv "Carol" [(3, p_inact)]))) ||| ("Carol" <-- Some PCarol))
+              ("Alice" <-- Some (p_recv "Carol" [None; None; None; Some p_inact]))) ||| ("Carol" <-- Some PCarol))
        ).
        apply r_comm.
        unfold PCarol.
@@ -111,7 +111,7 @@ Proof. unfold beta_multistep, MS, MS', PAlice, PBob.
        setoid_rewrite <- sc_par3.
        apply multi_step with
        (y := ((("Carol" <-- Some (p_send "Alice" 3 (e_plus (e_val (vint 100)) (e_val (vint 1)))  p_inact)) |||
-              ("Bob" <-- Some p_inact)) ||| ("Alice" <-- Some (p_recv "Carol" [(3, p_inact)])))
+              ("Bob" <-- Some p_inact)) ||| ("Alice" <-- Some (p_recv "Carol" [None; None; None; Some p_inact])))
        ).
        apply r_comm.
 
