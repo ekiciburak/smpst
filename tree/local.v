@@ -63,7 +63,7 @@ Definition wfC (t: ltt) := paco1 wf bot1 t.
 Fixpoint wfrec (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
   match (l1,l2) with
     | (Datatypes.None::xs, Datatypes.None::ys)               => wfrec R1 R2 xs ys
-    | (Datatypes.Some (s,t)::xs, Datatypes.Some (s',t')::ys) => R1 s' s /\ R2 t t' /\ wfrec R1 R2 xs ys
+    | (Datatypes.Some (s',t')::xs, Datatypes.Some (s,t)::ys) => R1 s' s /\ R2 t t' /\ wfrec R1 R2 xs ys
     | (nil, _)                                               => True
     | _                                                      => False
   end.
@@ -71,7 +71,7 @@ Fixpoint wfrec (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list 
 Fixpoint wfsend (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
   match (l1,l2) with
     | (Datatypes.None::xs, Datatypes.None::ys)               => wfsend R1 R2 xs ys
-    | (Datatypes.Some (s',t')::xs, Datatypes.Some (s,t)::ys) => R1 s s' /\ R2 t t' /\ wfsend R1 R2 xs ys
+    | (Datatypes.Some (s,t)::xs, Datatypes.Some (s',t')::ys) => R1 s s' /\ R2 t t' /\ wfsend R1 R2 xs ys
     | (nil, _)                                               => True
     | _                                                      => False
   end.
@@ -89,7 +89,7 @@ Check gpaco2.
 
 Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.
 
-Lemma monoR: forall xs ys R1 R,
+(* Lemma monoR: forall xs ys R1 R,
   (forall a a0 : ltt, R1 a a0 -> R a a0) ->
    wfrec subsort R1 ys xs ->
    wfrec subsort R ys xs.
@@ -111,7 +111,7 @@ Proof. intro xs.
            apply IHxs with (R1 := R1). easy.
            easy.
 Qed.
-
+ *)
 (* Lemma monoS: forall xs ys R1 R,
   (forall a a0 : ltt, R1 a a0 -> R a a0) ->
    wfsend subsort R1 xs ys ->
