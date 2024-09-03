@@ -1,4 +1,4 @@
-From SST Require Export aux.unscoped aux.expressions type.global.
+From SST Require Export src.unscoped src.expressions type.global.
 
 Require Import List String.
 Open Scope list_scope.

@@ -1,4 +1,4 @@
-From SST Require Export aux.unscoped aux.expressions process.processes process.sessions.
+From SST Require Export src.unscoped src.expressions process.processes process.sessions.
 Require Import List String Relations ZArith.
 Require Import Setoid Morphisms Coq.Program.Basics.
 Import ListNotations.

@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect.
-From SST Require Import aux.unscoped aux.expressions type.global tree.global tree.local. 
+From SST Require Import src.unscoped src.expressions type.global tree.global tree.local. 
 Require Import List String Datatypes ZArith Relations Setoid Morphisms.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.

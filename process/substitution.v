@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect.
-From SST Require Import aux.unscoped aux.expressions process.processes process.typecheck process.inversion process.inversion_expr type.global tree.global tree.local.
+From SST Require Import src.unscoped src.expressions process.processes process.typecheck process.inversion process.inversion_expr type.global tree.global tree.local.
 Require Import List String Datatypes ZArith Relations PeanoNat.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.
@@ -78,8 +78,22 @@ Lemma SList_map {A} : forall (f : A -> A) lis,
   end) lis) -> SList lis.
 Proof.
   intros f lis. induction lis; intros; try easy. 
-  destruct a; try easy. simpl. apply IHlis; try easy.
+  destruct a; try easy.
+  destruct lis; try easy.  
+  apply SList_inducb. apply IHlis. 
+  simpl in H.
+  specialize(SList_induc (Some (f a)) (list_map (fun u : option A => match u with
+                                     | Some x => Some (f x)
+                                     | None => None
+                                     end) (o :: lis)) H); intros.
+  destruct H0; try easy. 
+  
+  apply SList_inducb. apply IHlis.
+  simpl in H.
+  easy.
 Qed.
+
+
 
 Lemma SList_map2 {A} : forall (f : A -> A) lis, SList lis -> 
   SList (list_map (fun u => match u with
@@ -88,7 +102,11 @@ Lemma SList_map2 {A} : forall (f : A -> A) lis, SList lis ->
   end) lis).
 Proof.
   intros f lis. induction lis; intros; try easy.
-  destruct a; try easy. simpl. apply IHlis; try easy.
+  destruct a; try easy.
+  destruct lis; try easy.
+  apply SList_inducb. apply IHlis.
+  easy.
+  apply SList_inducb. apply IHlis. easy.
 Qed.
 
 Lemma positive_list_length_dst_zip {A B} : forall (xs : list A) (ys : list B) n, length (zip xs ys) = S n -> exists t ts u us, (t,u) :: zip ts us = zip xs ys.
@@ -586,10 +604,14 @@ Proof.
         (exists k l : process, u = Some k /\ v = Some l /\ substitutionP X m n.+1 Q k l)) a o llp ys); intros.
   destruct H1. specialize(H1 H0). clear H0 H2.
   destruct H1.
-  destruct o; try easy. simpl.
+  destruct o; try easy. 
+  destruct ys; try easy. apply SList_inducb.
   apply IHllp with (X := X) (m := m) (n := n) (Q := Q); try easy.
-  destruct a; try easy.
-  destruct H0. destruct H0. easy. destruct H0. destruct H0. destruct H0. destruct H2. easy.
+  specialize(SList_induc a llp H); intros. destruct H2; try easy. subst.
+  inversion H1.
+  apply SList_inducb.
+  destruct H0. destruct H0. subst. apply IHllp with (X := X) (m := m) (n := n) (Q := Q); try easy.
+  destruct H0. destruct H0. destruct H0. destruct H2. subst. easy.
 Qed.
 
 Lemma _a21: forall P Q T T' Gs Gt X Q' m n, wtyped Q 

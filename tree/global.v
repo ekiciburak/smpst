@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect.
-From SST Require Import aux.coseq aux.expressions type.global tree.local.
+From SST Require Import src.coseq src.expressions type.global tree.local.
 From Paco Require Import paco pacotac.
 Require Import String List ZArith.
 Local Open Scope string_scope.

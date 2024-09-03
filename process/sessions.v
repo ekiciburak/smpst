@@ -1,4 +1,4 @@
-From SST Require Export aux.unscoped aux.expressions process.processes type.global tree.global.
+From SST Require Export src.unscoped src.expressions process.processes type.global tree.global.
 Require Import List String Relations.
 Require Import List String Relations ZArith.
 Require Import Setoid Morphisms Coq.Program.Basics.

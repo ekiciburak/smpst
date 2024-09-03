@@ -1,4 +1,4 @@
-From SST Require Import aux.unscoped aux.expressions process.processes process.typecheck type.global tree.global tree.local.
+From SST Require Import src.unscoped src.expressions process.processes process.typecheck type.global tree.global tree.local.
 Require Import List String Datatypes ZArith Relations PeanoNat.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.
@@ -51,6 +51,21 @@ Proof.
   specialize(IHl S T H); intros. inversion IHl; try easy.
 Qed.
 
+Lemma SList_induc {A} : forall x (xs : list (option A)), SList (x :: xs) -> (xs = [] \/ SList xs).
+Proof.
+  intros. destruct xs.
+  left. easy. right. simpl in *. 
+  destruct o. destruct x. easy. easy. 
+  destruct x. easy. easy.
+Qed.
+
+Lemma SList_inducb {A} : forall x (xs : list (option A)), SList xs -> SList (x::xs).
+Proof.
+  intros. simpl.
+  destruct x; try easy.
+  destruct xs; try easy.
+Qed.
+
 Lemma typable_implies_wfC_helper3 : forall Pr STT,
     SList Pr ->
     Forall2
@@ -71,7 +86,11 @@ Proof.
   destruct H0. subst. simpl. apply IHPr; try easy.
   destruct H0. destruct H0. destruct H0. destruct H0. destruct H2. subst.
   
-  easy.
+  destruct Pr; try easy.
+  specialize(Forall2_length H1); intros. simpl in H0.
+  specialize(length_zero_iff_nil STT); intros. destruct H2. clear H4.
+  specialize(H2 (ssrfun.esym H0)). subst. easy.
+  apply SList_inducb. apply IHPr; try easy.
 Qed.
   
 

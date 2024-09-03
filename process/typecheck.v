@@ -1,4 +1,4 @@
-From SST Require Import aux.unscoped aux.expressions process.processes type.global tree.global tree.local.
+From SST Require Import src.unscoped src.expressions process.processes type.global tree.global tree.local.
 Require Import List String Datatypes ZArith Relations PeanoNat.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.

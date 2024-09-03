@@ -1,11 +1,11 @@
 -R . SST
 
-aux/axioms.v
-aux/fintype.v
-aux/unscoped.v
-aux/header_extensible.v
-aux/coseq.v
-aux/expressions.v
+src/axioms.v
+src/fintype.v
+src/unscoped.v
+src/header_extensible.v
+src/coseq.v
+src/expressions.v
 type/local.v
 type/global.v
 tree/local.v
