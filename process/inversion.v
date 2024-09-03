@@ -70,6 +70,7 @@ Proof.
   destruct H1. destruct H0.
   destruct H0. subst. simpl. apply IHPr; try easy.
   destruct H0. destruct H0. destruct H0. destruct H0. destruct H2. subst.
+  
   easy.
 Qed.
   

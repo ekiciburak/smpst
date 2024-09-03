@@ -24,7 +24,6 @@ Definition gtt_id (s: gtt): gtt :=
 Lemma gtt_eq: forall s, s = gtt_id s.
 Proof. intro s; destruct s; easy. Defined.
 
-
 Fixpoint ounzip2 (l: list (option(sort*gtt))): list gtt :=
   match l with
     | []                      => []
@@ -114,41 +113,6 @@ Proof. intro xs.
               easy. simpl. easy. admit.
               easy.
 Admitted.
-
-(* CoFixpoint isgParts (a: part) (t: gtt): Prop :=
- match t with
-    | gtt_send p q l => 
-      let fix next l :=
-        match l with
-          | x::xs =>
-            match x with
-              | Datatypes.Some(s,g') => isgParts a g'
-              | Datatypes.None       => next xs
-            end
-          | nil  => False
-        end
-      in a = p \/ a = q \/ next l
-    | _              => False
-  end. *)
-  
-(*
-Local Open Scope list_scope.
-CoFixpoint gparts (t: gtt): list (coseq part) :=
-  match t with
-    | gtt_send p q l => 
-      let fix next l :=
-        match l with
-          | x::xs =>
-            match x with
-              | Datatypes.Some(s,g') => [(Delay (cocons p (Delay conil)))] ++ [(Delay (cocons q (Delay conil)))] ++ (gparts g') ++ next xs
-              | Datatypes.None       => next xs
-            end
-          | nil  => nil
-        end
-      in next l
-    | _                                     => [Delay conil]
-  end.
- *)
 
 Fixpoint wfbisim (R: gtt -> gtt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))): Prop :=
   match (l1, l2) with
@@ -316,21 +280,14 @@ Fixpoint dropN  {A: Type}  (l: list (option A)): (list A) :=
   end.
 
 Definition allSame {A: Type} (l: list (option A)): Prop := 
-  match l with
+  let ll := dropN l in
+  match ll with
     | nil   => True
-    | x::xs => let ll := dropN l in allSameH x xs 
+    | x::xs => allSameH x xs 
   end.
 
 Definition asame {A: Type} (l: list (option A)): Prop := 
   (exists a, (In a l) /\ (forall b, a <> b -> (In b l -> False))) \/ l = nil.
-
-Fixpoint wfProj (r: part) (R: gtt -> part -> ltt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*ltt))): Prop :=
-  match (l1,l2) with
-    | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g r t /\ wfProj r R xs ys
-    | (Datatypes.None::xs, Datatypes.None::ys)                 => wfProj r R xs ys
-    | (nil, nil)                                               => True
-    | _                                                        => False
-  end.
 
 Fixpoint omap {A B: Type} (f: A -> B) (l: list (option A)): list B :=
   match l with
@@ -343,6 +300,44 @@ Fixpoint omap {A B: Type} (f: A -> B) (l: list (option A)): list B :=
   end.
 
 Definition injection3 (R: gtt -> part -> ltt -> Prop) := forall a b c d, R a b c -> R a b d -> c = d.
+
+Inductive wfg (R: gtt -> Prop): gtt -> Prop :=
+  | wf_gend : wfg R gtt_end
+  | wf_gsend: forall p q lis,
+              SList lis ->
+              Forall (fun u => u = Datatypes.None \/ (exists s t, u = Datatypes.Some (s,t) /\ R t)) lis ->
+              wfg R (gtt_send p q lis).
+
+Definition wfgC (g: gtt) := paco1 wfg bot1 g.
+
+Fixpoint wfProj (r: part) (R: gtt -> part -> ltt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*ltt))): Prop :=
+  match (l1,l2) with
+    | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g r t /\ wfProj r R xs ys
+    | (Datatypes.None::xs, Datatypes.None::ys)                 => wfProj r R xs ys
+    | (nil, nil)                                               => True
+    | _                                                        => False
+  end.
+
+Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
+  | proj_end : forall g r, (isgPartsC r g -> False) -> projection R g r (ltt_end)
+  | proj_in  : forall p r xs ys,
+               p <> r ->
+               wfProj r R xs ys ->
+               projection R (gtt_send p r xs) r (ltt_recv p ys)
+  | proj_out : forall r q xs ys,
+               r <> q ->
+               wfProj r R xs ys ->
+               projection R (gtt_send r q xs) r (ltt_send q ys)
+  | proj_cont: forall p q r xs ys t,
+               p <> q ->
+               q <> r ->
+               p <> r ->
+               allSame ys ->
+               wfProj r R xs ys ->
+               List.In (Datatypes.Some t) ys ->
+               projection R (gtt_send p q xs) r (snd t).
+
+Definition projectionC g r t := paco3 projection bot3 g r t.
 
 Lemma wps: forall l1 l2 l3 p R, 
   injection3 R ->
@@ -381,70 +376,7 @@ Proof. intro l1.
            apply IHl1 with (p := p) (R := R); easy. 
 Qed.
 
-
-Inductive wfg (R: gtt -> Prop): gtt -> Prop :=
-  | wf_gend : wfg R gtt_end
-  | wf_gsend: forall p q lis,
-              SList lis ->
-              Forall (fun u => u = Datatypes.None \/ (exists s t, u = Datatypes.Some (s,t) /\ R t)) lis ->
-              wfg R (gtt_send p q lis).
-
-
-Definition wfgC (g: gtt) := paco1 wfg bot1 g.
-
-Fixpoint wfListH (l: list (option(sort*gtt))): Prop :=
-  match l with
-    | [] => True
-    | x::xs => 
-      match x with
-        | Datatypes.None      => wfListH xs
-        | Datatypes.Some(s,g) => wfgC g /\ wfListH xs
-      end
-  end.
-
-Definition wfList (l: list (option(sort*gtt))): Prop :=
- l <> nil /\ wfListH l.
-
-Fixpoint wfListHL (l: list (option(sort*ltt))): Prop :=
-  match l with
-    | [] => True
-    | x::xs => 
-      match x with
-        | Datatypes.None      => wfListHL xs
-        | Datatypes.Some(s,g) => wfC g /\ wfListHL xs
-      end
-  end.
-
-Definition wfListL (l: list (option(sort*ltt))): Prop :=
-  l <> nil /\ wfListHL l.
-
-Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
-  | proj_end : forall g r, (isgPartsC r g -> False) -> projection R g r (ltt_end)
-  | proj_in  : forall p r xs ys,
-               p <> r ->
-(*                wfList xs ->
-               wfListL ys -> *)
-               wfProj r R xs ys ->
-               projection R (gtt_send p r xs) r (ltt_recv p ys)
-  | proj_out : forall r q xs ys,
-               r <> q ->
-(*                wfList xs ->
-               wfListL ys -> *)
-               wfProj r R xs ys ->
-               projection R (gtt_send r q xs) r (ltt_send q ys)
-  | proj_cont: forall p q r xs ys t,
-               p <> q ->
-               q <> r ->
-               p <> r ->
-(*                wfList xs ->
-               wfListL ys -> *)
-               allSame ys ->
-               wfProj r R xs ys ->
-               List.In (Datatypes.Some t) ys ->
-               projection R (gtt_send p q xs) r (snd t).
-
-Definition projectionC g r t := paco3 projection bot3 g r t.
-
+(* 
 Lemma monoRProj: forall xs ys R1 R2 r,
   (forall (a : gtt) (a0 : string) (a1 : ltt), R1 a a0 a1 -> R2 a a0 a1) ->
   wfProj r R1 xs ys ->
@@ -463,7 +395,7 @@ Proof. intro xs.
            apply IHxs with (R1 := R1); easy.
 Qed.
 
-(* Definition bproj: mon (gtt -> part -> ltt -> Prop).
+Definition bproj: mon (gtt -> part -> ltt -> Prop).
 Proof. unshelve econstructor.
        - intros R g p t.
          exact (projection R g p t).
@@ -554,8 +486,10 @@ Lemma asameE: forall {A: Type} (xs: list (option A)) x, allSame (x::xs) -> allSa
 Proof. intros A xs.
        induction xs; intros.
        - simpl. easy.
-       - simpl. simpl in H.
-         destruct H. subst. easy.
+       - unfold allSame in *. simpl. simpl in H. destruct a.
+         destruct x. simpl in H. destruct H. subst. easy. easy.
+         apply IHxs with (x := x). simpl.
+         easy.
 Qed.
 
 Lemma endH: forall xs ys r s l,
@@ -646,33 +580,106 @@ Proof. intros.
        pfold. constructor. easy.
 Qed. *)
 
+Lemma InSH: forall {A: Type} l (a b: A), In (Datatypes.Some a) l -> allSameH b (dropN l) -> In (Datatypes.Some b) l.
+Proof. intros A l.
+       induction l; intros.
+       - easy.
+       - simpl. simpl in H0.
+         destruct a. simpl in H0.
+         simpl in H. destruct H0. subst. left. easy.
+         right. simpl in H. destruct H. easy.
+         apply IHl with (a := a0). easy. easy.
+Qed.
+
 Lemma InSame: forall {A: Type} (ys: list (option A)) a b,
   allSame ys ->
-  In a ys ->
-  In b ys -> a = b.
+  In (Datatypes.Some a) ys ->
+  In (Datatypes.Some b) ys -> a = b.
 Proof. intros A ys.
        induction ys; intros.
        - easy.
        - simpl in H0. simpl in H1.
          destruct H0 as [H0 | H0].
-         + subst. destruct H1 as [H1 | H1]. easy.
-         + simpl in H.
+         + subst. destruct H1 as [H1 | H1]. inversion H1. subst. easy.
+         + unfold allSame in H. simpl in H.
            apply IHys.
            case_eq ys; intros.
-           subst. easy. subst. simpl in H. simpl. destruct H. subst. easy.
+           subst. easy. subst. simpl in H. destruct o. unfold allSame. simpl.
+           simpl in H. destruct H. subst. easy.
+           simpl in H1. destruct H1 as [H1 | H1]. easy.
+           unfold allSame. simpl. destruct (dropN l). easy. simpl in H.
+           destruct H. subst. easy.
            case_eq ys; intros.
-           subst. easy. subst. simpl in H. simpl. left. easy.
-           easy.
+           subst. easy. subst. simpl in H. simpl.
+           destruct o. simpl in H. destruct H. subst. left. easy.
+           simpl in H1. destruct H1 as [H1 | H1]. easy.
+           clear IHys. revert a0 H.
+           right.
+           induction l; intros.
+           subst. simpl in H1. easy.
+           simpl in H1. destruct H1 as [H1 | H1].
+           subst. simpl in H. destruct H. subst. left. simpl. easy.
+           right. simpl.
+           apply IHl. easy. simpl in H. destruct a. simpl in H. destruct H. subst. easy. easy. easy.
+
            destruct H1 as [H1 | H1]. subst.
            case_eq ys; intros. subst. easy.
            subst. simpl in H. simpl in H0.
-           destruct H.
+           unfold allSame in H. simpl in H.
            destruct H0 as [H0 | H0].
-           subst. easy.
-           subst. apply IHys. simpl. easy. simpl. right. easy. simpl. left. easy.
-           apply IHys. simpl in H. case_eq ys; intros. easy. subst. simpl. simpl in H.
-           destruct H. subst. easy. easy. easy.
+           subst. simpl in H. destruct H. easy.
+           destruct o. simpl in H. destruct H. subst.
+           apply IHys. unfold allSame. simpl. easy.
+           simpl. right. easy.
+           simpl. left. easy.
+           apply IHys. unfold allSame. simpl. 
+           destruct (dropN l). easy. simpl in H. destruct H. subst. easy.
+           simpl. right. easy. simpl. right.
+           apply InSH with (a := a0); easy.
+           apply IHys. apply asameE in H. easy. easy. easy.
 Qed.
+
+Inductive gctx: Type :=
+  | ghole: gctx
+  | gsend: part -> part -> list (option (sort*gctx)) -> gctx.
+
+(* Fixpoint Nth {A: Type} (l: list A) (n: nat): option A :=
+  match (l, n) with
+    | (x::xs, O)   => Datatypes.Some x
+    | (x::xs, S k) => Nth xs k
+    | (nil, S k)   => Datatypes.None
+    | (nil, O)     => Datatypes.None
+  end. *)
+
+Fixpoint ounzip3 (l: list (option(sort*gctx))): list gctx :=
+  match l with
+    | []                      => []
+    | Datatypes.None::xs      => ounzip3 xs
+    | Datatypes.Some(s,g)::xs => g :: ounzip3 xs
+  end.
+
+Inductive graft: gctx -> list gtt -> gtt -> Prop :=
+  | gr_hole_sing: forall g, graft ghole [g] g
+  | gr_cont_hole: forall p q s S xs ys g gs,
+                  List.Forall (fun u => graft (fst u) gs (snd u)) (zip xs ys) -> 
+                  graft (gsend p q (Datatypes.Some(s,ghole)::(ozip S xs))) (g::gs) (gtt_send p q (Datatypes.Some(s,g)::(ozip S ys)))
+  | gr_cont_cont: forall p q s S xs ys a b S2 l nl gs1 gs2,
+                  List.Forall (fun u => graft (fst u) gs1 (snd u)) (zip l nl) -> 
+                  List.Forall (fun u => graft (fst u) gs2 (snd u)) (zip xs ys) -> 
+                  graft (gsend p q (Datatypes.Some(s,gsend a b (ozip S2 l))::(ozip S xs))) (gs1++gs2) (gtt_send p q (Datatypes.Some(s,gtt_send a b (ozip S2 nl))::(ozip S ys))).
+
+Fixpoint isPartgctx (p: part) (c: gctx): bool :=
+  match c with
+    | ghole       => false
+    | gsend a b l => 
+      let fix next p l :=
+        match l with
+          | nil   => false
+          | (Datatypes.Some (s,x))::xs => isPartgctx p x || next p xs
+          | (Datatypes.None)::xs       => next p xs
+        end
+      in eqb a p || eqb b p || next p l
+  end.
 
 Lemma _319_1: forall p q S T G G' L1 L2,
   wfC L1 ->
@@ -785,7 +792,7 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 destruct t. simpl in H20. subst.
                 specialize(projL_same xs0 ys ys0 p H21 H9); intro Ha.
                 subst. 
-                specialize(InSame ys0 (Datatypes.Some (s0, l)) (Datatypes.Some (s, l2)) H18 H12 H22); intro Ha.
+                specialize(InSame ys0 (s0, l) (s, l2) H18 H12 H22); intro Ha.
                 inversion Ha. subst.
                 destruct H2 as (H2a,(H2b,H2c)).
                 unfold upaco2 in H2b.

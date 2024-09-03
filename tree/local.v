@@ -42,9 +42,9 @@ Fixpoint ozip{A B: Type} (l1: list A) (l2: list B): list (option(A*B)) :=
 
 Fixpoint SList {A} (lis : list (option A)) : Prop := 
   match lis with 
-    | Datatypes.Some x :: xs => True 
-    | Datatypes.None :: xs   => SList xs
-    | []           => False
+    | Datatypes.Some x :: [] => True 
+    | _ :: xs                => SList xs
+    | []                     => False
   end.
 
 Inductive wf (R: ltt -> Prop): ltt -> Prop :=
