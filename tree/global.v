@@ -335,6 +335,7 @@ Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :
                allSame ys ->
                wfProj r R xs ys ->
                List.In (Datatypes.Some t) ys ->
+               snd t <> ltt_end ->
                projection R (gtt_send p q xs) r (snd t).
 
 Definition projectionC g r t := paco3 projection bot3 g r t.
@@ -482,6 +483,17 @@ Proof. intros.
        pfold. constructor. easy.
 Qed.
 
+Lemma pmergeCR: forall G r,
+          projectionC G r ltt_end ->
+          (isgPartsC r G -> False).
+Proof. intros.
+       pinversion H. subst. apply H1. easy.
+       subst. destruct t. simpl in H1. subst. 
+       easy.
+       admit.
+Admitted.
+
+
 Lemma asameE: forall {A: Type} (xs: list (option A)) x, allSame (x::xs) -> allSame xs.
 Proof. intros A xs.
        induction xs; intros.
@@ -534,14 +546,14 @@ Proof. intro xs.
               specialize(Ha (gtt_send p q xs0) r l ltt_end).
               apply Ha.
               pfold. easy. pfold. easy.
-             
-              subst. destruct t. simpl. simpl in H11.
+              subst. easy.
+(*               subst. destruct t. simpl. simpl in H11.
               subst.               
               specialize(injup); intro Ha.
               unfold injection3 in Ha.
               specialize(Ha (gtt_send p q xs0) r l ltt_end).
               apply Ha.
-              pfold. easy. pfold. easy.
+              pfold. easy. pfold. easy. *)
               admit. admit.
            easy.
            easy.
@@ -681,6 +693,21 @@ Fixpoint isPartgctx (p: part) (c: gctx): bool :=
       in eqb a p || eqb b p || next p l
   end.
 
+(* Lemma _A_29_1: forall p q S T G L1,
+  wfC L1 ->
+  wfC T ->
+  wfgC G ->
+  projectionC G p L1 ->
+  subtypeC (ltt_send q [Datatypes.Some(S,T)]) L1 ->
+  exists c Gj, graft c Gj G.
+Proof. intros.
+       pinversion H2. subst.
+       pinversion H3. admit. 
+       subst. pinversion H3. admit. 
+       subst. pinversion H3. subst. *)
+
+  
+  
 Lemma _319_1: forall p q S T G G' L1 L2,
   wfC L1 ->
   wfC L2 ->
@@ -790,9 +817,9 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 punfold H2b. pfold. easy.
                 admit. easy. subst. easy. subst. easy.
                 destruct t. simpl in H20. subst.
-                specialize(projL_same xs0 ys ys0 p H21 H9); intro Ha.
+                specialize(projL_same xs0 ys ys0 p H20 H9); intro Ha.
                 subst. 
-                specialize(InSame ys0 (s0, l) (s, l2) H18 H12 H22); intro Ha.
+                specialize(InSame ys0 (s0, l) (s, l3) H19 H12 H23); intro Ha.
                 inversion Ha. subst.
                 destruct H2 as (H2a,(H2b,H2c)).
                 unfold upaco2 in H2b.
