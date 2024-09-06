@@ -33,7 +33,7 @@ Fixpoint onth {A : Type} (n : fin) (lis : list (option A)) : option A :=
     | [] => Datatypes.None
   end.
 
-Fixpoint ozip{A B: Type} (l1: list A) (l2: list B): list (option(A*B)) :=
+Fixpoint ozip {A B: Type} (l1: list A) (l2: list B): list (option(A*B)) :=
   match (l1,l2) with
     | ([], [])       => []
     | (x::xs, y::ys) => Datatypes.Some (x, y):: ozip xs ys
@@ -68,6 +68,26 @@ Fixpoint wfrec (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list 
     | _                                                      => False
   end.
 
+Lemma mon_wfrec: forall ys xs r r',
+  wfrec subsort r ys xs ->
+  (forall x0 x1 : ltt, r x0 x1 -> r' x0 x1) ->
+  wfrec subsort r' ys xs.
+Proof. intro ys.
+       induction ys; intros.
+       - case_eq xs; intros.
+         + simpl. easy.
+         + subst. easy.
+       - case_eq xs; intros.
+         + simpl. subst. easy.
+         + subst. simpl in H. simpl.
+           destruct a. destruct p, o. destruct p.
+           split. easy. split. apply H0. easy.
+           apply IHys with (r := r); easy.
+           easy.
+           destruct o. easy.
+           apply IHys with (r := r); easy.
+Qed.
+
 Fixpoint wfsend (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
   match (l1,l2) with
     | (Datatypes.None::xs, Datatypes.None::ys)               => wfsend R1 R2 xs ys
@@ -75,6 +95,26 @@ Fixpoint wfsend (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list
     | (nil, _)                                               => True
     | _                                                      => False
   end.
+
+Lemma mon_wfsend: forall xs ys r r',
+  wfsend subsort r xs ys ->
+  (forall x0 x1 : ltt, r x0 x1 -> r' x0 x1) ->
+  wfsend subsort r' xs ys.
+Proof. intro xs.
+       induction xs; intros.
+       - case_eq ys; intros.
+         + simpl. easy.
+         + subst. easy.
+       - case_eq ys; intros.
+         + simpl. subst. easy.
+         + subst. simpl in H. simpl.
+           destruct a. destruct p, o. destruct p.
+           split. easy. split. apply H0. easy.
+           apply IHxs with (r := r); easy.
+           easy.
+           destruct o. easy.
+           apply IHxs with (r := r); easy.
+Qed.
 
 Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
   | sub_end: subtype R ltt_end ltt_end
@@ -85,9 +125,18 @@ Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
                      wfsend subsort R xs ys ->
                      subtype R (ltt_send p xs) (ltt_send p ys).
 
-Check gpaco2.
-
 Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.
+
+Lemma st_mon: monotone2 subtype.
+Proof. unfold monotone2.
+       intros.
+       induction IN; intros.
+       - constructor.
+       - constructor.
+         apply mon_wfrec with (r := r); easy.
+       - constructor.
+         apply mon_wfsend with (r := r); easy.
+Qed.
 
 (* Lemma monoR: forall xs ys R1 R,
   (forall a a0 : ltt, R1 a a0 -> R a a0) ->

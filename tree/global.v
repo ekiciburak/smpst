@@ -52,6 +52,15 @@ Fixpoint isgPartsL (a: part)  (l: list (option(sort*gtt))): Prop :=
     |( Datatypes.None)::xs      => isgPartsL a xs
   end.
 
+Lemma isp_mon: monotone2 isgParts.
+Proof. unfold monotone2.
+       intros.
+       induction IN; intros.
+       - constructor.
+       - constructor.
+       - apply pa_send3 with (u := u); easy.
+Qed.
+
 Lemma ispartch: forall xs p q r,
   (isgPartsC r (gtt_send p q xs) -> False) ->
   isgPartsL r xs -> False.
@@ -73,14 +82,14 @@ Proof. intro xs.
                 apply eqb_neq in H1. easy.
                 apply eqb_neq in H2. easy.
                 pinversion H0.
-                admit.
+                apply isp_mon.
                 simpl. left. easy.
                 pinversion Ha.
                 subst. constructor. subst. constructor.
                 subst.
                 apply pa_send3 with (u := u). easy. easy.
                 easy. simpl. right. easy.
-                admit.
+                apply isp_mon.
                 destruct H0 as [H0 | H0].
                 contradict H.
                 pfold.
@@ -95,7 +104,7 @@ Proof. intro xs.
                 apply eqb_neq in H1. easy.
                 unfold isgPartsC in H0.
                 pinversion H0.
-                admit. simpl. left. easy. easy.
+                apply isp_mon. simpl. left. easy. easy.
          apply (IHxs p q r).
          intro Ha.
          apply H.
@@ -110,9 +119,9 @@ Proof. intro xs.
               constructor. constructor.
               subst. 
               apply pa_send3 with (u := u). easy. easy.
-              easy. simpl. easy. admit.
+              easy. simpl. easy. apply isp_mon.
               easy.
-Admitted.
+Qed.
 
 Fixpoint wfbisim (R: gtt -> gtt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))): Prop :=
   match (l1, l2) with
@@ -229,6 +238,34 @@ Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> pa
 
 Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n.
 
+Lemma wfstep_mon: forall xs ys p q r r' n,
+  wfStep p q r xs ys n ->
+  (forall (x0 x1 : gtt) (x2 x3 : string) (x4 : fin), r x0 x1 x2 x3 x4 -> r' x0 x1 x2 x3 x4) ->
+  wfStep p q r' xs ys n.
+Proof. intro xs.
+       induction xs; intros.
+       - case_eq ys; intros.
+         + subst. simpl. easy.
+         + subst. simpl in H. easy.
+       - case_eq ys; intros.
+         + subst. simpl. easy.
+         + subst. simpl in H.
+           simpl. destruct a. destruct p0. destruct o. destruct p0.
+           split. easy. split. apply H0. easy.
+           apply IHxs with (r := r). easy. easy. easy.
+           destruct o. easy.
+           apply IHxs with (r := r). easy. easy.
+Qed.
+
+Lemma step_mon: monotone5 gttstep.
+Proof. unfold monotone5.
+       intros.
+       induction IN; intros.
+       - apply steq with (s := s); easy.
+       - apply stneq; try easy.
+         apply wfstep_mon with (r := r). easy. easy.
+Qed.
+
 (* Lemma monoRStep: forall xs ys R1 R2 r s,
   (forall (a a0 : gtt) (a1 a2 : string), R1 a a0 a1 a2 -> R2 a a0 a1 a2) ->
   wfStep r s R1 xs ys ->
@@ -310,6 +347,20 @@ Inductive wfg (R: gtt -> Prop): gtt -> Prop :=
 
 Definition wfgC (g: gtt) := paco1 wfg bot1 g.
 
+Lemma wfg_mon: monotone1 wfg.
+Proof. unfold monotone1.
+       intros.
+       induction IN; intros.
+       - constructor.
+       - constructor; try easy.
+         rewrite Forall_forall. rewrite Forall_forall in H0.
+         intros. specialize (H0 x H1).
+         destruct H0 as [H0 | H0].
+         left. easy.
+         right. destruct H0 as (s,(t,H0)). exists s. exists t.
+         split. easy. apply LE. easy.
+Qed.
+
 Fixpoint wfProj (r: part) (R: gtt -> part -> ltt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*ltt))): Prop :=
   match (l1,l2) with
     | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g r t /\ wfProj r R xs ys
@@ -317,6 +368,26 @@ Fixpoint wfProj (r: part) (R: gtt -> part -> ltt -> Prop) (l1: list (option(sort
     | (nil, nil)                                               => True
     | _                                                        => False
   end.
+
+Lemma wfproj_mon: forall xs ys p r r',
+  wfProj p r xs ys ->
+  (forall (x0 : gtt) (x1 : string) (x2 : ltt), r x0 x1 x2 -> r' x0 x1 x2) ->
+  wfProj p r' xs ys.
+Proof. intro xs.
+       induction xs; intros.
+       - case_eq ys; intros.
+         + easy.
+         + subst. easy.
+       - case_eq ys; intros.
+         + subst. easy.
+         + subst. simpl in H. simpl.
+           destruct a. destruct p0, o. destruct p0.
+           split. easy. split. apply H0. easy.
+           apply IHxs with (r := r); easy.
+           easy.
+           destruct o. easy.
+           apply IHxs with (r := r); easy.
+Qed.
 
 Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
   | proj_end : forall g r, (isgPartsC r g -> False) -> projection R g r (ltt_end)
@@ -339,6 +410,19 @@ Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :
                projection R (gtt_send p q xs) r (snd t).
 
 Definition projectionC g r t := paco3 projection bot3 g r t.
+
+Lemma proj_mon: monotone3 projection.
+Proof. unfold monotone3.
+       intros.
+       induction IN; intros.
+       - constructor. easy.
+       - constructor; try easy.
+         apply wfproj_mon with (r := r); easy.
+       - constructor; try easy.
+         apply wfproj_mon with (r := r); easy.
+       - apply proj_cont with (ys := ys); try easy.
+         apply wfproj_mon with (r := r); easy.
+Qed.
 
 Lemma wps: forall l1 l2 l3 p R, 
   injection3 R ->
@@ -490,8 +574,8 @@ Proof. intros.
        pinversion H. subst. apply H1. easy.
        subst. destruct t. simpl in H1. subst. 
        easy.
-       admit.
-Admitted.
+       apply proj_mon.
+Qed.
 
 
 Lemma asameE: forall {A: Type} (xs: list (option A)) x, allSame (x::xs) -> allSame xs.
@@ -554,7 +638,7 @@ Proof. intro xs.
               specialize(Ha (gtt_send p q xs0) r l ltt_end).
               apply Ha.
               pfold. easy. pfold. easy. *)
-              admit. admit.
+              apply proj_mon. apply proj_mon. 
            easy.
            easy.
            destruct a. destruct p, o. destruct p.
@@ -570,7 +654,7 @@ Proof. intro xs.
            easy. easy. 
            intro Ha.
            apply H2. simpl. easy.
-Admitted.
+Qed.
 
 Lemma projI2_same: forall g p t1 t2,
   projection (upaco3 projection bot3) g p t1 ->
@@ -706,8 +790,7 @@ Proof. intros.
        subst. pinversion H3. admit. 
        subst. pinversion H3. subst. *)
 
-  
-  
+
 Lemma _319_1: forall p q S T G G' L1 L2,
   wfC L1 ->
   wfC L2 ->
@@ -725,7 +808,7 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
          + pinversion Hsg. subst. (* G' = gc *)
            ++ pinversion Hpg'. subst. (* L2 = end *)
               * case_eq xs; intros. subst. pinversion Hwg. easy.
-                admit. subst.
+                apply wfg_mon. subst.
                 case_eq ys; intros. subst. simpl in H5. easy.
                 subst. simpl in H11. simpl in H5. simpl in H2.
                 destruct o. destruct o0. destruct p0, p1.
@@ -741,7 +824,7 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 unfold upaco2 in H2b.
                 destruct H2b as [H2b | H2b].
                 punfold H2b. pfold. easy.
-                admit. easy. admit. easy.
+                apply st_mon. easy. apply proj_mon. easy.
                 destruct t. simpl. simpl in H0. subst.
                 destruct H5 as (H5a,(H5b,H5c)). 
                 unfold upaco3 in H5b. destruct H5b as [H5b | H5b ].
@@ -752,10 +835,10 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 unfold upaco2 in H2b.
                 destruct H2b as [H2b | H2b].
                 punfold H2b. pfold. easy.
-                admit. easy. admit. easy. admit. easy. easy.
+                apply st_mon. easy. apply proj_mon. easy. apply proj_mon. easy. easy.
               * subst. (* L2 = receive *)
                 case_eq xs; intros. subst. pinversion Hwg. easy.
-                admit. subst.
+                apply wfg_mon. subst.
                 case_eq ys; intros. subst. simpl in H5. easy.
                 subst. simpl in H11. simpl in H5. simpl in H2.
                 destruct o. destruct o0. destruct p1, p2.
@@ -771,12 +854,12 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 unfold upaco2 in H2b.
                 destruct H2b as [H2b | H2b].
                 punfold H2b. pfold. easy.
-                admit. easy. subst. easy.
-                destruct t. simpl in H16. subst. easy. admit. easy. easy.
+                apply st_mon. easy. subst. easy.
+                destruct t. simpl in H16. subst. easy. apply proj_mon. easy. easy.
                 destruct o0. easy. easy.
               * subst. (* L2 = send *)
                 case_eq xs; intros. subst. pinversion Hwg. easy.
-                admit. subst.
+                apply wfg_mon. subst.
                 case_eq ys; intros. subst. simpl in H5. easy.
                 subst. simpl in H11. simpl in H5. simpl in H2.
                 destruct o. destruct o0. destruct p0, p1.
@@ -795,12 +878,12 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 unfold upaco2 in H2b.
                 destruct H2b as [H2b | H2b].
                 punfold H2b. pfold. easy.
-                admit. easy. subst. easy. admit. easy. easy.
+                apply st_mon. easy. subst. easy. apply proj_mon. easy. easy.
                 destruct o0. easy. easy.
               * subst. (* L2 = t.2 *)
                 destruct t. simpl. simpl in Hpg'.
                 case_eq xs; intros. subst. pinversion Hwg. easy.
-                admit. subst.
+                apply wfg_mon. subst.
                 case_eq ys; intros. subst. simpl in H5. easy.
                 subst. simpl in H11. simpl in H5. simpl in H2.
                 destruct o. destruct o0. destruct p1, p2.
@@ -815,7 +898,7 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 unfold upaco2 in H2b.
                 destruct H2b as [H2b | H2b].
                 punfold H2b. pfold. easy.
-                admit. easy. subst. easy. subst. easy.
+                apply st_mon. easy. subst. easy. subst. easy.
                 destruct t. simpl in H20. subst.
                 specialize(projL_same xs0 ys ys0 p H20 H9); intro Ha.
                 subst. 
@@ -823,14 +906,14 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
                 inversion Ha. subst.
                 destruct H2 as (H2a,(H2b,H2c)).
                 unfold upaco2 in H2b.
-                destruct H2b as [H2b | H2b]. pfold. punfold H2b. admit.
+                destruct H2b as [H2b | H2b]. pfold. punfold H2b. apply st_mon.
                 easy.
-                admit.
+                apply proj_mon.
                 subst. easy. easy.
                 destruct o0. easy. easy.
-                admit.
+                apply proj_mon.
            ++ subst. (* G' = send *)
-              easy. admit.
+              easy. apply step_mon.
          + destruct t. simpl in H. subst.
 (*            case_eq ys; intros. subst. pinversion Hwk1. subst. easy.
            admit. subst.  *)
@@ -875,5 +958,5 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
            subst. easy. subst. easy.
            subst. destruct t. simpl.
            admit(**).
-           admit. admit. admit. admit.
+           apply proj_mon. apply step_mon. apply proj_mon. apply st_mon.
 Admitted.
