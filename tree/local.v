@@ -47,6 +47,19 @@ Fixpoint SList {A} (lis : list (option A)) : Prop :=
     | []                     => False
   end.
 
+Lemma SList_f {A} : forall x (xs : list (option A)), SList (x :: xs) -> SList xs \/ (xs = nil /\ exists a, x = Datatypes.Some a).
+Proof.
+  intros. unfold SList in H.
+  destruct x. destruct xs. right. split. easy. exists a. easy. left. easy.
+  left. easy.
+Qed.
+
+Lemma SList_b {A} : forall x (xs : list (option A)), SList xs -> SList (x :: xs).
+Proof.
+  intros. unfold SList.
+  destruct x. destruct xs; try easy. easy.
+Qed.
+
 Inductive wf (R: ltt -> Prop): ltt -> Prop :=
   | wf_end : wf R ltt_end
   | wf_recv: forall p lis,

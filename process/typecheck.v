@@ -45,9 +45,8 @@ Inductive typ_proc: ctxS -> ctxT -> process -> ltt -> Prop :=
   | tc_inact: forall cs ct,     typ_proc cs ct (p_inact) (ltt_end)
   | tc_var  : forall cs ct s t, Some t = onth s ct -> wfC t ->
                                 typ_proc cs ct (p_var s) t
-  | tc_mu   : forall cs ct p t t',    typ_proc cs (Some t :: ct) p t' ->
-                                      subtypeC t t' -> wfC t' ->
-                                      typ_proc cs ct (p_rec p) t'
+  | tc_mu   : forall cs ct p t,       typ_proc cs (Some t :: ct) p t ->
+                                      typ_proc cs ct (p_rec p) t
   | tc_ite  : forall cs ct e p1 p2 T, typ_expr cs e sbool ->
                                       typ_proc cs ct p1 T ->
                                       typ_proc cs ct p2 T ->
@@ -60,9 +59,9 @@ Inductive typ_proc: ctxS -> ctxT -> process -> ltt -> Prop :=
                      Forall2 (fun u v => (u = None /\ v = None) \/ 
                      (exists p s t, u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: cs) ct p t)) P STT ->
                      typ_proc cs ct (p_recv p P) (ltt_recv p STT)
-  | tc_send: forall cs ct p l e P S T, typ_expr cs e S ->
-                                       typ_proc cs ct P T ->
-                                       typ_proc cs ct (p_send p l e P) (ltt_send p (extendLTT l [] (Some (S,T)))).
+  | tc_send : forall cs ct p l e P S T, typ_expr cs e S ->
+                                        typ_proc cs ct P T ->
+                                        typ_proc cs ct (p_send p l e P) (ltt_send p (extendLTT l [] (Some (S,T)))).
 
 Print typ_proc_ind.
 
@@ -70,7 +69,7 @@ Section typ_proc_ind_ref.
   Variable P : ctxS -> ctxT -> process -> ltt -> Prop.
   Hypothesis P_inact : forall cs ct, P cs ct p_inact ltt_end.
   Hypothesis P_var   : forall cs ct s t, Some t = onth s ct -> wfC t -> P cs ct (p_var s) t.
-  Hypothesis P_mu    : forall cs ct p t t', P cs (Some t :: ct) p t' -> subtypeC t t' -> wfC t' -> P cs ct (p_rec p) t'.
+  Hypothesis P_mu    : forall cs ct p t, P cs (Some t :: ct) p t -> P cs ct (p_rec p) t.
   Hypothesis P_ite   : forall cs ct e p1 p2 T, typ_expr cs e sbool -> P cs ct p1 T -> P cs ct p2 T -> P cs ct (p_ite e p1 p2) T.
   Hypothesis P_sub   : forall cs ct p t t', P cs ct p t -> subtypeC t t' -> wfC t' -> P cs ct p t'.
   Hypothesis P_recv  : forall cs ct p STT Pr, length Pr = length STT -> SList Pr ->
@@ -84,7 +83,7 @@ Section typ_proc_ind_ref.
     refine (match a with
       | tc_inact s t => P_inact s t 
       | tc_var s t s1 t1 Hsl Hwf => P_var s t s1 t1 Hsl Hwf
-      | tc_mu sc tc pr t t' Ht Hst Hwf => P_mu sc tc pr t t' (typ_proc_ind_ref sc (Some t :: tc) pr t' Ht) Hst Hwf
+      | tc_mu sc tc pr t Ht => P_mu sc tc pr t (typ_proc_ind_ref sc (Some t :: tc) pr t Ht)
       | tc_ite sc tc ex p1 p2 t He Hp1 Hp2 => P_ite sc tc ex p1 p2 t He (typ_proc_ind_ref sc tc p1 t Hp1) (typ_proc_ind_ref sc tc p2 t Hp2)
       | tc_sub sc tc pr t t' Ht Hst Hwf => P_sub sc tc pr t t' (typ_proc_ind_ref sc tc pr t Ht) Hst Hwf
       | tc_recv sc st p STT Pr HST HSl Hm => P_recv sc st p STT Pr HST HSl _

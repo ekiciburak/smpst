@@ -196,20 +196,20 @@ Proof. intros.
        destruct Hd. easy.
 Qed.
 
-Lemma _a23_d: forall P Q T'' Gs Gt,
-  typ_proc Gs Gt P T'' ->
-  P = (p_rec Q)   -> exists T T', (typ_proc Gs (Some T :: Gt) Q T' /\ subtypeC T T' /\ subtypeC T' T'').
+Lemma _a23_d: forall P Q T' Gs Gt,
+  typ_proc Gs Gt P T' ->
+  P = (p_rec Q)   -> exists T, (typ_proc Gs (Some T :: Gt) Q T /\ subtypeC T T').
 Proof. intros.
        induction H; intros; try easy.
        inversion H0. subst.
-       exists t. exists t'. 
-       split. easy. split. easy. apply stRefl.
+       exists t. 
+       split. easy. apply stRefl.
               
        specialize(IHtyp_proc H0).
-       destruct IHtyp_proc. destruct H3. destruct H3. destruct H4. 
-       exists x. exists x0.
-       split. easy. split. easy. 
-       specialize(stTrans x0 t t' H5 H1); intros. easy.
+       destruct IHtyp_proc. destruct H3.  
+       exists x. 
+       split. easy. 
+       specialize(stTrans x t t' H4 H1); intros. easy.
 Qed. 
 
 

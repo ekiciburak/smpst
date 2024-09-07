@@ -130,12 +130,12 @@ Section substitution.
 
 Definition subst_relation (A : Type) : Type := fin -> fin -> fin -> A -> A -> A -> Prop.
 
-
-
 (* relation of sub_from, sub_to, proc_before_sub, proc_after_sub, rec case, ensures is fresh in both x and P *)
 Inductive substitutionP : subst_relation process :=
   | sub_var_is   : forall P x m n,              substitutionP x m n P (p_var x) (incr_free 0 0 m n P)
-  | sub_var_not  : forall P x y m n, x <> y ->  substitutionP x m n P (p_var y) (p_var y)
+  | sub_var_notz : forall P x m n, x <> 0 ->    substitutionP x m n P (p_var 0) (p_var 0)
+  | sub_var_not1 : forall P x y m n, x <> S y -> x <= y -> substitutionP x m n P (p_var (S y)) (p_var y)
+  | sub_var_not2 : forall P x y m n, x <> S y -> y < x  -> substitutionP x m n P (p_var (S y)) (p_var (S y))
   | sub_inact    : forall P x m n,              substitutionP x m n P (p_inact) (p_inact)
   | sub_send     : forall P x m n pt l e P' Q', substitutionP x m n P P' Q' -> substitutionP x m n P (p_send pt l e P') (p_send pt l e Q')
   | sub_recv     : forall P x m n pt xs ys, 
