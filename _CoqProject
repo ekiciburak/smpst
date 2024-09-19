@@ -17,3 +17,4 @@ process/inversion_expr.v
 process/substitution.v
 process/sessions.v
 process/beta.v
+process/subject_reduction.v

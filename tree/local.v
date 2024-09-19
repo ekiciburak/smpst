@@ -24,14 +24,19 @@ Definition ltt_id (s: ltt): ltt :=
   end.
 
 Fixpoint onth {A : Type} (n : fin) (lis : list (option A)) : option A :=
-  match lis with 
-    | x::xs =>
-      match n with
-        | S m => onth m xs
-        | 0   => x
+  match n with 
+    | S m => 
+      match lis with 
+        | x::xs => onth m xs
+        | []    => None 
       end
-    | [] => Datatypes.None
+    | 0   =>
+      match lis with 
+        | x::xs => x 
+        | []    => None
+      end
   end.
+
 
 Fixpoint ozip{A B: Type} (l1: list A) (l2: list B): list (option(A*B)) :=
   match (l1,l2) with

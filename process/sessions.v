@@ -34,11 +34,12 @@ Definition InT (pt : part) (M : session) : Prop :=
 Inductive typ_sess : session -> gtt -> Prop := 
   | t_sess : forall M G, (forall pt, isgPartsC pt G -> InT pt M) ->
                          NoDup (flattenT M) ->
+                         wfgC G ->
                          ForallT (fun u P => exists T, projectionC G u T /\ typ_proc nil nil P T) M ->
                          typ_sess M G.
 
 Lemma _a23_2 : forall M G, typ_sess M G -> (forall pt, isgPartsC pt G -> InT pt M) /\ 
-               NoDup (flattenT M) ->
+               NoDup (flattenT M) /\ wfgC G /\
                ForallT (fun u P => exists T, projectionC G u T /\ typ_proc nil nil P T) M.
 Proof.
   intros. inversion H; try easy.
@@ -121,8 +122,7 @@ Inductive scong: relation session :=
   | sc_par2 : forall M M', scong (M ||| M') (M' ||| M)
   | sc_par3 : forall M M' M'', scong ((M ||| M') ||| M'') (M ||| (M' ||| M'')).
 
-Lemma _a22_2_helper : forall pt G, isgPartsC pt G -> projectionC G pt ltt_end -> False.
-Admitted.
+
 
 Lemma expr_typ_step : forall Gs e e' S, typ_expr Gs e S -> stepE e e' -> typ_expr Gs e' S.
 Proof.
@@ -344,40 +344,40 @@ Qed.
 Lemma _a22_2 : forall M M' G, typ_sess M G -> scong M M' -> typ_sess M' G.
 Proof.
   intros. revert H. revert G. induction H0; intros; try easy.
-  - inversion H0. subst. inversion H3. subst. clear H3.
-    inversion H6. subst. clear H6. destruct H4. destruct H3.
+  - inversion H0. subst. inversion H4. subst. clear H4.
+    inversion H7. subst. clear H7. destruct H5. destruct H4.
     constructor; try easy. constructor. constructor; try easy.
     exists x. split; try easy.
     apply _a22_1 with (P := P); try easy.
     easy.
-  - inversion H. subst. inversion H2. subst. clear H2.
-    constructor; try easy. inversion H5. subst. destruct H3. destruct H2. clear H5.
-    intros. specialize(H0 pt H4).
+  - inversion H. subst. inversion H3. subst. clear H3.
+    constructor; try easy. inversion H6. subst. destruct H4. destruct H3. clear H6.
+    intros. specialize(H0 pt H5).
     simpl in H0. destruct H0; try easy. subst. 
-    specialize(_a23_f p_inact x nil nil H3 (eq_refl p_inact)); intros. subst. 
-    specialize(_a22_2_helper pt G H4 H2); intros. easy.
+    specialize(_a23_f p_inact x nil nil H4 (eq_refl p_inact)); intros. subst. 
+    specialize(pmergeCR G pt H3 H5); intros. easy.
   - simpl in H1. inversion H1. subst. easy.
   - inversion H; subst. inversion H1; subst. constructor.
-    intros. specialize (H0 pt H3); intros. simpl.
+    intros. specialize (H0 pt H4); intros. simpl.
     apply in_swap; try easy. 
-    apply nodup_swap; try easy.
-    inversion H2. subst. constructor; try easy.
+    apply nodup_swap; try easy. easy.
+    inversion H3. subst. constructor; try easy.
     constructor; try easy.
-    intros. specialize(H0 pt H6). 
+    intros. specialize(H0 pt H7). 
     simpl in *.
     apply in_swap; try easy.
     apply nodup_swap; try easy.
-  - inversion H2. subst. constructor; try easy.
-  - inversion H; subst. inversion H2; subst. inversion H5; subst. 
+  - inversion H3. subst. constructor; try easy.
+  - inversion H; subst. inversion H3; subst. inversion H6; subst. 
     constructor. 
-    - intros. specialize(H0 pt H3). unfold InT in *. simpl in *.
+    - intros. specialize(H0 pt H4). unfold InT in *. simpl in *.
     specialize(app_assoc (flattenT M) (flattenT M') (flattenT M'')); intros.
     replace (flattenT M ++ flattenT M' ++ flattenT M'') with ((flattenT M ++ flattenT M') ++ flattenT M'') in *.
     easy.
     simpl in *.
     specialize(app_assoc (flattenT M) (flattenT M') (flattenT M'')); intros.
     replace (flattenT M ++ flattenT M' ++ flattenT M'') with ((flattenT M ++ flattenT M') ++ flattenT M'') in *.
-    easy.
+    easy. easy.
     constructor; try easy. constructor; try easy.
 Qed.
 

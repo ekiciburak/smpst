@@ -51,6 +51,15 @@ Fixpoint isgPartsL (a: part)  (l: list (option(sort*gtt))): Prop :=
     | (Datatypes.Some(s,x))::xs => isgPartsC a x \/ isgPartsL a xs
     |( Datatypes.None)::xs      => isgPartsL a xs
   end.
+  
+Lemma isp_mon: monotone2 isgParts.
+Proof. unfold monotone2.
+       intros.
+       induction IN; intros.
+       - constructor.
+       - constructor.
+       - apply pa_send3 with (u := u); easy.
+Qed.
 
 Lemma ispartch: forall xs p q r,
   (isgPartsC r (gtt_send p q xs) -> False) ->
@@ -73,14 +82,14 @@ Proof. intro xs.
                 apply eqb_neq in H1. easy.
                 apply eqb_neq in H2. easy.
                 pinversion H0.
-                admit.
+                apply isp_mon.
                 simpl. left. easy.
                 pinversion Ha.
                 subst. constructor. subst. constructor.
                 subst.
                 apply pa_send3 with (u := u). easy. easy.
                 easy. simpl. right. easy.
-                admit.
+                apply isp_mon.
                 destruct H0 as [H0 | H0].
                 contradict H.
                 pfold.
@@ -95,7 +104,7 @@ Proof. intro xs.
                 apply eqb_neq in H1. easy.
                 unfold isgPartsC in H0.
                 pinversion H0.
-                admit. simpl. left. easy. easy.
+                apply isp_mon. simpl. left. easy. easy.
          apply (IHxs p q r).
          intro Ha.
          apply H.
@@ -110,9 +119,9 @@ Proof. intro xs.
               constructor. constructor.
               subst. 
               apply pa_send3 with (u := u). easy. easy.
-              easy. simpl. easy. admit.
+              easy. simpl. easy. apply isp_mon.
               easy.
-Admitted.
+Qed.
 
 Fixpoint wfbisim (R: gtt -> gtt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))): Prop :=
   match (l1, l2) with
@@ -362,6 +371,7 @@ Definition injection3 (R: gtt -> part -> ltt -> Prop) := forall a b c d, R a b c
 Inductive wfg (R: gtt -> Prop): gtt -> Prop :=
   | wf_gend : wfg R gtt_end
   | wf_gsend: forall p q lis,
+              p <> q ->
               SList lis ->
               Forall (fun u => u = Datatypes.None \/ (exists s t, u = Datatypes.Some (s,t) /\ R t)) lis ->
               wfg R (gtt_send p q lis).
@@ -393,6 +403,7 @@ Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :
                allSame ys ->
                wfProj r R xs ys ->
                List.In (Datatypes.Some t) ys ->
+               snd t <> ltt_end ->
                projection R (gtt_send p q xs) r (snd t).
 
 Definition projectionC g r t := paco3 projection bot3 g r t.
@@ -434,51 +445,39 @@ Proof. intro l1.
            apply IHl1 with (p := p) (R := R); easy. 
 Qed.
 
-(* 
-Lemma monoRProj: forall xs ys R1 R2 r,
-  (forall (a : gtt) (a0 : string) (a1 : ltt), R1 a a0 a1 -> R2 a a0 a1) ->
-  wfProj r R1 xs ys ->
-  wfProj r R2 xs ys.
+Lemma wfproj_mon: forall xs ys p r r',
+  wfProj p r xs ys ->
+  (forall (x0 : gtt) (x1 : string) (x2 : ltt), r x0 x1 x2 -> r' x0 x1 x2) ->
+  wfProj p r' xs ys.
 Proof. intro xs.
        induction xs; intros.
        - case_eq ys; intros.
+         + easy.
          + subst. easy.
-         + subst. simpl in H0. easy.
        - case_eq ys; intros.
-         + subst. simpl in H0. easy.
-         + subst. simpl. simpl in H0.
-           destruct a, o. destruct p, p0.
-           split. easy. split. apply H. easy.
-           apply IHxs with (R1 := R1); easy. easy. easy.
-           apply IHxs with (R1 := R1); easy.
+         + subst. easy.
+         + subst. simpl in H. simpl.
+           destruct a. destruct p0, o. destruct p0.
+           split. easy. split. apply H0. easy.
+           apply IHxs with (r := r); easy.
+           easy.
+           destruct o. easy.
+           apply IHxs with (r := r); easy.
 Qed.
 
-Definition bproj: mon (gtt -> part -> ltt -> Prop).
-Proof. unshelve econstructor.
-       - intros R g p t.
-         exact (projection R g p t).
-       - cbv. intros R1 R2 leqR g p t HR1.
-         induction HR1. 
-         + constructor. easy.
-         + constructor.
-           easy. apply monoRProj with (R1 := R1); easy.
-           constructor.
-           easy. apply monoRProj with (R1 := R1); easy.
-           apply proj_cont with (ys := ys); try easy.
-           apply monoRProj with (R1 := R1); easy.
-Defined.
+Lemma proj_mon: monotone3 projection.
+Proof. unfold monotone3.
+       intros.
+       induction IN; intros.
+       - constructor. easy.
+       - constructor; try easy.
+         apply wfproj_mon with (r := r); easy.
+       - constructor; try easy.
+         apply wfproj_mon with (r := r); easy.
+       - apply proj_cont with (ys := ys); try easy.
+         apply wfproj_mon with (r := r); easy.
+Qed.
 
-Notation "g ↓ p t" := (gfp bproj g p t) (at level 70).
-Notation "g ↓[ R ] p t" := (`R g p t) (at level 79).
-(*Notation "x ↓ y" := (`_ g p t) (at level 79). *)
-Notation "g [↓] p t" := (bproj `_ g p t) (at level 79).
-
-Lemma wpsBot: forall l1 l2 l3 p, 
-  wfProj p bot3 l1 l2 ->
-  wfProj p bot3 l1 l3 -> l2 = l3.
-Proof. intros. 
-       apply wps with (l1 := l1) (p := p) (R := bot3); try easy.
-Qed. *)
 
 Axiom injup: injection3 (paco3 projection bot3).
 (* Axiom injupP: injection3 (projection (gfp bproj)). *)
@@ -540,6 +539,16 @@ Proof. intros.
        pfold. constructor. easy.
 Qed.
 
+Lemma pmergeCR: forall G r,
+          projectionC G r ltt_end ->
+          (isgPartsC r G -> False).
+Proof. intros.
+       pinversion H. subst. apply H1. easy.
+       subst. destruct t. simpl in H1. subst. 
+       easy.
+       apply proj_mon.
+Qed.
+
 Lemma asameE: forall {A: Type} (xs: list (option A)) x, allSame (x::xs) -> allSame xs.
 Proof. intros A xs.
        induction xs; intros.
@@ -593,16 +602,10 @@ Proof. intro xs.
               apply Ha.
               pfold. easy. pfold. easy.
              
-              subst. destruct t. simpl. simpl in H11.
-              subst.               
-              specialize(injup); intro Ha.
-              unfold injection3 in Ha.
-              specialize(Ha (gtt_send p q xs0) r l ltt_end).
-              apply Ha.
-              pfold. easy. pfold. easy.
-              admit. admit.
-           easy.
-           easy.
+              subst. destruct t. simpl. easy.
+              apply proj_mon. apply proj_mon.
+              subst. apply IHxs with (ys := l0) (r := r) (s := s); try easy.
+              easy.
            destruct a. destruct p, o. destruct p.
            apply (IHxs l0 r s).
            apply asameE in H. easy.
@@ -616,7 +619,7 @@ Proof. intro xs.
            easy. easy. 
            intro Ha.
            apply H2. simpl. easy.
-Admitted.
+Qed.
 
 Lemma projI2_same: forall g p t1 t2,
   projection (upaco3 projection bot3) g p t1 ->
