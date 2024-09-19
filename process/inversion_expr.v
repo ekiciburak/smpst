@@ -88,7 +88,16 @@ Proof.
   - inversion H0. subst. try easy.
 Qed.
 
-
+Lemma inv_expr_det : forall Gs ex S m n,
+  typ_expr Gs ex S -> ex = (e_det m n) -> exists k, typ_expr Gs m k /\ typ_expr Gs n k /\ subsort k S.
+Proof.
+  intros. induction H; try easy.
+  specialize(IHtyp_expr H0). destruct IHtyp_expr. destruct H2. destruct H3.
+  exists x. split; try easy. split; try easy.
+  apply sstrans with (s2 := s); intros; try easy.
+  exists s. inversion H0. subst. split; try easy. split. easy.
+  apply srefl.
+Qed.
 
 
 

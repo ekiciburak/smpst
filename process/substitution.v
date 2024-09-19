@@ -98,19 +98,19 @@ Proof.
   apply wp_send. easy.
 Qed.
 
-Lemma onth_exact : forall (GtA GtB : list (option ltt)) T, onth (length GtA) (GtA ++ (T :: GtB)) = T.
+Lemma onth_exact {X} : forall (GtA GtB : list (option X)) T, onth (length GtA) (GtA ++ (T :: GtB)) = T.
 Proof.
   intro GtA. induction GtA; intros; try easy.
   simpl. apply IHGtA.
 Qed.
 
-Lemma onth_more : forall (GtA GtB : list (option ltt)) y T, length GtA <= y -> onth y.+1 (GtA ++ (T :: GtB)) = onth y (GtA ++ GtB).
+Lemma onth_more {X} : forall (GtA GtB : list (option X)) y T, length GtA <= y -> onth y.+1 (GtA ++ (T :: GtB)) = onth y (GtA ++ GtB).
 Proof.
   intro GtA. induction GtA; intros; try easy.
   destruct y; try easy. apply IHGtA. easy.
 Qed.
 
-Lemma onth_less : forall (GtA GtB : list (option ltt)) y T, y < length GtA -> length GtA <> y.+1 -> onth y.+1 (GtA ++ (T :: GtB)) = onth y.+1 (GtA ++ GtB). 
+Lemma onth_less {X} : forall (GtA GtB : list (option X)) y T, y < length GtA -> length GtA <> y.+1 -> onth y.+1 (GtA ++ (T :: GtB)) = onth y.+1 (GtA ++ GtB). 
 Proof.
   intro GtA. induction GtA; intros; try easy.
   destruct y; try easy. destruct GtA; try easy. 
@@ -395,6 +395,14 @@ Proof.
     specialize(inv_expr_plus (Gsl ++ Gsr) (e_plus (incr_freeE k m ex1) (incr_freeE k m ex2)) x (incr_freeE k m ex1) (incr_freeE k m ex2) H (erefl (e_plus (incr_freeE k m ex1) (incr_freeE k m ex2)))); intros.
     destruct H1. destruct H2.
     subst. apply sc_plus. apply IHex1; try easy. apply IHex2; try easy.
+  - simpl in *.
+    specialize(inv_expr_det (Gsl ++ Gsr) (e_det (incr_freeE k m ex1) (incr_freeE k m ex2)) x (incr_freeE k m ex1) (incr_freeE k m ex2) H (erefl (e_det (incr_freeE k m ex1) (incr_freeE k m ex2)))); intros.
+    destruct H1. destruct H1. destruct H2.
+    constructor; try easy.
+    apply IHex1; try easy.
+    apply sc_sub with (s := x0); intros; try easy.
+    apply IHex2; try easy.
+    apply sc_sub with (s := x0); intros; try easy.
 Qed.
 
 Lemma slideS_helper : forall llp l k X m x Gsl Gsr Gt tm,
@@ -716,6 +724,7 @@ Proof.
   - simpl. replace (incr_freeE n 0 ex) with ex. easy.
   - simpl. replace (incr_freeE n 0 ex) with ex. easy.
   - simpl. replace (incr_freeE n 0 ex) with ex. easy.
+  - simpl. replace (incr_freeE n 0 ex1) with ex1. replace (incr_freeE n 0 ex2) with ex2. easy.
   - simpl. replace (incr_freeE n 0 ex1) with ex1. replace (incr_freeE n 0 ex2) with ex2. easy.
   - simpl. replace (incr_freeE n 0 ex1) with ex1. replace (incr_freeE n 0 ex2) with ex2. easy.
 Qed.

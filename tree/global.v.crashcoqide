@@ -159,7 +159,7 @@ Inductive coseqIn: part -> coseq part -> Prop :=
                 gt2gtt R (g_rec g) t.
 
 Definition gt2lttC g t := paco2 gt2gtt bot2 g t. *)
-(* 
+
 Fixpoint findpath (l: list (label*(sort*gtt))) (lbl: label): option (sort*gtt) :=
   match l with
     | []             => Datatypes.None
@@ -170,9 +170,9 @@ Fixpoint findpathL (l: list (label*(sort*ltt))) (lbl: label): option (sort*ltt) 
   match l with
     | []             => Datatypes.None
     | (l1,(s,g))::xs => if Nat.eqb l1 lbl then Datatypes.Some (s, g) else findpathL xs lbl
-  end. *)
+  end.
 
-(* Fixpoint findpathGI (l: list (option(sort*gtt))) (lbl: nat): option (sort*gtt) :=
+Fixpoint findpathGI (l: list (option(sort*gtt))) (lbl: nat): option (sort*gtt) :=
   match lbl with
     | O => 
       match l with
@@ -186,16 +186,15 @@ Fixpoint findpathL (l: list (label*(sort*ltt))) (lbl: label): option (sort*ltt) 
         | Datatypes.None::xs      => findpathGI xs k
         | Datatypes.Some(s,g)::xs => findpathGI xs k
       end
-  end. *)
+  end.
 
-(* Fixpoint wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> nat -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))) (n: nat): Prop :=
+Fixpoint wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> nat -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))) (n: nat): Prop :=
   match (l1,l2) with
     | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g t r s n /\ wfStep r s R xs ys n
     | (Datatypes.None::xs, Datatypes.None::ys)                 => wfStep r s R xs ys n
     | (nil, nil)                                               => True
     | _                                                        => False
-  end. *)
-  
+  end.
 
 (* Definition wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> nat -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))) :=
   wfStepH r s R l1 l2 0. *)
@@ -209,11 +208,12 @@ Fixpoint dNone (l: list (option(sort*gtt))): list (sort*gtt) :=
       end
     | nil   => nil
   end.
-(* 
+
 Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> part -> part -> nat -> Prop :=
   | steq : forall p q xs s gc n,
                   p <> q ->
-                  Datatypes.Some (s, gc) = onth n xs ->
+                  NoDup (dNone xs) ->
+                  Datatypes.Some (s, gc) = findpathGI xs n ->
                   gttstep R (gtt_send p q xs) gc p q n
   | stneq: forall p q r s xs ys n,
                   p <> q ->
@@ -225,67 +225,9 @@ Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> pa
                   List.Forall (fun u => isgPartsC p u) (ounzip2 xs) ->
                   List.Forall (fun u => isgPartsC q u) (ounzip2 xs) ->
                   wfStep p q R xs ys n ->
-                  gttstep R (gtt_send r s xs) (gtt_send r s ys) p q n. *)
+                  gttstep R (gtt_send r s xs) (gtt_send r s ys) p q n.
 
-(* Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n. *)
-
-Inductive gttstepC : gtt -> gtt -> part -> part -> nat -> Prop := 
-  | steq : forall p q xs s gc n,
-                  p <> q ->
-                  Datatypes.Some (s, gc) = onth n xs ->
-                  gttstepC (gtt_send p q xs) gc p q n
-  | stneq : forall p q r s xs ys n,
-                  p <> q ->
-                  r <> s ->
-                  r <> p ->
-                  r <> q ->
-                  s <> p ->
-                  s <> q ->
-                  List.Forall (fun u => isgPartsC p u) (ounzip2 xs) ->
-                  List.Forall (fun u => isgPartsC q u) (ounzip2 xs) ->
-                  List.Forall2 (fun u v => (u = Datatypes.None /\ v = Datatypes.None) \/ 
-                               (exists s' g g', u = Datatypes.Some(s',g) /\ v = Datatypes.Some(s',g') /\ gttstepC g g' p q n)) xs ys ->
-                  gttstepC (gtt_send r s xs) (gtt_send r s ys) p q n.
-
-Section gttstepC_ind_ref.
-  Variable P : gtt -> gtt -> part -> part -> nat -> Prop.
-  Hypothesis P_steq : forall p q xs s gc n, p <> q -> Datatypes.Some (s, gc) = onth n xs
-                      -> P (gtt_send p q xs) gc p q n.
-  Hypothesis P_stneq : forall p q r s xs ys n,
-                      p <> q ->
-                      r <> s ->
-                      r <> p ->
-                      r <> q ->
-                      s <> p ->
-                      s <> q ->
-                      List.Forall (fun u => isgPartsC p u) (ounzip2 xs) ->
-                      List.Forall (fun u => isgPartsC q u) (ounzip2 xs) ->
-                      List.Forall2 (fun u v => (u = Datatypes.None /\ v = Datatypes.None) \/ 
-                                   (exists s' g g', u = Datatypes.Some(s',g) /\ v = Datatypes.Some(s',g') /\ P g g' p q n)) xs ys ->
-                      P(gtt_send r s xs) (gtt_send r s ys) p q n.
-  
-  Definition Forall2_mono {X Y} {R T : X -> Y -> Prop} (HRT : forall x y, R x y -> T x y) :
-      forall l m, Forall2 R l m -> Forall2 T l m :=
-  fix loop l m h {struct h} :=
-    match h with
-    | Forall2_nil => Forall2_nil T
-    | Forall2_cons _ _ _ _ h1 h2 => Forall2_cons _ _ (HRT _ _ h1) (loop _ _ h2)
-    end.
-  
-  Fixpoint gttstepC_ind_ref (g g' : gtt) (p q : part) (n : nat) (a : gttstepC g g' p q n) {struct a} : P g g' p q n.
-  Proof.
-    refine (match a with
-      | steq p q xs s gc n He Hn => P_steq p q xs s gc n He Hn
-      | stneq p q r s xs ys n H1 H2 H3 H4 H5 H6 Hl1 Hl2 Hw => P_stneq p q r s xs ys n H1 H2 H3 H4 H5 H6 Hl1 Hl2 _ 
-    end); try easy.
-    revert Hw. apply Forall2_mono.
-    intros. destruct H.
-    - left. easy.
-    - destruct H. destruct H. destruct H. destruct H. destruct H0.
-      right. exists x0. exists x1. exists x2. split; try easy. split; try easy.
-    apply gttstepC_ind_ref; try easy. 
-  Qed.
-End gttstepC_ind_ref.
+Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n.
 
 (* Lemma monoRStep: forall xs ys R1 R2 r s,
   (forall (a a0 : gtt) (a1 a2 : string), R1 a a0 a1 a2 -> R2 a a0 a1 a2) ->
@@ -738,7 +680,7 @@ Fixpoint isPartgctx (p: part) (c: gctx): bool :=
         end
       in eqb a p || eqb b p || next p l
   end.
-(* 
+
 Lemma _319_1: forall p q S T G G' L1 L2,
   wfC L1 ->
   wfC L2 ->
@@ -907,4 +849,4 @@ Proof. intros p q S T G G' L1 L2 Hwk1 Hwl2 Hwt Hwg Hwg' Hpg Hsl1 Hsg Hpg'.
            subst. destruct t. simpl.
            admit(**).
            admit. admit. admit. admit.
-Admitted. *)
+Admitted.

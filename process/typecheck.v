@@ -29,8 +29,9 @@ Inductive typ_expr: ctxS -> expr -> sort -> Prop :=
                              typ_expr c (e_gt e1 e2) sbool
   | sc_plus: forall c e1 e2, typ_expr c e1 sint ->
                              typ_expr c e2 sint ->
-                             typ_expr c (e_plus e1 e2) sint.
-
+                             typ_expr c (e_plus e1 e2) sint
+  | sc_det  : forall c e1 e2 s, typ_expr c e1 s -> typ_expr c e2 s -> typ_expr c (e_det e1 e2) s.
+  
 
 Fixpoint extendLTT (n : fin) (lis : list (option (sort * ltt))) (ST : option (sort * ltt)): list (option (sort * ltt)) :=
   match n, lis with 

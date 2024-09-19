@@ -109,8 +109,8 @@ Fixpoint incr_freeE (fv m : fin) (e : expr) :=
     | e_not n    => e_not (incr_freeE fv m n)
     | e_gt u v   => e_gt (incr_freeE fv m u) (incr_freeE fv m v)
     | e_plus u v => e_plus (incr_freeE fv m u) (incr_freeE fv m v) 
+    | e_det u v  => e_det (incr_freeE fv m u) (incr_freeE fv m v)
   end. 
-
 
 Fixpoint incr_free (fvP fvE m k : fin) (P : process) : process :=
   match P with 

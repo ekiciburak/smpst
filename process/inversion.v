@@ -237,5 +237,5 @@ Proof. intros.
        specialize(IHtyp_proc eq_refl).
        subst.
        punfold H1. inversion H1. easy.
-       (* need monotone2 subtype *)
-Admitted.
+       apply subtype_monotone; try easy.
+Qed.
