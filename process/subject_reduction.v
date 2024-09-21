@@ -240,8 +240,8 @@ Proof.
   intros. revert H. revert G.
   induction H0; intros; try easy.
   (* R-COMM *)
-  inversion H1. subst. rename H4 into H100. rename H5 into H101. rename H6 into H102.
-  rename H7 into H4. clear H1. inversion H3. subst. clear H3.
+  inversion H1. subst. rename H4 into H100. rename H5 into H101. rename H6 into H102. rename H7 into H103.
+  rename H8 into H4. clear H1. inversion H3. subst. clear H3.
   inversion H4. subst. clear H4. inversion H5. subst. clear H5.
   - inversion H4. subst. destruct H3. destruct H1. inversion H9. subst. destruct H10. destruct H5. 
   - specialize(_a23_a q xs (p_recv q xs) nil nil x H3 (eq_refl (p_recv q xs))); intros.
@@ -311,7 +311,7 @@ Proof.
   apply multiC_step with (G2 := x8) (p := q) (q := p) (n := l). easy. apply multiC_refl.
   
   (* T-COND *)
-  inversion H0. subst. rename H3 into H100. rename H4 into H101. rename H5 into H102. rename H6 into H3. 
+  inversion H0. subst. rename H3 into H100. rename H4 into H101. rename H5 into H102. rename H6 into H103. rename H7 into H3. 
   inversion H3. subst. clear H3.
   inversion H6. subst. clear H6. destruct H4. destruct H3. 
   specialize(_a23_c (p_ite e P Q) e P Q x nil nil H4 (eq_refl (p_ite e P Q))); intros.
@@ -325,7 +325,7 @@ Proof.
   apply multiC_refl.
   
   (* F-COND *)
-  inversion H0. subst. rename H3 into H100. rename H4 into H101. rename H5 into H102. rename H6 into H3. 
+  inversion H0. subst. rename H3 into H100. rename H4 into H101. rename H5 into H102. rename H6 into H103. rename H7 into H3.
   inversion H3. subst. clear H3.
   inversion H6. subst. clear H6. destruct H4. destruct H3. 
   specialize(_a23_c (p_ite e P Q) e P Q x nil nil H4 (eq_refl (p_ite e P Q))); intros.

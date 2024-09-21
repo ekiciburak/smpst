@@ -27,7 +27,7 @@ Definition InT (pt : part) (M : session) : Prop :=
 Inductive typ_sess : session -> gtt -> Prop := 
   | t_sess : forall M G Gl, (forall pt, isgParts pt Gl -> InT pt M) ->
                             NoDup (flattenT M) ->
-                            gttTC Gl G -> wfG Gl -> (forall n, exists m, guardG n m Gl) ->
+                            gttTC Gl G -> wfG Gl -> (forall n, exists m, guardG n m Gl) -> balancedG Gl ->
                             ForallT (fun u P => exists T, projectionC G u T /\ typ_proc nil nil P T) M ->
                             typ_sess M G.
 
@@ -331,13 +331,13 @@ Qed.
 Lemma _a22_2 : forall M M' G, typ_sess M G -> scong M M' -> typ_sess M' G.
 Proof.
   intros. revert H. revert G. induction H0; intros; try easy.
-  - inversion H0. subst. inversion H6. subst. clear H6.
+  - inversion H0. subst. rename H6 into H100. rename H7 into H6. inversion H6. subst. clear H6.
     inversion H9. subst. clear H9. destruct H7. destruct H6.
     apply t_sess with (Gl := Gl); try easy. constructor. constructor; try easy.
     exists x. split; try easy.
     apply _a22_1 with (P := P); try easy.
     easy.
-  - inversion H. subst. inversion H5. subst. clear H5.
+  - inversion H. subst. rename H5 into H100. rename H6 into H5. inversion H5. subst. clear H5.
     apply t_sess with (Gl := Gl); try easy. inversion H8. subst. destruct H6. destruct H5. clear H8.
     intros. specialize(H0 pt H7).
     unfold InT in H0. simpl in H0. destruct H0; try easy. subst. 
@@ -346,17 +346,18 @@ Proof.
     assert False. apply H0. unfold isgPartsC. exists Gl; try easy. easy.
   - simpl in H1. inversion H1. subst. easy.
   - inversion H; subst. inversion H1; subst. apply t_sess with (Gl := Gl); try easy.
-    intros. specialize (H0 pt H6); intros. simpl.
+    intros. specialize (H0 pt H7); intros. simpl.
     apply in_swap; try easy. 
-    apply nodup_swap; try easy. 
+    apply nodup_swap; try easy.
+    rename H5 into H100. rename H6 into H5.  
     inversion H5. subst. constructor; try easy.
     apply t_sess with (Gl := Gl); try easy.
-    intros. specialize(H0 pt H9). 
+    intros. specialize(H0 pt H10). 
     simpl in *.
     apply in_swap; try easy.
     apply nodup_swap; try easy.
-  - inversion H5. subst. constructor; try easy.
-  - inversion H; subst. inversion H5; subst. inversion H8; subst. 
+  - rename H5 into H100. rename H6 into H5. inversion H5. subst. constructor; try easy.
+  - inversion H; subst. rename H5 into H100. rename H6 into H5. inversion H5; subst. inversion H8; subst. 
     apply t_sess with (Gl := Gl); try easy.
     - intros. specialize(H0 pt H6). unfold InT in *. simpl in *.
     specialize(app_assoc (flattenT M) (flattenT M') (flattenT M'')); intros.
