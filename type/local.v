@@ -1,320 +1,492 @@
-From SST Require Export src.unscoped src.expressions type.global.
+From mathcomp Require Import ssreflect.seq all_ssreflect.
+From Paco Require Import paco pacotac.
+From SST Require Export src.expressions src.header type.global.
+Require Import List String Coq.Arith.PeanoNat Morphisms Relations.
+Import ListNotations. 
 
-Require Import List String.
-Open Scope list_scope.
+Section ltt.
 
+CoInductive ltt: Type :=
+  | ltt_end : ltt
+  | ltt_recv: part -> list (option(sort*ltt)) -> ltt
+  | ltt_send: part -> list (option(sort*ltt)) -> ltt.
 
-Section local.
-Inductive local  : Type :=
-  | l_var : ( fin ) -> local 
-  | l_end : local 
-  | l_send : ( part   ) -> ( list (prod (prod (label  ) (sort  )) (local  )) ) -> local 
-  | l_recv : ( part   ) -> ( list (prod (prod (label  ) (sort  )) (local  )) ) -> local 
-  | l_rec : ( local   ) -> local .
-
-Lemma congr_l_end  : l_end  = l_end  .
-Proof. congruence. Qed.
-
-Lemma congr_l_send  { s0 : part   } { s1 : list (prod (prod (label  ) (sort  )) (local  )) } { t0 : part   } { t1 : list (prod (prod (label  ) (sort  )) (local  )) } (H1 : s0 = t0) (H2 : s1 = t1) : l_send  s0 s1 = l_send  t0 t1 .
-Proof. congruence. Qed.
-
-Lemma congr_l_recv  { s0 : part   } { s1 : list (prod (prod (label  ) (sort  )) (local  )) } { t0 : part   } { t1 : list (prod (prod (label  ) (sort  )) (local  )) } (H1 : s0 = t0) (H2 : s1 = t1) : l_recv  s0 s1 = l_recv  t0 t1 .
-Proof. congruence. Qed.
-
-Lemma congr_l_rec  { s0 : local   } { t0 : local   } (H1 : s0 = t0) : l_rec  s0 = l_rec  t0 .
-Proof. congruence. Qed.
-
-Definition upRen_local_local   (xi : ( fin ) -> fin) : ( fin ) -> fin :=
-  (up_ren) xi.
-
-Fixpoint ren_local   (xilocal : ( fin ) -> fin) (s : local ) : local  :=
-    match s return local  with
-    | l_var  s => (l_var ) (xilocal s)
-    | l_end   => l_end 
-    | l_send  s0 s1 => l_send  ((fun x => x) s0) ((list_map (prod_map (prod_map (fun x => x) (fun x => x)) (ren_local xilocal))) s1)
-    | l_recv  s0 s1 => l_recv  ((fun x => x) s0) ((list_map (prod_map (prod_map (fun x => x) (fun x => x)) (ren_local xilocal))) s1)
-    | l_rec  s0 => l_rec  ((ren_local (upRen_local_local xilocal)) s0)
-    end.
-
-Definition up_local_local   (sigma : ( fin ) -> local ) : ( fin ) -> local  :=
-  (scons) ((l_var ) (var_zero)) ((funcomp) (ren_local (shift)) sigma).
-
-Fixpoint subst_local   (sigmalocal : ( fin ) -> local ) (s : local ) : local  :=
-    match s return local  with
-    | l_var  s => sigmalocal s
-    | l_end   => l_end 
-    | l_send  s0 s1 => l_send  ((fun x => x) s0) ((list_map (prod_map (prod_map (fun x => x) (fun x => x)) (subst_local sigmalocal))) s1)
-    | l_recv  s0 s1 => l_recv  ((fun x => x) s0) ((list_map (prod_map (prod_map (fun x => x) (fun x => x)) (subst_local sigmalocal))) s1)
-    | l_rec  s0 => l_rec  ((subst_local (up_local_local sigmalocal)) s0)
-    end.
-
-
-Fixpoint local_eq (l1 l2: local): bool :=
-  match pair l1 l2 with
-    | pair (l_var n1) (l_var n2) => Nat.eqb n1 n2
-    | pair (l_send p1 la) (l_send p2 lb) =>
-      let fix next la lb :=
-        match pair la lb with
-          | pair ((pair (pair lbl1 s1) lc1) :: xs1) ((pair (pair lbl2 s2) lc2) :: xs2) =>
-            if (andb (andb (Nat.eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
-            else false
-          | pair nil nil => true
-          | _            => false
-        end
-      in ((eqb p1 p2) && (next la lb))
-    | pair (l_recv p1 la) (l_recv p2 lb) =>
-      let fix next la lb :=
-        match pair la lb with
-          | pair ((pair (pair lbl1 s1) lc1) :: xs1) ((pair (pair lbl2 s2) lc2) :: xs2) =>
-            if (andb (andb (Nat.eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
-            else false
-          | pair nil nil => true
-          | _            => false
-        end
-      in (andb (eqb p1 p2) (next la lb))
-    | pair (l_rec la) (l_rec lb) => local_eq la lb
-    | _                          => false
-  end.
-
-Fixpoint unfold_lrec (s: local): local :=
+Definition ltt_id (s: ltt): ltt :=
   match s with
-    | l_rec t      => subst_local ((l_rec t) .: l_var) t
-    | l_send p l =>
-      let fix next l :=
-        match l with
-          | nil                          => nil
-          | pair (pair lbl srt) g1 :: xs => pair (pair lbl srt) (unfold_lrec g1) :: next xs 
-        end 
-      in l_send p (next l)
-    | l_recv p l =>
-      let fix next l :=
-        match l with
-          | nil                          => nil
-          | pair (pair lbl srt) g1 :: xs => pair (pair lbl srt) (unfold_lrec g1) :: next xs 
-        end 
-      in l_send p (next l)
-    | _            => s
+    | ltt_end      => ltt_end
+    | ltt_recv p l => ltt_recv p l 
+    | ltt_send p l => ltt_send p l
+  end.
+  
+Lemma ltt_eq: forall s, s = ltt_id s.
+Proof. intro s; destruct s; easy. Defined.
+
+Inductive local  : Type :=
+  | l_var : fin -> local 
+  | l_end : local 
+  | l_send : part -> list (option (sort * local)) -> local 
+  | l_recv : part -> list (option (sort * local)) -> local 
+  | l_rec : local -> local .
+  
+Section local_ind_ref.
+  Variable P : local -> Prop.
+  Hypothesis P_var : forall n, P (l_var n).
+  Hypothesis P_end : P (l_end).
+  Hypothesis P_send : forall p lis, List.Forall (fun u => u = None \/ (exists s g, u = Some (s, g) /\ P g)) lis -> P (l_send p lis).
+  Hypothesis P_recv : forall p lis, List.Forall (fun u => u = None \/ (exists s g, u = Some (s, g) /\ P g)) lis -> P (l_recv p lis).
+  Hypothesis P_rec : forall g, P g -> P (l_rec g).
+
+  Fixpoint local_ind_ref p : P p.
+  Proof.
+    destruct p.
+    - apply P_var.
+    - apply P_end.
+    - apply P_send.
+      induction l; try easy.
+      constructor; try easy.
+      destruct a. right. destruct p. exists s0. exists l0. split; try easy.
+      left. easy.
+    - apply P_recv.
+      induction l; try easy.
+      constructor; try easy.
+      destruct a. right. destruct p. exists s0. exists l0. split; try easy.
+      left. easy.
+    - apply P_rec; easy.
+  Qed.
+End local_ind_ref.
+
+
+Fixpoint incr_freeL (fv m : fin) (T : local) := 
+  match T with 
+    | l_var n        => l_var (if fv <= n then (n + m) else n)
+    | l_end          => l_end 
+    | l_send p lis => l_send p (List.map (fun u => 
+          match u with 
+            | Some (s, g) => Some (s, incr_freeL fv m g)
+            | None        => None
+          end) lis)
+    | l_recv p lis => l_recv p (List.map (fun u => 
+          match u with 
+            | Some (s, g) => Some (s, incr_freeL fv m g)
+            | None        => None
+          end) lis)
+    | l_rec g        => l_rec (incr_freeL (S fv) m g)
   end.
 
-(* Let lt := l_rec (l_send "p" (cons (pair (pair "x" gnat) (l_var 0)) nil)).
-Print lt.
-Compute unfold_lrec lt.
+Inductive subst_local : fin -> fin -> local -> local -> local -> Prop := 
+  | subl_var_is   : forall G t m,                            subst_local t m G (l_var t) (incr_freeL 0 m G)
+  | subl_var_notz : forall G t m, t <> 0 ->                  subst_local t m G (l_var 0) (l_var 0)
+  | subl_var_not1 : forall G t t' m, t <> S t' -> t <= t' -> subst_local t m G (l_var (S t')) (l_var (t'))
+  | subl_var_not2 : forall G t t' m, t <> S t' -> t' < t  -> subst_local t m G (l_var (S t')) (l_var (S t'))
+  | subl_end      : forall G t m,                            subst_local t m G l_end l_end
+  | subl_send     : forall G t m p xs ys, List.Forall2 (fun u v => 
+                           (u = None /\ v = None) \/
+                           (exists s g g', u = Some(s, g) /\ v = Some(s, g') /\ subst_local t m G g g')
+                                                  ) xs ys -> subst_local t m G (l_send p xs) (l_send p ys)
+  | subl_recv     : forall G t m p xs ys, List.Forall2 (fun u v => 
+                           (u = None /\ v = None) \/
+                           (exists s g g', u = Some(s, g) /\ v = Some(s, g') /\ subst_local t m G g g')
+                                                  ) xs ys -> subst_local t m G (l_recv p xs) (l_recv p ys)
+  | subl_rec      : forall G t m P Q, subst_local (S t) (S m) G P Q -> subst_local t m G (l_rec P) (l_rec Q). 
 
-Let lt2 := Eval compute in unfold_lrec lt.
-Print lt2.
-Let lt3 := Eval compute in unfold_lrec lt2.
-Print lt3. *)
+Inductive betaL : relation local := 
+  | lttS : forall G G', subst_local 0 0 (l_rec G) G G' -> betaL (l_rec G) G'.
 
-Definition upId_local_local  (sigma : ( fin ) -> local ) (Eq : forall x, sigma x = (l_var ) x) : forall x, (up_local_local sigma) x = (l_var ) x :=
-  fun n => match n with
-  | S fin_n => (ap) (ren_local (shift)) (Eq fin_n)
-  | 0  => eq_refl
+Inductive lttT (R : local -> ltt -> Prop) : local -> ltt -> Prop := 
+  | lttT_end  : lttT R l_end ltt_end
+  | lttT_send : forall p xs ys, List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g g', u = Some(s, g) /\ v = Some(s, g') /\ R g g')) xs ys -> lttT R (l_send p xs) (ltt_send p ys)
+  | lttT_recv : forall p xs ys, List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g g', u = Some(s, g) /\ v = Some(s, g') /\ R g g')) xs ys -> lttT R (l_recv p xs) (ltt_recv p ys)
+  | lttT_rec  : forall G Q G', subst_local 0 0 (l_rec G) G Q -> lttT R Q G' -> lttT R (l_rec G) G'.
+
+Definition lttTC G G' := paco2 lttT bot2 G G'.
+
+Inductive wfL : local -> Prop :=
+  | wfl_var : forall n, wfL (l_var n)
+  | wfl_end : wfL l_end
+  | wfl_send : forall p lis, SList lis -> List.Forall (fun u => u = None \/ (exists s g, u = Some(s, g) /\ wfL g)) lis -> wfL (l_send p lis)
+  | wfl_recv : forall p lis, SList lis -> List.Forall (fun u => u = None \/ (exists s g, u = Some(s, g) /\ wfL g)) lis -> wfL (l_recv p lis)
+  | wfl_rec  : forall g, wfL g -> wfL (l_rec g).
+
+Inductive guardL : fin -> fin -> local -> Prop := 
+  | gl_nil  : forall m T, guardL 0 m T
+  | gl_end  : forall n m, guardL n m l_end
+  | gl_send : forall n m p lis, List.Forall (fun u => u = None \/ (exists s g, u = Some(s, g) /\ guardL n m g)) lis -> guardL (S n) m (l_send p lis)
+  | gl_recv : forall n m p lis, List.Forall (fun u => u = None \/ (exists s g, u = Some(s, g) /\ guardL n m g)) lis -> guardL (S n) m (l_recv p lis)
+  | gl_rec  : forall n m g Q, subst_local 0 0 (l_rec g) g Q -> guardL n m Q -> guardL n (S m) (l_rec g).
+
+
+Lemma guardL_more : forall n m k T, guardL n m T -> m <= k -> guardL n k T.
+Proof.
+  induction n; intros; try easy.
+  - apply gl_nil.
+  - revert IHn H H0. revert n k T. induction m; intros; try easy.
+    inversion H. subst. 
+    - apply gl_end.
+    - subst. apply gl_send; try easy.
+      clear H. revert IHn H0 H2. revert n k p.
+      induction lis; intros; try easy.
+      inversion H2. subst. clear H2.
+      constructor.
+      - destruct H3. subst. left. easy.
+        right. destruct H. destruct H. destruct H. subst. exists x. exists x0.
+        split; try easy. apply IHn with (m := 0); try easy.
+      - apply IHlis; try easy.
+    - subst. apply gl_recv; try easy.
+      clear H. revert IHn H0 H2. revert n k p.
+      induction lis; intros; try easy.
+      inversion H2. subst. clear H2.
+      constructor.
+      - destruct H3. subst. left. easy.
+        right. destruct H. destruct H. destruct H. subst. exists x. exists x0.
+        split; try easy. apply IHn with (m := 0); try easy.
+      - apply IHlis; try easy.
+    - destruct T.
+      - inversion H.
+      - apply gl_end.
+      - apply gl_send.
+        inversion H. subst.
+        revert IHm IHn H H0 H4. revert m n k s.
+        induction l; intros; try easy.
+        inversion H4. subst.
+        constructor.
+        - destruct H3. subst. left. easy.
+          destruct H1. destruct H1. destruct H1. subst. right.
+          exists x. exists x0. split; try easy.
+          apply IHn with (m := m.+1); try easy.
+        - apply IHl with (m := m) (s := s); try easy.
+        apply gl_send. easy.
+      - apply gl_recv.
+        inversion H. subst.
+        revert IHm IHn H H0 H4. revert m n k s.
+        induction l; intros; try easy.
+        inversion H4. subst.
+        constructor.
+        - destruct H3. subst. left. easy.
+          destruct H1. destruct H1. destruct H1. subst. right.
+          exists x. exists x0. split; try easy.
+          apply IHn with (m := m.+1); try easy.
+        - apply IHl with (m := m) (s := s); try easy.
+        apply gl_recv. easy.
+      - inversion H. subst.
+        destruct k; try easy.
+        apply gl_rec with (Q := Q); try easy.
+        apply IHm; try easy.
+Qed.
+
+Fixpoint wfrec (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
+  match (l1,l2) with
+    | (Datatypes.None::xs, Datatypes.None::ys)               => wfrec R1 R2 xs ys
+    | (Datatypes.Some (s',t')::xs, Datatypes.Some (s,t)::ys) => R1 s' s /\ R2 t t' /\ wfrec R1 R2 xs ys
+    | (Datatypes.None::xs, Datatypes.Some(s,t)::ys)          => wfrec R1 R2 xs ys
+    | (nil, _)                                               => True
+    | _                                                      => False
   end.
 
-Fixpoint idSubst_local  (sigmalocal : ( fin ) -> local ) (Eqlocal : forall x, sigmalocal x = (l_var ) x) (s : local ) : subst_local sigmalocal s = s :=
-    match s return subst_local sigmalocal s = s with
-    | l_var  s => Eqlocal s
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_id (prod_id (prod_id (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (idSubst_local sigmalocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_id (prod_id (prod_id (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (idSubst_local sigmalocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((idSubst_local (up_local_local sigmalocal) (upId_local_local (_) Eqlocal)) s0)
-    end.
-
-Definition upExtRen_local_local   (xi : ( fin ) -> fin) (zeta : ( fin ) -> fin) (Eq : forall x, xi x = zeta x) : forall x, (upRen_local_local xi) x = (upRen_local_local zeta) x :=
-  fun n => match n with
-  | S fin_n => (ap) (shift) (Eq fin_n)
-  | 0  => eq_refl
+Fixpoint wfsend (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
+  match (l1,l2) with
+    | (Datatypes.None::xs, Datatypes.None::ys)               => wfsend R1 R2 xs ys
+    | (Datatypes.Some (s,t)::xs, Datatypes.Some (s',t')::ys) => R1 s s' /\ R2 t t' /\ wfsend R1 R2 xs ys
+    | (Datatypes.None::xs, Datatypes.Some(s',t')::ys)        => wfsend R1 R2 xs ys
+    | (nil, _)                                               => True
+    | _                                                      => False
   end.
 
-Fixpoint extRen_local   (xilocal : ( fin ) -> fin) (zetalocal : ( fin ) -> fin) (Eqlocal : forall x, xilocal x = zetalocal x) (s : local ) : ren_local xilocal s = ren_local zetalocal s :=
-    match s return ren_local xilocal s = ren_local zetalocal s with
-    | l_var  s => (ap) (l_var ) (Eqlocal s)
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_ext (prod_ext (prod_ext (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (extRen_local xilocal zetalocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_ext (prod_ext (prod_ext (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (extRen_local xilocal zetalocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((extRen_local (upRen_local_local xilocal) (upRen_local_local zetalocal) (upExtRen_local_local (_) (_) Eqlocal)) s0)
-    end.
+Inductive subtype (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
+  | sub_end: subtype R ltt_end ltt_end
+  | sub_in : forall p xs ys,
+                    wfrec subsort R ys xs ->
+                    subtype R (ltt_recv p xs) (ltt_recv p ys)
+  | sub_out : forall p xs ys,
+                     wfsend subsort R xs ys ->
+                     subtype R (ltt_send p xs) (ltt_send p ys).
 
-Definition upExt_local_local   (sigma : ( fin ) -> local ) (tau : ( fin ) -> local ) (Eq : forall x, sigma x = tau x) : forall x, (up_local_local sigma) x = (up_local_local tau) x :=
-  fun n => match n with
-  | S fin_n => (ap) (ren_local (shift)) (Eq fin_n)
-  | 0  => eq_refl
-  end.
-
-Fixpoint ext_local   (sigmalocal : ( fin ) -> local ) (taulocal : ( fin ) -> local ) (Eqlocal : forall x, sigmalocal x = taulocal x) (s : local ) : subst_local sigmalocal s = subst_local taulocal s :=
-    match s return subst_local sigmalocal s = subst_local taulocal s with
-    | l_var  s => Eqlocal s
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_ext (prod_ext (prod_ext (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (ext_local sigmalocal taulocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_ext (prod_ext (prod_ext (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (ext_local sigmalocal taulocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((ext_local (up_local_local sigmalocal) (up_local_local taulocal) (upExt_local_local (_) (_) Eqlocal)) s0)
-    end.
-
-Definition up_ren_ren_local_local    (xi : ( fin ) -> fin) (tau : ( fin ) -> fin) (theta : ( fin ) -> fin) (Eq : forall x, ((funcomp) tau xi) x = theta x) : forall x, ((funcomp) (upRen_local_local tau) (upRen_local_local xi)) x = (upRen_local_local theta) x :=
-  up_ren_ren xi tau theta Eq.
-
-Fixpoint compRenRen_local    (xilocal : ( fin ) -> fin) (zetalocal : ( fin ) -> fin) (rholocal : ( fin ) -> fin) (Eqlocal : forall x, ((funcomp) zetalocal xilocal) x = rholocal x) (s : local ) : ren_local zetalocal (ren_local xilocal s) = ren_local rholocal s :=
-    match s return ren_local zetalocal (ren_local xilocal s) = ren_local rholocal s with
-    | l_var  s => (ap) (l_var ) (Eqlocal s)
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compRenRen_local xilocal zetalocal rholocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compRenRen_local xilocal zetalocal rholocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((compRenRen_local (upRen_local_local xilocal) (upRen_local_local zetalocal) (upRen_local_local rholocal) (up_ren_ren (_) (_) (_) Eqlocal)) s0)
-    end.
-
-Definition up_ren_subst_local_local    (xi : ( fin ) -> fin) (tau : ( fin ) -> local ) (theta : ( fin ) -> local ) (Eq : forall x, ((funcomp) tau xi) x = theta x) : forall x, ((funcomp) (up_local_local tau) (upRen_local_local xi)) x = (up_local_local theta) x :=
-  fun n => match n with
-  | S fin_n => (ap) (ren_local (shift)) (Eq fin_n)
-  | 0  => eq_refl
-  end.
-
-Fixpoint compRenSubst_local    (xilocal : ( fin ) -> fin) (taulocal : ( fin ) -> local ) (thetalocal : ( fin ) -> local ) (Eqlocal : forall x, ((funcomp) taulocal xilocal) x = thetalocal x) (s : local ) : subst_local taulocal (ren_local xilocal s) = subst_local thetalocal s :=
-    match s return subst_local taulocal (ren_local xilocal s) = subst_local thetalocal s with
-    | l_var  s => Eqlocal s
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compRenSubst_local xilocal taulocal thetalocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compRenSubst_local xilocal taulocal thetalocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((compRenSubst_local (upRen_local_local xilocal) (up_local_local taulocal) (up_local_local thetalocal) (up_ren_subst_local_local (_) (_) (_) Eqlocal)) s0)
-    end.
-
-Definition up_subst_ren_local_local    (sigma : ( fin ) -> local ) (zetalocal : ( fin ) -> fin) (theta : ( fin ) -> local ) (Eq : forall x, ((funcomp) (ren_local zetalocal) sigma) x = theta x) : forall x, ((funcomp) (ren_local (upRen_local_local zetalocal)) (up_local_local sigma)) x = (up_local_local theta) x :=
-  fun n => match n with
-  | S fin_n => (eq_trans) (compRenRen_local (shift) (upRen_local_local zetalocal) ((funcomp) (shift) zetalocal) (fun x => eq_refl) (sigma fin_n)) ((eq_trans) ((eq_sym) (compRenRen_local zetalocal (shift) ((funcomp) (shift) zetalocal) (fun x => eq_refl) (sigma fin_n))) ((ap) (ren_local (shift)) (Eq fin_n)))
-  | 0  => eq_refl
-  end.
-
-Fixpoint compSubstRen_local    (sigmalocal : ( fin ) -> local ) (zetalocal : ( fin ) -> fin) (thetalocal : ( fin ) -> local ) (Eqlocal : forall x, ((funcomp) (ren_local zetalocal) sigmalocal) x = thetalocal x) (s : local ) : ren_local zetalocal (subst_local sigmalocal s) = subst_local thetalocal s :=
-    match s return ren_local zetalocal (subst_local sigmalocal s) = subst_local thetalocal s with
-    | l_var  s => Eqlocal s
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compSubstRen_local sigmalocal zetalocal thetalocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compSubstRen_local sigmalocal zetalocal thetalocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((compSubstRen_local (up_local_local sigmalocal) (upRen_local_local zetalocal) (up_local_local thetalocal) (up_subst_ren_local_local (_) (_) (_) Eqlocal)) s0)
-    end.
-
-Definition up_subst_subst_local_local    (sigma : ( fin ) -> local ) (taulocal : ( fin ) -> local ) (theta : ( fin ) -> local ) (Eq : forall x, ((funcomp) (subst_local taulocal) sigma) x = theta x) : forall x, ((funcomp) (subst_local (up_local_local taulocal)) (up_local_local sigma)) x = (up_local_local theta) x :=
-  fun n => match n with
-  | S fin_n => (eq_trans) (compRenSubst_local (shift) (up_local_local taulocal) ((funcomp) (up_local_local taulocal) (shift)) (fun x => eq_refl) (sigma fin_n)) ((eq_trans) ((eq_sym) (compSubstRen_local taulocal (shift) ((funcomp) (ren_local (shift)) taulocal) (fun x => eq_refl) (sigma fin_n))) ((ap) (ren_local (shift)) (Eq fin_n)))
-  | 0  => eq_refl
-  end.
-
-Fixpoint compSubstSubst_local    (sigmalocal : ( fin ) -> local ) (taulocal : ( fin ) -> local ) (thetalocal : ( fin ) -> local ) (Eqlocal : forall x, ((funcomp) (subst_local taulocal) sigmalocal) x = thetalocal x) (s : local ) : subst_local taulocal (subst_local sigmalocal s) = subst_local thetalocal s :=
-    match s return subst_local taulocal (subst_local sigmalocal s) = subst_local thetalocal s with
-    | l_var  s => Eqlocal s
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compSubstSubst_local sigmalocal taulocal thetalocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_comp (prod_comp (prod_comp (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (compSubstSubst_local sigmalocal taulocal thetalocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((compSubstSubst_local (up_local_local sigmalocal) (up_local_local taulocal) (up_local_local thetalocal) (up_subst_subst_local_local (_) (_) (_) Eqlocal)) s0)
-    end.
-
-Definition rinstInst_up_local_local   (xi : ( fin ) -> fin) (sigma : ( fin ) -> local ) (Eq : forall x, ((funcomp) (l_var ) xi) x = sigma x) : forall x, ((funcomp) (l_var ) (upRen_local_local xi)) x = (up_local_local sigma) x :=
-  fun n => match n with
-  | S fin_n => (ap) (ren_local (shift)) (Eq fin_n)
-  | 0  => eq_refl
-  end.
-
-Fixpoint rinst_inst_local   (xilocal : ( fin ) -> fin) (sigmalocal : ( fin ) -> local ) (Eqlocal : forall x, ((funcomp) (l_var ) xilocal) x = sigmalocal x) (s : local ) : ren_local xilocal s = subst_local sigmalocal s :=
-    match s return ren_local xilocal s = subst_local sigmalocal s with
-    | l_var  s => Eqlocal s
-    | l_end   => congr_l_end 
-    | l_send  s0 s1 => congr_l_send ((fun x => (eq_refl) x) s0) ((list_ext (prod_ext (prod_ext (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (rinst_inst_local xilocal sigmalocal Eqlocal))) s1)
-    | l_recv  s0 s1 => congr_l_recv ((fun x => (eq_refl) x) s0) ((list_ext (prod_ext (prod_ext (fun x => (eq_refl) x) (fun x => (eq_refl) x)) (rinst_inst_local xilocal sigmalocal Eqlocal))) s1)
-    | l_rec  s0 => congr_l_rec ((rinst_inst_local (upRen_local_local xilocal) (up_local_local sigmalocal) (rinstInst_up_local_local (_) (_) Eqlocal)) s0)
-    end.
-
-Lemma rinstInst_local   (xilocal : ( fin ) -> fin) : ren_local xilocal = subst_local ((funcomp) (l_var ) xilocal) .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun x => rinst_inst_local xilocal (_) (fun n => eq_refl) x)). Qed.
-
-Lemma instId_local  : subst_local (l_var ) = id .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun x => idSubst_local (l_var ) (fun n => eq_refl) ((id) x))). Qed.
-
-Lemma rinstId_local  : @ren_local   (id) = id .
-Proof. exact ((eq_trans) (rinstInst_local ((id) (_))) instId_local). Qed.
-
-Lemma varL_local   (sigmalocal : ( fin ) -> local ) : (funcomp) (subst_local sigmalocal) (l_var ) = sigmalocal .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun x => eq_refl)). Qed.
-
-Lemma varLRen_local   (xilocal : ( fin ) -> fin) : (funcomp) (ren_local xilocal) (l_var ) = (funcomp) (l_var ) xilocal .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun x => eq_refl)). Qed.
-
-Lemma compComp_local    (sigmalocal : ( fin ) -> local ) (taulocal : ( fin ) -> local ) (s : local ) : subst_local taulocal (subst_local sigmalocal s) = subst_local ((funcomp) (subst_local taulocal) sigmalocal) s .
-Proof. exact (compSubstSubst_local sigmalocal taulocal (_) (fun n => eq_refl) s). Qed.
-
-Lemma compComp'_local    (sigmalocal : ( fin ) -> local ) (taulocal : ( fin ) -> local ) : (funcomp) (subst_local taulocal) (subst_local sigmalocal) = subst_local ((funcomp) (subst_local taulocal) sigmalocal) .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun n => compComp_local sigmalocal taulocal n)). Qed.
-
-Lemma compRen_local    (sigmalocal : ( fin ) -> local ) (zetalocal : ( fin ) -> fin) (s : local ) : ren_local zetalocal (subst_local sigmalocal s) = subst_local ((funcomp) (ren_local zetalocal) sigmalocal) s .
-Proof. exact (compSubstRen_local sigmalocal zetalocal (_) (fun n => eq_refl) s). Qed.
-
-Lemma compRen'_local    (sigmalocal : ( fin ) -> local ) (zetalocal : ( fin ) -> fin) : (funcomp) (ren_local zetalocal) (subst_local sigmalocal) = subst_local ((funcomp) (ren_local zetalocal) sigmalocal) .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun n => compRen_local sigmalocal zetalocal n)). Qed.
-
-Lemma renComp_local    (xilocal : ( fin ) -> fin) (taulocal : ( fin ) -> local ) (s : local ) : subst_local taulocal (ren_local xilocal s) = subst_local ((funcomp) taulocal xilocal) s .
-Proof. exact (compRenSubst_local xilocal taulocal (_) (fun n => eq_refl) s). Qed.
-
-Lemma renComp'_local    (xilocal : ( fin ) -> fin) (taulocal : ( fin ) -> local ) : (funcomp) (subst_local taulocal) (ren_local xilocal) = subst_local ((funcomp) taulocal xilocal) .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun n => renComp_local xilocal taulocal n)). Qed.
-
-Lemma renRen_local    (xilocal : ( fin ) -> fin) (zetalocal : ( fin ) -> fin) (s : local ) : ren_local zetalocal (ren_local xilocal s) = ren_local ((funcomp) zetalocal xilocal) s .
-Proof. exact (compRenRen_local xilocal zetalocal (_) (fun n => eq_refl) s). Qed.
-
-Lemma renRen'_local    (xilocal : ( fin ) -> fin) (zetalocal : ( fin ) -> fin) : (funcomp) (ren_local zetalocal) (ren_local xilocal) = ren_local ((funcomp) zetalocal xilocal) .
-Proof. exact ((FunctionalExtensionality.functional_extensionality _ _ ) (fun n => renRen_local xilocal zetalocal n)). Qed.
-
-End local.
+Definition subtypeC l1 l2 := paco2 subtype bot2 l1 l2.
 
 
+Lemma refl_recv: forall (l1:  list (option(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
+   Reflexive R1 -> Reflexive R2 ->
+   wfrec R1 R2 l1 l1.
+Proof. intro l1.
+       induction l1; intros.
+       - simpl. easy.
+       - simpl. destruct a. destruct p.
+         split. reflexivity.
+         split. reflexivity.
+         apply IHl1.
+         easy. easy.
+         apply IHl1.
+         easy. easy.
+Qed.
+
+Lemma refl_send: forall (l1:  list (option(sort*ltt))) (R1: sort -> sort -> Prop) (R2: ltt -> ltt -> Prop),
+   Reflexive R1 -> Reflexive R2 ->
+   wfsend R1 R2 l1 l1.
+Proof. intro l1.
+       induction l1; intros.
+       - simpl. easy.
+       - simpl. destruct a. destruct p.
+         split. reflexivity.
+         split. reflexivity.
+         apply IHl1.
+         easy. easy.
+         apply IHl1.
+         easy. easy.
+Qed.
+
+Lemma stRefl: forall l, subtypeC l l.
+Proof. pcofix CIH.
+       intros.
+       pfold.
+       case_eq l; intros.
+       constructor.
+       constructor.
+       apply refl_recv.
+       constructor.
+
+       repeat intro.
+       unfold upaco2.
+       right. apply CIH.
+
+       constructor.
+       apply refl_send.
+       constructor.
+       repeat intro.
+       right. apply CIH.
+Qed.
+
+
+Lemma subtype_monotone : monotone2 subtype.
+Proof.
+  unfold monotone2.
+  intros. induction IN; intros.
+  - constructor.
+  - constructor.
+    revert H. revert ys. 
+    induction xs. destruct ys; try easy.
+    intros. destruct ys; try easy. simpl.
+    simpl in H. destruct o; try easy. destruct p0. destruct a; try easy. destruct p0.
+    destruct H. destruct H0. split; try easy. split; try easy. apply LE; try easy. apply IHxs; try easy.
+    destruct a; try easy. destruct p0. apply IHxs; try easy. apply IHxs; try easy. 
+  - constructor.
+    revert H. revert ys.
+    induction xs. destruct ys; try easy.
+    intros. destruct ys; try easy. simpl in *.
+    destruct a; try easy. destruct p0. destruct o; try easy. destruct p0. 
+    destruct H. destruct H0. split; try easy. split. apply LE; try easy. apply IHxs; try easy.
+    destruct o; try easy. destruct p0. apply IHxs; try easy. apply IHxs; try easy.
+Qed.
+
+
+Lemma subtype_end : forall H, subtypeC ltt_end H -> H = ltt_end.
+Proof.
+  intros. punfold H0. inversion H0. easy. 
+  apply subtype_monotone.
+Qed.
+
+Lemma subtype_recv_inv_helper : forall pt s s0 l l0 xs ys,
+    subtypeC (ltt_recv pt (Some (s, l) :: xs)) (ltt_recv pt (Some (s0, l0) :: ys)) -> 
+    subtypeC l l0.
+Proof.
+  intros. 
+  pinversion H. subst.
+  simpl in H1.
+  destruct H1. destruct H1.
+  pclearbot.
+  unfold subtypeC. easy.
+  apply subtype_monotone.
+Qed.
+
+Lemma subtype_recv_inv : forall pt xs ys, subtypeC (ltt_recv pt xs) (ltt_recv pt ys) -> Forall2R (fun u v => (u = None) \/ (exists s s' t t', u = Some(s,t) /\ v = Some (s',t') /\ subsort s s' /\ subtypeC t' t)) ys xs.
+Proof.
+  intros pt xs ys. revert pt xs.
+  induction ys; intros. constructor.
+  - destruct xs; try easy.
+    pinversion H. subst. 
+    simpl in H1. destruct a. destruct p. easy. easy.
+    apply subtype_monotone.
+  constructor.
+  - destruct o. destruct a. destruct p0. destruct p. right.
+    exists s. exists s0. exists l. exists l0. split; try easy. split; try easy.
+    split. 
+    pinversion H. subst. destruct H1. easy.
+    apply subtype_monotone.
+    specialize(subtype_recv_inv_helper pt s0 s l0 l xs ys H); intros. easy.
+    left. easy.
+    pinversion H. subst. 
+    simpl in H1. destruct a; try easy.
+    destruct p. easy.
+    left. easy.
+    apply subtype_monotone.
+  - apply IHys with (pt := pt).
+    pinversion H. subst. 
+    pfold. constructor.
+    simpl in H1. 
+    destruct o. destruct p. destruct a. destruct p. destruct H1. destruct H1. easy. easy.
+    destruct a. destruct p. easy. easy.
+  - apply subtype_monotone.
+Qed.
+
+Lemma subtype_recv : forall H pt xs, subtypeC (ltt_recv pt xs) H -> (exists ys, 
+                    H = ltt_recv pt ys).
+Proof.
+  induction xs; intros; try easy.
+  - pinversion H0. subst. exists ys. easy.
+    apply subtype_monotone.
+  - destruct H.
+    pinversion H0. apply subtype_monotone.
+    pinversion H0. subst. exists l. easy. apply subtype_monotone.
+    pinversion H0. apply subtype_monotone.
+Qed.
+
+Lemma subtype_send_inv_helper : forall pt s s0 l l0 xs ys,
+    subtypeC (ltt_send pt (Some (s, l) :: xs)) (ltt_send pt (Some (s0, l0) :: ys)) -> 
+    subtypeC l l0.
+Proof.
+  intros. 
+  pinversion H. subst.
+  simpl in H1.
+  destruct H1. destruct H1.
+  pclearbot.
+  unfold subtypeC. easy.
+  apply subtype_monotone.
+Qed.
+
+Lemma subtype_send_inv : forall pt xs ys, subtypeC (ltt_send pt xs) (ltt_send pt ys) -> Forall2R (fun u v => (u = None) \/ (exists s s' t t', u = Some(s,t) /\ v = Some (s',t') /\ subsort s s' /\ subtypeC t t')) xs ys.
+Proof.
+  induction xs; intros.
+  - constructor.
+  - destruct ys; try easy.
+    pinversion H. subst. simpl in H1. destruct a. destruct p. easy. easy.
+    apply subtype_monotone.
+  constructor.
+  - destruct a. right. destruct p. destruct o. destruct p.
+    exists s. exists s0. exists l. exists l0. split; try easy. split; try easy.
+    split.
+    pinversion H. subst. simpl in H1. destruct H1. easy.
+    apply subtype_monotone.
+    specialize(subtype_send_inv_helper pt s s0 l l0 xs ys H); intros. easy.
+    pinversion H. subst. simpl in H1. easy.
+  - apply subtype_monotone.
+    left. easy.
+  - apply IHxs.
+    pinversion H. subst. 
+    pfold. constructor.
+    simpl in H1. 
+    destruct o. destruct p. destruct a. destruct p. destruct H1. destruct H1. easy. easy.
+    destruct a. destruct p. easy. easy.
+  - apply subtype_monotone.
+Qed.
+
+Lemma subtype_send : forall H pt xs, subtypeC (ltt_send pt xs) H -> (exists ys, 
+                    H = ltt_send pt ys).
+Proof.
+  induction xs; intros; try easy.
+  - pinversion H0. subst. exists ys. easy.
+    apply subtype_monotone.
+  - destruct H.
+    pinversion H0. apply subtype_monotone.
+    pinversion H0. apply subtype_monotone.
+    pinversion H0. subst. exists l. easy. apply subtype_monotone.
+Qed.
+
+Lemma stTrans_helper_recv : forall x x0 l r,
+      (forall l1 l2 l3 : ltt, subtypeC l1 l2 -> subtypeC l2 l3 -> r l1 l3) ->
+      Forall2R
+      (fun u v : option (sort * ltt) =>
+       u = None \/
+       (exists (s s' : sort) (t t' : ltt),
+          u = Some (s, t) /\ v = Some (s', t') /\ subsort s s' /\ subtypeC t' t)) x0 x ->
+      Forall2R
+       (fun u v : option (sort * ltt) =>
+        u = None \/
+        (exists (s s' : sort) (t t' : ltt),
+           u = Some (s, t) /\ v = Some (s', t') /\ subsort s s' /\ subtypeC t' t)) x l ->
+      wfrec subsort (upaco2 subtype r) x0 l.
+Proof.
+  induction x; intros; try easy.
+  destruct x0; try easy. 
+  destruct l; try easy. destruct x0; try easy.
+  inversion H0; subst. clear H0. inversion H1. subst. clear H1.
+  simpl.
+  destruct H5. 
+  - subst. destruct o. destruct p. apply IHx; try easy. apply IHx; try easy.
+  - destruct H0. destruct H0. destruct H0. destruct H0. destruct H0. destruct H1. destruct H2.
+    subst.
+    destruct H4; try easy. destruct H0. destruct H0. destruct H0. destruct H0. destruct H0. destruct H1. destruct H4.
+    inversion H0.
+    subst.
+    split. apply sstrans with (s2 := x5); try easy.
+    split. unfold upaco2. right. apply H with (l2 := x7); try easy. 
+    apply IHx; try easy.
+Qed. 
+
+Lemma stTrans_helper_send : forall x x0 l r,
+      (forall l1 l2 l3 : ltt, subtypeC l1 l2 -> subtypeC l2 l3 -> r l1 l3) ->
+      Forall2R
+      (fun u v : option (sort * ltt) =>
+       u = None \/
+       (exists (s s' : sort) (t t' : ltt),
+          u = Some (s, t) /\ v = Some (s', t') /\ subsort s s' /\ subtypeC t t')) x x0 -> 
+      Forall2R
+       (fun u v : option (sort * ltt) =>
+        u = None \/
+        (exists (s s' : sort) (t t' : ltt),
+           u = Some (s, t) /\ v = Some (s', t') /\ subsort s s' /\ subtypeC t t')) l x ->
+      wfsend subsort (upaco2 subtype r) l x0.
+Proof.
+  induction x; intros; try easy.
+  destruct l; try easy.
+  destruct l; try easy. destruct x0; try easy.
+  inversion H0; subst. clear H0. inversion H1. subst. clear H1.
+  simpl.
+  destruct H5. 
+  - subst. destruct o. destruct p. destruct H4. easy. destruct H0. destruct H0. 
+    destruct H0. destruct H0. destruct H0. destruct H1. easy.
+    destruct o0. destruct p. apply IHx; try easy. apply IHx; try easy.
+  - destruct H0. destruct H0. destruct H0. destruct H0. destruct H0. destruct H1. destruct H2.
+    subst.
+    destruct H4. subst. apply IHx; try easy. 
+    destruct H0. destruct H0. destruct H0. destruct H0. destruct H0. destruct H1. destruct H4.
+    subst.
+    inversion H1. subst.
+    split. apply sstrans with (s2 := x6); try easy.
+    split. unfold upaco2. right. apply H with (l2 := x8); try easy.
+    apply IHx; try easy.
+Qed. 
+
+Lemma stTrans: forall l1 l2 l3, subtypeC l1 l2 -> subtypeC l2 l3 -> subtypeC l1 l3.
+  Proof.
+    pcofix CIH. intros.
+    pfold. case_eq l1; intros.
+    - subst. 
+      specialize(subtype_end l2 H0); intros. subst.
+      specialize(subtype_end l3 H1); intros. subst. apply sub_end.
+    - subst.
+      specialize(subtype_recv l2 s l H0); intros. destruct H. subst.
+      specialize(subtype_recv l3 s x H1); intros. destruct H. subst.
+      
+      specialize(subtype_recv_inv s x x0 H1); intros.
+      specialize(subtype_recv_inv s l x H0); intros.
+      
+      constructor.
+      
+      apply stTrans_helper_recv with (x := x); try easy.
+      
+    - subst.
+      specialize(subtype_send l2 s l H0); intros. destruct H. subst.
+      specialize(subtype_send l3 s x H1); intros. destruct H. subst.
+      
+      specialize(subtype_send_inv s x x0 H1); intros.
+      specialize(subtype_send_inv s l x H0); intros.
+      
+      constructor.
+      apply stTrans_helper_send with (x := x); try easy.
+Qed.
+
+
+
+End ltt.
 
 
 
 
-
-
-
-
-
-Global Instance Subst_local   : Subst1 (( fin ) -> local ) (local ) (local ) := @subst_local   .
-
-Global Instance Ren_local   : Ren1 (( fin ) -> fin) (local ) (local ) := @ren_local   .
-
-Global Instance VarInstance_local  : Var (fin) (local ) := @l_var  .
-
-Notation "x '__local'" := (l_var x) (at level 5, format "x __local") : subst_scope.
-
-Notation "x '__local'" := (@ids (_) (_) VarInstance_local x) (at level 5, only printing, format "x __local") : subst_scope.
-
-Notation "'var'" := (l_var) (only printing, at level 1) : subst_scope.
-
-Class Up_local X Y := up_local : ( X ) -> Y.
-
-Notation "↑__local" := (up_local) (only printing) : subst_scope.
-
-Notation "↑__local" := (up_local_local) (only printing) : subst_scope.
-
-Global Instance Up_local_local   : Up_local (_) (_) := @up_local_local   .
-
-Notation "s [ sigmalocal ]" := (subst_local sigmalocal s) (at level 7, left associativity, only printing) : subst_scope.
-
-Notation "[ sigmalocal ]" := (subst_local sigmalocal) (at level 1, left associativity, only printing) : fscope.
-
-Notation "s ⟨ xilocal ⟩" := (ren_local xilocal s) (at level 7, left associativity, only printing) : subst_scope.
-
-Notation "⟨ xilocal ⟩" := (ren_local xilocal) (at level 1, left associativity, only printing) : fscope.
-
-Ltac auto_unfold := repeat unfold subst1,  subst2,  Subst1,  Subst2,  ids,  ren1,  ren2,  Ren1,  Ren2,  Subst_local,  Ren_local,  VarInstance_local.
-
-Tactic Notation "auto_unfold" "in" "*" := repeat unfold subst1,  subst2,  Subst1,  Subst2,  ids,  ren1,  ren2,  Ren1,  Ren2,  Subst_local,  Ren_local,  VarInstance_local in *.
-
-Ltac asimpl' := repeat first [progress rewrite ?instId_local| progress rewrite ?compComp_local| progress rewrite ?compComp'_local| progress rewrite ?rinstId_local| progress rewrite ?compRen_local| progress rewrite ?compRen'_local| progress rewrite ?renComp_local| progress rewrite ?renComp'_local| progress rewrite ?renRen_local| progress rewrite ?renRen'_local| progress rewrite ?varL_local| progress rewrite ?varLRen_local| progress (unfold up_ren, upRen_local_local, up_local_local)| progress (cbn [subst_local ren_local])| fsimpl].
-
-Ltac asimpl := repeat try unfold_funcomp; auto_unfold in *; asimpl'; repeat try unfold_funcomp.
-
-Tactic Notation "asimpl" "in" hyp(J) := revert J; asimpl; intros J.
-
-Tactic Notation "auto_case" := auto_case (asimpl; cbn; eauto).
-
-Tactic Notation "asimpl" "in" "*" := auto_unfold in *; repeat first [progress rewrite ?instId_local in *| progress rewrite ?compComp_local in *| progress rewrite ?compComp'_local in *| progress rewrite ?rinstId_local in *| progress rewrite ?compRen_local in *| progress rewrite ?compRen'_local in *| progress rewrite ?renComp_local in *| progress rewrite ?renComp'_local in *| progress rewrite ?renRen_local in *| progress rewrite ?renRen'_local in *| progress rewrite ?varL_local in *| progress rewrite ?varLRen_local in *| progress (unfold up_ren, upRen_local_local, up_local_local in *)| progress (cbn [subst_local ren_local] in *)| fsimpl in *].
-
-Ltac substify := auto_unfold; try repeat (erewrite rinstInst_local).
-
-Ltac renamify := auto_unfold; try repeat (erewrite <- rinstInst_local).

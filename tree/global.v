@@ -4,36 +4,8 @@ From Paco Require Import paco pacotac.
 Require Import String List ZArith.
 Local Open Scope string_scope.
 Import ListNotations.
-Require Import Coq.Logic.Classical_Pred_Type Coq.Logic.ClassicalFacts Coq.Logic.Classical_Prop.
 
-(* coinduction by Pous *)
-(* From Coinduction Require Import all. Import CoindNotations.
-Set Implicit Arguments. *)
 
-(* global session trees *)
-CoInductive gtt: Type :=
-  | gtt_end    : gtt
-  | gtt_send   : part -> part -> list (option (sort*gtt)) -> gtt.
-
-Definition gtt_id (s: gtt): gtt :=
-  match s with
-    | gtt_end        => gtt_end
-    | gtt_send p q l => gtt_send p q l
-  end.
-
-Lemma gtt_eq: forall s, s = gtt_id s.
-Proof. intro s; destruct s; easy. Defined.
-
-Fixpoint ounzip2 (l: list (option(sort*gtt))): list gtt :=
-  match l with
-    | []                      => []
-    | Datatypes.None::xs      => ounzip2 xs
-    | Datatypes.Some(s,g)::xs => g :: ounzip2 xs
-  end.
-
-(* Inductive Forall (A : Type) (P : A -> Prop) : seq.seq A -> Prop :=
-  | Forall_nil : Forall P []
-  | Forall_cons : forall (x : A) (l : seq.seq A), P x -> Forall P l -> Forall P (x :: l). *)
 
 Inductive isgParts (R: part -> gtt -> Prop): part -> gtt -> Prop :=
   | pa_send1: forall p q l, isgParts R p (gtt_send p q l)
@@ -197,13 +169,13 @@ Fixpoint findpathL (l: list (label*(sort*ltt))) (lbl: label): option (sort*ltt) 
       end
   end. *)
 
-(* Fixpoint wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> nat -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))) (n: nat): Prop :=
+Fixpoint wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> nat -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))) (n: nat): Prop :=
   match (l1,l2) with
     | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g t r s n /\ wfStep r s R xs ys n
     | (Datatypes.None::xs, Datatypes.None::ys)                 => wfStep r s R xs ys n
     | (nil, nil)                                               => True
     | _                                                        => False
-  end. *)
+  end. 
   
 
 (* Definition wfStep (r: part) (s: part) (R: gtt -> gtt -> part -> part -> nat -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*gtt))) :=
@@ -218,83 +190,8 @@ Fixpoint dNone (l: list (option(sort*gtt))): list (sort*gtt) :=
       end
     | nil   => nil
   end.
-(* 
-Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> part -> part -> nat -> Prop :=
-  | steq : forall p q xs s gc n,
-                  p <> q ->
-                  Datatypes.Some (s, gc) = onth n xs ->
-                  gttstep R (gtt_send p q xs) gc p q n
-  | stneq: forall p q r s xs ys n,
-                  p <> q ->
-                  r <> s ->
-                  r <> p ->
-                  r <> q ->
-                  s <> p ->
-                  s <> q ->
-                  List.Forall (fun u => isgPartsC p u) (ounzip2 xs) ->
-                  List.Forall (fun u => isgPartsC q u) (ounzip2 xs) ->
-                  wfStep p q R xs ys n ->
-                  gttstep R (gtt_send r s xs) (gtt_send r s ys) p q n. *)
 
-(* Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n. *)
 
-Inductive gttstepC : gtt -> gtt -> part -> part -> nat -> Prop := 
-  | steq : forall p q xs s gc n,
-                  p <> q ->
-                  Datatypes.Some (s, gc) = onth n xs ->
-                  gttstepC (gtt_send p q xs) gc p q n
-  | stneq : forall p q r s xs ys n,
-                  p <> q ->
-                  r <> s ->
-                  r <> p ->
-                  r <> q ->
-                  s <> p ->
-                  s <> q ->
-                  List.Forall (fun u => isgPartsC p u) (ounzip2 xs) ->
-                  List.Forall (fun u => isgPartsC q u) (ounzip2 xs) ->
-                  List.Forall2 (fun u v => (u = Datatypes.None /\ v = Datatypes.None) \/ 
-                               (exists s' g g', u = Datatypes.Some(s',g) /\ v = Datatypes.Some(s',g') /\ gttstepC g g' p q n)) xs ys ->
-                  gttstepC (gtt_send r s xs) (gtt_send r s ys) p q n.
-
-Section gttstepC_ind_ref.
-  Variable P : gtt -> gtt -> part -> part -> nat -> Prop.
-  Hypothesis P_steq : forall p q xs s gc n, p <> q -> Datatypes.Some (s, gc) = onth n xs
-                      -> P (gtt_send p q xs) gc p q n.
-  Hypothesis P_stneq : forall p q r s xs ys n,
-                      p <> q ->
-                      r <> s ->
-                      r <> p ->
-                      r <> q ->
-                      s <> p ->
-                      s <> q ->
-                      List.Forall (fun u => isgPartsC p u) (ounzip2 xs) ->
-                      List.Forall (fun u => isgPartsC q u) (ounzip2 xs) ->
-                      List.Forall2 (fun u v => (u = Datatypes.None /\ v = Datatypes.None) \/ 
-                                   (exists s' g g', u = Datatypes.Some(s',g) /\ v = Datatypes.Some(s',g') /\ P g g' p q n)) xs ys ->
-                      P(gtt_send r s xs) (gtt_send r s ys) p q n.
-  
-  Definition Forall2_mono {X Y} {R T : X -> Y -> Prop} (HRT : forall x y, R x y -> T x y) :
-      forall l m, Forall2 R l m -> Forall2 T l m :=
-  fix loop l m h {struct h} :=
-    match h with
-    | Forall2_nil => Forall2_nil T
-    | Forall2_cons _ _ _ _ h1 h2 => Forall2_cons _ _ (HRT _ _ h1) (loop _ _ h2)
-    end.
-  
-  Fixpoint gttstepC_ind_ref (g g' : gtt) (p q : part) (n : nat) (a : gttstepC g g' p q n) {struct a} : P g g' p q n.
-  Proof.
-    refine (match a with
-      | steq p q xs s gc n He Hn => P_steq p q xs s gc n He Hn
-      | stneq p q r s xs ys n H1 H2 H3 H4 H5 H6 Hl1 Hl2 Hw => P_stneq p q r s xs ys n H1 H2 H3 H4 H5 H6 Hl1 Hl2 _ 
-    end); try easy.
-    revert Hw. apply Forall2_mono.
-    intros. destruct H.
-    - left. easy.
-    - destruct H. destruct H. destruct H. destruct H. destruct H0.
-      right. exists x0. exists x1. exists x2. split; try easy. split; try easy.
-    apply gttstepC_ind_ref; try easy. 
-  Qed.
-End gttstepC_ind_ref.
 
 (* Lemma monoRStep: forall xs ys R1 R2 r s,
   (forall (a a0 : gtt) (a1 a2 : string), R1 a a0 a1 a2 -> R2 a a0 a1 a2) ->
@@ -368,45 +265,6 @@ Fixpoint omap {A B: Type} (f: A -> B) (l: list (option A)): list B :=
 
 Definition injection3 (R: gtt -> part -> ltt -> Prop) := forall a b c d, R a b c -> R a b d -> c = d.
 
-Inductive wfg (R: gtt -> Prop): gtt -> Prop :=
-  | wf_gend : wfg R gtt_end
-  | wf_gsend: forall p q lis,
-              p <> q ->
-              SList lis ->
-              Forall (fun u => u = Datatypes.None \/ (exists s t, u = Datatypes.Some (s,t) /\ R t)) lis ->
-              wfg R (gtt_send p q lis).
-
-Definition wfgC (g: gtt) := paco1 wfg bot1 g.
-
-Fixpoint wfProj (r: part) (R: gtt -> part -> ltt -> Prop) (l1: list (option(sort*gtt))) (l2: list (option(sort*ltt))): Prop :=
-  match (l1,l2) with
-    | ((Datatypes.Some(s1,g)::xs), (Datatypes.Some(s2,t)::ys)) => s1 = s2 /\ R g r t /\ wfProj r R xs ys
-    | (Datatypes.None::xs, Datatypes.None::ys)                 => wfProj r R xs ys
-    | (nil, nil)                                               => True
-    | _                                                        => False
-  end.
-
-Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
-  | proj_end : forall g r, (isgPartsC r g -> False) -> projection R g r (ltt_end)
-  | proj_in  : forall p r xs ys,
-               p <> r ->
-               wfProj r R xs ys ->
-               projection R (gtt_send p r xs) r (ltt_recv p ys)
-  | proj_out : forall r q xs ys,
-               r <> q ->
-               wfProj r R xs ys ->
-               projection R (gtt_send r q xs) r (ltt_send q ys)
-  | proj_cont: forall p q r xs ys t,
-               p <> q ->
-               q <> r ->
-               p <> r ->
-               allSame ys ->
-               wfProj r R xs ys ->
-               List.In (Datatypes.Some t) ys ->
-               snd t <> ltt_end ->
-               projection R (gtt_send p q xs) r (snd t).
-
-Definition projectionC g r t := paco3 projection bot3 g r t.
 
 Lemma wps: forall l1 l2 l3 p R, 
   injection3 R ->
@@ -465,18 +323,6 @@ Proof. intro xs.
            apply IHxs with (r := r); easy.
 Qed.
 
-Lemma proj_mon: monotone3 projection.
-Proof. unfold monotone3.
-       intros.
-       induction IN; intros.
-       - constructor. easy.
-       - constructor; try easy.
-         apply wfproj_mon with (r := r); easy.
-       - constructor; try easy.
-         apply wfproj_mon with (r := r); easy.
-       - apply proj_cont with (ys := ys); try easy.
-         apply wfproj_mon with (r := r); easy.
-Qed.
 
 
 Axiom injup: injection3 (paco3 projection bot3).
@@ -539,15 +385,7 @@ Proof. intros.
        pfold. constructor. easy.
 Qed.
 
-Lemma pmergeCR: forall G r,
-          projectionC G r ltt_end ->
-          (isgPartsC r G -> False).
-Proof. intros.
-       pinversion H. subst. apply H1. easy.
-       subst. destruct t. simpl in H1. subst. 
-       easy.
-       apply proj_mon.
-Qed.
+
 
 Lemma asameE: forall {A: Type} (xs: list (option A)) x, allSame (x::xs) -> allSame xs.
 Proof. intros A xs.

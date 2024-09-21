@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect.
-From SST Require Import src.unscoped src.expressions type.global tree.global tree.local. 
+From SST Require Import src.expressions type.global type.local type.isomorphism. 
 Require Import List String Datatypes ZArith Relations Setoid Morphisms.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.
@@ -10,20 +10,6 @@ Require Import Coq.Arith.PeanoNat.
 Require Import JMeq.
 
 Section process.
-(* 
-Inductive Box : Type := 
-  | Simple : fin -> Box
-  | InBox  : list (option Box) -> Box.
-  
-Fixpoint boxmap (bx : Box) (f : nat -> nat) : Box :=
-  match bx with
-    | Simple n => Simple (f n)
-    | InBox lis => InBox (list_map (
-        fun u => match u with 
-          | Some b => Some (boxmap b f)
-          | None   => None 
-        end) lis)
-  end. *)
 
 Inductive process : Type := 
   | p_var : fin -> process
@@ -72,30 +58,22 @@ Inductive wtyped : process -> Prop :=
   | wp_ite : forall e P1 P2, wtyped P1 -> wtyped P2 -> wtyped (p_ite e P1 P2)
   | wp_rec : forall pr, wtyped pr -> wtyped (p_rec pr).
 
-Definition Forall2_mono {X Y} {R T : X -> Y -> Prop} (HRT : forall x y, R x y -> T x y) :
-      forall l m, Forall2 R l m -> Forall2 T l m :=
-  fix loop l m h {struct h} :=
-    match h with
-    | Forall2_nil => Forall2_nil T
-    | Forall2_cons _ _ _ _ h1 h2 => Forall2_cons _ _ (HRT _ _ h1) (loop _ _ h2)
-    end.
-
-Lemma list_fst_snd_len {A B: Type} : forall (lis : list (A*B)), length (list_map fst lis) = length (list_map snd lis).
+Lemma list_fst_snd_len {A B: Type} : forall (lis : list (A*B)), length (List.map fst lis) = length (List.map snd lis).
 Proof.
   intros.
   induction lis.
   easy.
   simpl. 
-  replace (length (list_map fst lis)) with (length (list_map snd lis)).
+  replace (length (List.map fst lis)) with (length (List.map snd lis)).
   easy.
 Qed.
 
-Lemma unzip_zip {A B : Type} : forall (lis : list (A*B)), lis = zip (list_map fst lis) (list_map snd lis).
+Lemma unzip_zip {A B : Type} : forall (lis : list (A*B)), lis = zip (List.map fst lis) (List.map snd lis).
 Proof.
   intros.
   induction lis.
   - easy.
-  - simpl. replace lis with (zip (list_map fst lis) (list_map snd lis)) at 1.
+  - simpl. replace lis with (zip (List.map fst lis) (List.map snd lis)) at 1.
     specialize(surjective_pairing a); intros. 
     replace a with (a.1,a.2). easy.
 Qed.
@@ -117,7 +95,7 @@ Fixpoint incr_free (fvP fvE m k : fin) (P : process) : process :=
     | p_var n          => p_var (if fvP <= n then ((n + m)%coq_nat) else n)
     | p_inact          => p_inact
     | p_send p l e P'  => p_send p l (incr_freeE fvE k e) (incr_free fvP fvE m k P')
-    | p_recv p llp     => p_recv p (list_map (
+    | p_recv p llp     => p_recv p (List.map (
         fun u => match u with 
           | Some p' => Some (incr_free fvP (S fvE) m k p')
           | None    => None

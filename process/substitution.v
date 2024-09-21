@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect.
-From SST Require Import src.unscoped src.expressions process.processes process.typecheck process.inversion process.inversion_expr type.global tree.global tree.local.
+From SST Require Import src.expressions process.processes process.typecheck process.inversion process.inversion_expr type.global type.local type.isomorphism.
 Require Import List String Datatypes ZArith Relations PeanoNat.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.
@@ -151,7 +151,7 @@ Proof.
 Qed.
 
 Lemma SList_map {A} : forall (f : A -> A) lis,  
-  SList (list_map (fun u => match u with
+  SList (map (fun u => match u with
     | Some x => Some (f x)
     | None   => None
   end) lis) -> SList lis.
@@ -159,21 +159,21 @@ Proof.
   intros f lis. induction lis; intros; try easy. 
   destruct a; try easy.
   destruct lis; try easy.  
-  apply SList_inducb. apply IHlis. 
+  apply SList_b. apply IHlis. 
   simpl in H.
-  specialize(SList_induc (Some (f a)) (list_map (fun u : option A => match u with
+  specialize(SList_f (Some (f a)) (map (fun u : option A => match u with
                                      | Some x => Some (f x)
                                      | None => None
                                      end) (o :: lis)) H); intros.
   destruct H0; try easy. 
   
-  apply SList_inducb. apply IHlis.
+  apply SList_b. apply IHlis.
   simpl in H.
   easy.
 Qed.
 
 Lemma SList_map2 {A} : forall (f : A -> A) lis, SList lis -> 
-  SList (list_map (fun u => match u with
+  SList (map (fun u => match u with
     | Some x => Some (f x)
     | None   => None
   end) lis).
@@ -181,9 +181,9 @@ Proof.
   intros f lis. induction lis; intros; try easy.
   destruct a; try easy.
   destruct lis; try easy.
-  apply SList_inducb. apply IHlis.
+  apply SList_b. apply IHlis.
   easy.
-  apply SList_inducb. apply IHlis. easy.
+  apply SList_b. apply IHlis. easy.
 Qed.
 
 Lemma slideT_helper : forall llp Gs Gtl tm Gtr l X m k x,
@@ -202,7 +202,7 @@ Lemma slideT_helper : forall llp Gs Gtl tm Gtr l X m k x,
         u = None /\ v = None \/
         (exists (p : process) (s : sort) (t : ltt),
            u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (Gtl ++ Gtr) p t))
-       (list_map
+       (map
           (fun u : option process =>
            match u with
            | Some p' => Some (incr_free l k.+1 X m p')
@@ -213,7 +213,7 @@ Lemma slideT_helper : forall llp Gs Gtl tm Gtr l X m k x,
        u = None /\ v = None \/
        (exists (p : process) (s : sort) (t : ltt),
           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (Gtl ++ tm :: Gtr) p t))
-      (list_map
+      (map
          (fun u : option process =>
           match u with
           | Some p' => Some (incr_free l k.+1 X.+1 m p')
@@ -230,7 +230,7 @@ Proof.
            u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gs) (Gtl ++ Gtr) p t)) (match a with
         | Some p' => Some (incr_free l k.+1 X m p')
         | None => None
-        end) o (list_map
+        end) o (map
              (fun u : option process =>
               match u with
               | Some p' => Some (incr_free l k.+1 X m p')
@@ -280,24 +280,24 @@ Proof.
   - simpl in *.
     specialize(_a23_bf pt lb (incr_freeE k m ex) (incr_free l k X m Q) (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q)) Gs (Gtl ++ Gtr) T H (erefl (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q)))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2.
-    apply tc_sub with (t := (ltt_send pt (extendLTT lb [] (Some (x, x0))))); try easy.
+    apply tc_sub with (t := (ltt_send pt (extendLis lb (Some (x, x0))))); try easy.
     apply tc_send; try easy.
     apply IHQ. easy. easy.
     specialize(typable_implies_wfC H); intros; try easy.
   - simpl in *.
-    specialize(_a23_a pt (list_map
+    specialize(_a23_a pt (map
              (fun u : option process =>
               match u with
               | Some p' => Some (incr_free l k.+1 X m p')
               | None => None
               end) llp) (p_recv pt
-          (list_map
+          (map
              (fun u : option process =>
               match u with
               | Some p' => Some (incr_free l k.+1 X m p')
               | None => None
               end) llp)) Gs (Gtl ++ Gtr) T H0 (erefl (p_recv pt
-          (list_map
+          (map
              (fun u : option process =>
               match u with
               | Some p' => Some (incr_free l k.+1 X m p')
@@ -422,7 +422,7 @@ Lemma slideS_helper : forall llp l k X m x Gsl Gsr Gt tm,
         u = None /\ v = None \/
         (exists (p : process) (s : sort) (t : ltt),
            u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gsl ++ Gsr) Gt p t))
-       (list_map
+       (map
           (fun u : option process =>
            match u with
            | Some p' => Some (incr_free l k.+1 X m p')
@@ -433,7 +433,7 @@ Lemma slideS_helper : forall llp l k X m x Gsl Gsr Gt tm,
        u = None /\ v = None \/
        (exists (p : process) (s : sort) (t : ltt),
           u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gsl ++ tm :: Gsr) Gt p t))
-      (list_map
+      (map
          (fun u : option process =>
           match u with
           | Some p' => Some (incr_free l k.+1 X m.+1 p')
@@ -459,7 +459,7 @@ Proof.
            u = Some p /\ v = Some (s, t) /\ typ_proc (Some s :: Gsl ++ Gsr) Gt p t)) (match a with
         | Some p' => Some (incr_free l k.+1 X m p')
         | None => None
-        end) o (list_map
+        end) o (map
              (fun u : option process =>
               match u with
               | Some p' => Some (incr_free l k.+1 X m p')
@@ -495,25 +495,25 @@ Proof.
   - simpl in *.
     specialize(_a23_bf pt lb (incr_freeE k m ex) (incr_free l k X m Q) (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q)) (Gsl ++ Gsr) Gt T H (erefl (p_send pt lb (incr_freeE k m ex) (incr_free l k X m Q) ))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2.
-    apply tc_sub with (t := (ltt_send pt (extendLTT lb [] (Some (x, x0))))); try easy.
+    apply tc_sub with (t := (ltt_send pt (extendLis lb (Some (x, x0))))); try easy.
     apply tc_send; try easy.
     apply slideSp_e; try easy.
     apply IHQ; try easy.
     specialize(typable_implies_wfC H); intros; try easy. 
   - simpl in *.
-    specialize(_a23_a pt (list_map
+    specialize(_a23_a pt (map
              (fun u : option process =>
               match u with
               | Some p' => Some (incr_free l k.+1 X m p')
               | None => None
               end) llp) (p_recv pt
-       (list_map
+       (map
           (fun u : option process =>
            match u with
            | Some p' => Some (incr_free l k.+1 X m p')
            | None => None
            end) llp)) (Gsl ++ Gsr) Gt T H0 (erefl (p_recv pt
-       (list_map
+       (map
           (fun u : option process =>
            match u with
            | Some p' => Some (incr_free l k.+1 X m p')
@@ -675,7 +675,7 @@ Proof.
   intros. inversion H2. subst.
   specialize(_a23_bf pt lb ex P (p_send pt lb ex P) Gs (GtA ++ Some T :: GtB) T' H0 (erefl (p_send pt lb ex P))); intros.
   destruct H1. destruct H1. destruct H1. destruct H4.
-  apply tc_sub with (t := (ltt_send pt (extendLTT lb [] (Some (x, x0))))); try easy.
+  apply tc_sub with (t := (ltt_send pt (extendLis lb (Some (x, x0))))); try easy.
   constructor; try easy.
   apply IHP with (Q := Q) (T := T) (X := length GtA) (m := m) (n := n); try easy.
   apply typable_implies_wfC with (P := (p_send pt lb ex P)) (Gs := Gs) (Gt := (GtA ++ Some T :: GtB)). easy.
@@ -737,7 +737,7 @@ Proof.
   - specialize(trivial_incrE n ex); intros.
     specialize(IHQ m n); intros.
     replace (incr_freeE n 0 ex) with ex. replace (incr_free m n 0 0 Q) with Q. easy.
-  - assert (list_map (fun u => match u with 
+  - assert (map (fun u => match u with 
         | Some u => Some (incr_free m n.+1 0 0 u)
         | None   => None
       end) llp = llp).
@@ -753,22 +753,22 @@ Proof.
       simpl.
       destruct a; try easy. 
       specialize(H m n.+1). replace (incr_free m n.+1 0 0 p) with p. 
-      replace (list_map
+      replace (map
      (fun u : option process =>
       match u with
       | Some u0 => Some (incr_free m n.+1 0 0 u0)
       | None => None
       end) llp) with llp. easy.
-      replace (list_map
+      replace (map
      (fun u : option process =>
       match u with
       | Some u0 => Some (incr_free m n.+1 0 0 u0)
       | None => None
       end) llp) with llp. easy.
     }
-    replace (list_map (fun u : option process =>
+    replace (List.map (fun u : option process =>
         match u with
-        | Some u0 => Some (incr_free m n.+1 0 0 u0)
+        | Some p' => Some (incr_free m n.+1 0 0 p')
         | None => None
         end) llp) with llp. easy.
   - specialize(trivial_incrE n e); intros. 

@@ -1,4 +1,4 @@
-From SST Require Import src.unscoped src.expressions process.processes type.global tree.global tree.local.
+From SST Require Import src.expressions process.processes type.global type.local type.isomorphism.
 Require Import List String Datatypes ZArith Relations PeanoNat.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.
@@ -31,16 +31,8 @@ Inductive typ_expr: ctxS -> expr -> sort -> Prop :=
                              typ_expr c e2 sint ->
                              typ_expr c (e_plus e1 e2) sint
   | sc_det  : forall c e1 e2 s, typ_expr c e1 s -> typ_expr c e2 s -> typ_expr c (e_det e1 e2) s.
-  
 
-Fixpoint extendLTT (n : fin) (lis : list (option (sort * ltt))) (ST : option (sort * ltt)): list (option (sort * ltt)) :=
-  match n, lis with 
-    | S m, x::xs => x :: extendLTT m xs ST
-    | S m, []    => None :: extendLTT m [] ST
-    | 0,   x::xs => ST :: xs
-    | 0,   []    => ST :: []
-  end.
- 
+
 (*  depth *)
 Inductive typ_proc: ctxS -> ctxT -> process -> ltt -> Prop :=
   | tc_inact: forall cs ct,     typ_proc cs ct (p_inact) (ltt_end)
@@ -62,9 +54,7 @@ Inductive typ_proc: ctxS -> ctxT -> process -> ltt -> Prop :=
                      typ_proc cs ct (p_recv p P) (ltt_recv p STT)
   | tc_send : forall cs ct p l e P S T, typ_expr cs e S ->
                                         typ_proc cs ct P T ->
-                                        typ_proc cs ct (p_send p l e P) (ltt_send p (extendLTT l [] (Some (S,T)))).
-
-Print typ_proc_ind.
+                                        typ_proc cs ct (p_send p l e P) (ltt_send p (extendLis l (Some (S,T)))).
 
 Section typ_proc_ind_ref.
   Variable P : ctxS -> ctxT -> process -> ltt -> Prop.
@@ -77,7 +67,7 @@ Section typ_proc_ind_ref.
                      Forall2 (fun u v => (u = None /\ v = None) \/ 
                      (exists p s t, u = Some p /\ v = Some (s, t) /\ P (Some s :: cs) ct p t)) Pr STT ->
                      P cs ct (p_recv p Pr) (ltt_recv p STT).
-  Hypothesis P_send  : forall cs ct p l e Pr S T, typ_expr cs e S -> P cs ct Pr T -> P cs ct (p_send p l e Pr) (ltt_send p (extendLTT l [] (Some (S,T)))).
+  Hypothesis P_send  : forall cs ct p l e Pr S T, typ_expr cs e S -> P cs ct Pr T -> P cs ct (p_send p l e Pr) (ltt_send p (extendLis l (Some (S,T)))).
   
   Fixpoint typ_proc_ind_ref (cs : ctxS) (ct : ctxT) (p : process) (T : ltt) (a : typ_proc cs ct p T) {struct a} : P cs ct p T.
   Proof.

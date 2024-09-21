@@ -1,5 +1,5 @@
 From mathcomp Require Import all_ssreflect.
-From SST Require Import src.unscoped src.expressions process.processes process.typecheck process.inversion type.global tree.global tree.local.
+From SST Require Import src.expressions process.processes process.typecheck process.inversion type.global type.local type.isomorphism.
 Require Import List String Datatypes ZArith Relations PeanoNat.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.

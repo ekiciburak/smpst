@@ -1,4 +1,4 @@
-From SST Require Export src.unscoped src.expressions process.processes process.sessions process.substitution.
+From SST Require Export src.expressions process.processes process.sessions process.substitution.
 Require Import List String Relations ZArith.
 Require Import Setoid Morphisms Coq.Program.Basics.
 Import ListNotations.
@@ -27,7 +27,7 @@ Fixpoint subst_expr_proc (p : process) (e : expr) (n d : fin) : process :=
   match p with 
     | p_send pt l e' P => p_send pt l (subst_expr n d e e') (subst_expr_proc P e n d)
     | p_ite e' P Q     => p_ite (subst_expr n d e e') (subst_expr_proc P e n d) (subst_expr_proc Q e n d)
-    | p_recv pt lst    => p_recv pt (list_map (fun x => match x with
+    | p_recv pt lst    => p_recv pt (map (fun x => match x with
                                                 | None => None
                                                 | Some y => Some (subst_expr_proc y e (S n) (S d))
                                                end) lst)
@@ -146,7 +146,7 @@ Qed.
 Lemma SList_map_a24 {A} : forall (llp : list (option process)) v d (Gsl : list A),
   SList llp ->
   SList
-  (list_map
+  (map
      (fun x0 : option process =>
       match x0 with
       | Some y =>
@@ -156,8 +156,9 @@ Lemma SList_map_a24 {A} : forall (llp : list (option process)) v d (Gsl : list A
       end) llp).
 Proof.
   intro llp. induction llp; intros; try easy.
-  specialize(SList_induc a llp H); intros. destruct H0; subst; try easy. destruct a; try easy. 
-  apply SList_inducb. apply IHllp; try easy.
+  specialize(SList_f a llp H); intros. destruct H0; subst; try easy.
+  apply SList_b. apply IHllp; try easy.
+  destruct H0. destruct H1. subst. easy.
 Qed.
 
 Lemma slideE : forall v Gs d S x0,
@@ -221,7 +222,7 @@ Lemma _a24_helper_recv : forall llp Gsl Gsr Gt d v x S,
          u = None /\ v0 = None \/
          (exists (p : process) (s : sort) (t : ltt),
             u = Some p /\ v0 = Some (s, t) /\ typ_proc (Some s :: Gsl ++ Gsr) Gt p t))
-        (list_map
+        (map
            (fun x0 : option process =>
             match x0 with
             | Some y =>
@@ -267,7 +268,7 @@ Proof.
   - simpl.
     specialize(_a23_bf pt lb ex P (p_send pt lb ex P) (Gsl ++ Some S :: Gsr) Gt T H (eq_refl (p_send pt lb ex P))); intros.
     destruct H1. destruct H1. destruct H1. destruct H2. 
-    apply tc_sub with (t := (ltt_send pt (extendLTT lb [] (Some (x, x0))))); intros; try easy.
+    apply tc_sub with (t := (ltt_send pt (extendLis lb (Some (x, x0))))); intros; try easy.
     constructor; try easy.
     apply expr_subst with (S := S); try easy.
     apply IHP with (S := S); try easy.
