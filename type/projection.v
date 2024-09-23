@@ -23,19 +23,17 @@ Definition isMerge (t : ltt) (lis : list (option ltt)) : Prop :=
 
 Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
   | proj_end : forall g r, 
-               wfgC g -> 
                (isgPartsC r g -> False) -> 
                projection R g r (ltt_end)
   | proj_in  : forall p r xs ys,
-               wfgC (gtt_send p r xs) -> wfC (ltt_recv p ys) ->
                List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g t, u = Some(s, g) /\ v = Some(s, t) /\ R g r t)) xs ys ->
                projection R (gtt_send p r xs) r (ltt_recv p ys)
   | proj_out : forall r q xs ys,
-               wfgC (gtt_send r q xs) -> wfC (ltt_recv q ys) ->
+               r <> q ->
                List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g t, u = Some(s, g) /\ v = Some(s, t) /\ R g r t)) xs ys ->
                projection R (gtt_send r q xs) r (ltt_send q ys)
   | proj_cont: forall p q r xs ys t,
-               wfgC (gtt_send p q xs) -> wfC t ->
+               p <> q ->
                q <> r ->
                p <> r ->
                t <> ltt_end ->
@@ -60,7 +58,7 @@ Lemma pmergeCR: forall G r,
           projectionC G r ltt_end ->
           (isgPartsC r G -> False).
 Proof. intros.
-       pinversion H. subst. apply H2. easy. subst. easy.
+       pinversion H. subst. apply H1. easy. subst. easy.
        apply proj_mon.
 Qed.
 
@@ -114,6 +112,21 @@ Proof.
   destruct H2. destruct H2. destruct H2. destruct H3.
   exists x0. exists x1. try easy.
 Qed.
+
+Lemma _a_29_11_helper : forall G p q x, 
+    wfgC G -> 
+    projectionC G p (ltt_send q x) -> 
+    exists G' ctxJ,
+      typ_gtth ctxJ G' G /\ (ishParts p G' -> False) /\
+      List.Forall (fun u => u = None \/ (exists g lsg, u = Some g /\ g = gtt_send p q lsg)) ctxJ.
+Proof.
+  intros.
+  unfold wfgC in H. destruct H as [G' H1].
+  destruct H1. destruct H1. destruct H2. 
+  revert H H1 H2 H3 H0. revert G p q x.
+  induction G' using global_ind_ref; intros; try easy.
+  
+Admitted.
 
 Lemma _a_29_11 : forall G p q x,
     wfgC G ->
@@ -189,8 +202,8 @@ Proof.
     inversion H4; try easy. 
     - subst.
       pinversion H2; try easy. subst.
-      unfold wfgC in H12. destruct H12. destruct H5. punfold H5. 
-      apply gttT_mon. apply proj_mon.
+      apply H3; try easy.
+      apply proj_mon.
     - subst. 
       pinversion H2; try easy. subst.
       apply H3. constructor.
@@ -243,18 +256,18 @@ Proof.
     destruct H17. 
     specialize(H6 ctxG x2 p q).
     pinversion H2; try easy. subst.
-    pinversion H1; try easy. subst. clear H25 H32 H30 H31. destruct H17.
+    pinversion H1; try easy. subst. clear H25 H30. destruct H17.
     assert (exists t t', projectionC x2 p t /\ projectionC x2 q t' /\ onth n ys2 = Some t /\ onth n ys1 = Some t').
     {
-      clear H2 H1 H0 H3 H4 H10 H8 H12 H5 H14 H13 H6 H H7 H9 H15 H16 H17 H21 H22 H23 H24 H9 H26 H27 H36 H29 H11.
+      clear H2 H1 H0 H3 H4 H10 H8 H12 H5 H14 H13 H6 H H7 H9 H15 H16 H17 H21 H22 H23 H24 H9 H26 H29 H11 H34 H28.
       clear r s x1 x ys xs ctxG.
-      revert H18 H28 H35. revert p q x0 x2 ys0 ys1 ys2.
+      revert H18 H27 H33. revert p q x0 x2 ys0 ys1 ys2.
       induction n; intros; try easy.
       - destruct ys0; try easy.
         destruct ys1; try easy.
         destruct ys2; try easy.
         simpl in *.
-        inversion H28. subst. inversion H35. subst. clear H28 H35.
+        inversion H27. subst. inversion H33. subst. clear H27 H33.
         destruct H2; try easy. destruct H. destruct H. destruct H. destruct H. destruct H0. inversion H. subst.
         destruct H3; try easy. destruct H0. destruct H0. destruct H0. destruct H0. destruct H2. inversion H0. subst.
         pclearbot. exists x4. exists x3. easy.
@@ -262,12 +275,12 @@ Proof.
         destruct ys1; try easy.
         destruct ys2; try easy.
         simpl in *.
-        inversion H28. subst. inversion H35. subst. clear H28 H35.
+        inversion H27. subst. inversion H33. subst. clear H27 H33.
         apply IHn with (x0 := x0) (ys0 := ys0) (ys1 := ys1) (ys2 := ys2); try easy.
     }
     destruct H19. destruct H19. destruct H19. destruct H20. destruct H25.
-    specialize(_a_29_part_helper_recv n ys1 x4 p ys H30 H29); intros. destruct H31. subst.
-    specialize(_a_29_part_helper_send n ys2 x3 q x H25 H36); intros. destruct H31. subst.
+    specialize(_a_29_part_helper_recv n ys1 x4 p ys H30 H28); intros. destruct H31. subst.
+    specialize(_a_29_part_helper_send n ys2 x3 q x H25 H34); intros. destruct H31. subst.
     specialize(H6 x4 x5). apply H6; try easy.
     apply proj_mon.
     apply proj_mon.

@@ -61,6 +61,35 @@ Proof.
   - admit.
 Admitted.
 
+Lemma merge_less_recv : forall p LQ o1 ys1,
+    isMerge (ltt_recv p LQ) (o1 :: ys1) -> exists LQ0, isMerge (ltt_recv p LQ0) ys1.
+Admitted.
+
+Lemma merge_less_send : forall q LP o2 ys0,
+    isMerge (ltt_send q LP) (o2 :: ys0) -> exists LP0, isMerge (ltt_send q LP0) ys0.
+Admitted.
+
+Lemma _a_26 : forall T xt xs,
+  isMerge T (Some xt :: xs) -> subtypeC T xt.
+Admitted.
+
+Lemma _a_26s : forall T lis,
+  isMerge T lis -> List.Forall (fun u => u = None \/ (exists T', u = Some T' /\ subtypeC T T')) lis.
+Admitted.
+
+Lemma triv_merge : forall T, isMerge T (Some T :: nil).
+Admitted.
+
+Lemma triv_merge2 : forall T xs, isMerge T xs -> isMerge T (None :: xs).
+Admitted.
+
+Lemma more_merge_sub: forall T T' o0 ys0,
+          isMerge T ys0 ->
+          isMerge T' (o0 :: ys0) ->
+          subtypeC T' T.
+Admitted.
+
+
 Lemma _3_19_1 : forall p q l G G' LP LQ S T S' T' xs,
   wfgC G ->
   projectionC G p (ltt_send q LP) ->
@@ -102,18 +131,257 @@ Proof.
     specialize(eq_trans H30 H14); intros. inversion H21. subst. 
     exists x5. split; try easy.
     apply step_mon.
-  - destruct H7. destruct H7. destruct H7. destruct H7. destruct H8. destruct H9. destruct H10. destruct H11. destruct H12.
-    inversion H7. subst.
-    pinversion H1; try easy. 
-    - subst. admit.
-    - subst. 
-      assert (exists n t, onth n ys0 = Some t). { admit. }
-      destruct H14. destruct H14.
-      assert (exists g, onth x2 xs = Some g). { admit. }
+  - revert H H0 H1 H2 H3 H4 H5 H6 H7.
+    rename p into s. rename q into s'. rename p0 into p. rename q0 into q.
+    revert s s' p q l G G' LP LQ S T S' T' xs0.
+    induction xs; intros; try easy.
+    - destruct H7. destruct H7. destruct H7. destruct H7. destruct H8. destruct H9. 
+      inversion H7. subst. easy.
+    - specialize(IHxs s s' p q l).
+      inversion H. subst. clear H.
+      assert(forall (G G' : gtt) (S : sort) (T : ltt) 
+         (S' : sort) (T' : ltt) (xs0 : list (option (sort * ltt))) (LP LQ : list (option (sort * ltt))),
+      wfgC G ->
+      projectionC G p (ltt_send q LP) ->
+      subtypeC (ltt_send q (extendLis l (Some (S, T)))) (ltt_send q LP) ->
+      projectionC G q (ltt_recv p LQ) ->
+      onth l xs0 = Some (S', T') ->
+      subtypeC (ltt_recv p xs0) (ltt_recv p LQ) ->
+      gttstepC G G' p q l ->
+      (exists (ctxG : list (option gtt)) (SI : list (option sort)) (Sn : sort),
+         typ_gtth ctxG (gtth_send s s' xs) G /\
+         (ishParts p (gtth_send s s' xs) -> False) /\
+         (ishParts q (gtth_send s s' xs) -> False) /\
+         Forall
+              (fun u : option gtt =>
+               u = None \/
+               (exists (g0 : gtt) (lsg : list (option (sort * gtt))),
+                  u = Some g0 /\
+                  g0 = gtt_send p q lsg /\
+                  (exists (s' : sort) (Gjk : gtt) (Tp Tq : ltt),
+                     onth l lsg = Some (s', Gjk) /\
+                     projectionC Gjk p Tp /\ subtypeC T Tp /\ projectionC Gjk q Tq /\ subtypeC T' Tq) /\
+                  Forall2
+                    (fun (u0 : option (sort * gtt)) (v : option sort) =>
+                     u0 = None /\ v = None \/
+                     (exists (s0 : sort) (g' : gtt), u0 = Some (s0, g') /\ v = Some s0)) lsg SI)) ctxG /\
+           onth l SI = Some Sn /\ subsort S Sn /\ subsort Sn S') ->
+        exists L : ltt, projectionC G' p L /\ subtypeC T L).
+      {
+        intros.
+        specialize(IHxs G0 G'0 LP0 LQ0 S0 T0 S'0 T'0 xs1). apply IHxs; try easy.
+      }
+      clear IHxs. rename H into IHxs. clear H11.
       
+      destruct H7. destruct H. destruct H. destruct H. destruct H7. destruct H8. destruct H9. destruct H11. destruct H12.
+      rename x into ctxG. rename x1 into Sn.
+      inversion H. subst. destruct ys; try easy. inversion H20. subst. clear H20.
       
+      pinversion H1. subst. assert False. apply H7. constructor. easy.
+      pinversion H3. subst. assert False. apply H7. constructor. easy.
+      subst. clear H34 H23. rename x0 into SI.
+      pinversion H6. subst. easy. subst. clear H18 H20 H22 H31 H32 H33.
+      destruct ys0; try easy. destruct ys1; try easy. destruct ys2; try easy.
       
+      specialize(SList_f a xs H19); intros. destruct H14.
+      
+      specialize(IHxs (gtt_send s s' ys) (gtt_send s s' ys2) S T S' T' xs0).
+      assert(forall LP LQ : list (option (sort * ltt)),
+       wfgC (gtt_send s s' ys) ->
+       projectionC (gtt_send s s' ys) p (ltt_send q LP) ->
+       subtypeC (ltt_send q (extendLis l (Some (S, T)))) (ltt_send q LP) ->
+       projectionC (gtt_send s s' ys) q (ltt_recv p LQ) ->
+       subtypeC (ltt_recv p xs0) (ltt_recv p LQ) ->
+       exists L : ltt, projectionC (gtt_send s s' ys2) p L /\ subtypeC T L).
+      {
+        intros. specialize(IHxs LP0 LQ0). apply IHxs; try easy.
+        - inversion H41. inversion H42. subst. pfold. constructor; try easy.
+          admit. (* removing 1 thing from wfgC *)
+        exists ctxG. exists SI. exists Sn.
+        - split. constructor; try easy.
+        - split; intros. apply H7. inversion H31.
+          apply ha_sendp. apply ha_sendq. 
+          apply ha_sendr with (n := Nat.succ n) (s := s0) (g := g); intros; try easy.
+        - split; intros. apply H8. inversion H31.
+          apply ha_sendp. apply ha_sendq. 
+          apply ha_sendr with (n := Nat.succ n) (s := s0) (g := g); intros; try easy.
+        - split; try easy.
+      }
+      clear IHxs. rename H15 into IHxs.
+      specialize(merge_less_recv p LQ o1 ys1 H38); intros. destruct H15.
+      specialize(merge_less_send q LP o0 ys0 H27); intros. destruct H16.
+      rename x into LQ'. rename x0 into LP'.
+      specialize(IHxs LP' LQ'); intros.
+      assert (exists L : ltt, projectionC (gtt_send s s' ys2) p L /\ subtypeC T L). 
+      {
+        apply IHxs; try easy. clear IHxs.
+        - admit. (* removing 1 thing from wfgC *)
+        - pfold. 
+          apply proj_cont with (ys := ys0); try easy. inversion H26. subst. easy.
+          apply stTrans with (l2 := (ltt_send q LP)); try easy.
+          apply more_merge_sub with (o0 := o0) (ys0 := ys0); try easy.
+        - pfold.
+          apply proj_cont with (ys := ys1); try easy. inversion H37. subst. easy.
+          apply stTrans with (l2 := (ltt_recv p LQ)); try easy.
+          apply more_merge_sub with (o0 := o1) (ys0 := ys1); try easy.
+      }
+      destruct H18. rename x into Lys. destruct H18.
+      
+      inversion H41. subst. clear H41. inversion H37. subst. clear H37.
+      inversion H42. subst. clear H42. inversion H26. subst. clear H26.
+      clear IHxs.
+      
+      destruct H10. subst.
+      - destruct H17; try easy. destruct H10. subst.
+        destruct H37. destruct H36. destruct H39. destruct H22. destruct H17. destruct H26. subst.
+        exists Lys. split; try easy.
+        pfold. 
+        pinversion H18; try easy. subst. (* participant pf, use H33 *)
+        admit.
+        subst. apply proj_cont with (ys := None :: ys3); try easy. constructor; try easy.
+        left. easy.
+        apply triv_merge2; try easy.
+        apply proj_mon.
+        destruct H26. destruct H26. destruct H26. destruct H26; try easy.
+        destruct H22. destruct H22. destruct H22. destruct H22. easy.
+        destruct H17. destruct H17. destruct H17. destruct H17. easy.
+        destruct H10. destruct H10. destruct H10. destruct H10. easy.
+        
+      - destruct H10. destruct H10. destruct H10. subst.
+        destruct H17; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H17.
+        inversion H10. subst. clear H10.
+        destruct H32; try easy. destruct H10. destruct H10. destruct H10. destruct H17.
+        inversion H10. subst. clear H10.
+        destruct H37; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H32.
+        inversion H10. subst. clear H10.
+        destruct H36; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H32.
+        inversion H10. subst. clear H10.
+        destruct H39; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H32.
+        inversion H10. subst. clear H10.
+        rename x2 into Gl. rename x3 into G. rename x4 into G'.
+        specialize(H22 p q l G G').
+        specialize(_a_29_part_helper_recv 0 (Some x5 :: ys1) x5 p LQ (eq_refl (Some x5)) H38); intros.
+        destruct H10. subst.
+        specialize(_a_29_part_helper_send 0 (Some x6 :: ys0) x6 q LP (eq_refl (Some x6)) H27); intros.
+        destruct H10. subst.
+        
+        rename x into LQs. rename x0 into LPs.
+        specialize(H22 LPs LQs S T S' T' xs0).
+        assert (exists L : ltt, projectionC G' p L /\ subtypeC T L).
+        {
+          pclearbot.
+          apply H22; try easy.
+          - admit. (* wfgC of continuation *)
+          - specialize(_a_26 (ltt_send q LP) (ltt_send q LPs) ys0 H27); intros.
+            apply stTrans with (l2 := (ltt_send q LP)); try easy.
+          - specialize(_a_26 (ltt_recv p LQ) (ltt_recv p LQs) ys1 H38); intros.
+            apply stTrans with (l2 := (ltt_recv p LQ)); try easy.
+          - destruct H35; try easy.
+          - exists ctxG. exists SI. exists Sn. 
+          split. easy.
+          - split. intros. apply H7; try easy.
+            - case_eq (eqb p s); intros.
+              assert (p = s). apply eqb_eq; try easy. subst. apply ha_sendp.
+            - case_eq (eqb p s'); intros.
+              assert (p = s'). apply eqb_eq; try easy. subst. apply ha_sendq.
+            - assert (p <> s). apply eqb_neq; try easy. 
+              assert (p <> s'). apply eqb_neq; try easy.
+              apply ha_sendr with (n := 0) (s := x1) (g := Gl); try easy.
+          - split. intros. apply H8.
+            - case_eq (eqb q s); intros.
+              assert (q = s). apply eqb_eq; try easy. subst. apply ha_sendp.
+            - case_eq (eqb q s'); intros.
+              assert (q = s'). apply eqb_eq; try easy. subst. apply ha_sendq.
+            - assert (q <> s). apply eqb_neq; try easy. 
+              assert (q <> s'). apply eqb_neq; try easy.
+              apply ha_sendr with (n := 0) (s := x1) (g := Gl); try easy.
+          - split; try easy.
+        }
+        destruct H10. destruct H10. clear H9 H22. 
+        destruct x.
+        - exists ltt_end. split; try easy.
+          pfold. constructor; try easy.
+          admit. (* doable, a bit tedious *)
+        - 
+        
+      admit. 
+      
+      destruct H14. destruct H15. subst. destruct ys; try easy. clear H21.
+      inversion H37. subst. clear H37. inversion H41. subst. clear H41. inversion H42. subst. clear H42.
+      destruct ys2; try easy. destruct ys1; try easy. clear H33 H20 H21.
+      inversion H26. subst. clear H26. destruct ys0; try easy. 
+      destruct H10; try easy. destruct H10. destruct H10. destruct H10.
+      inversion H10. subst. clear H10.
+      destruct H17; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H15.
+      inversion H10. subst. clear H10. clear H32.
+      destruct H21; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H15. 
+      inversion H10. subst. clear H10.
+      destruct H31; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H15.
+      inversion H10. subst. clear H10.
+      destruct H16; try easy. destruct H10. destruct H10. destruct H10. destruct H15. 
+      inversion H10. subst. clear H10.
+      destruct H18; try easy. destruct H10. destruct H10. destruct H10. destruct H10. destruct H18.
+      inversion H10. subst. clear H10.
+      rename x2 into Gl. rename x3 into G. rename x5 into G'.
+      specialize(H14 p q l G G').
+      
+      specialize(_a_29_part_helper_recv 0 (Some x6 :: nil) x6 p LQ (eq_refl (Some x6)) H38); intros.
+      destruct H10. subst.
+      specialize(_a_29_part_helper_send 0 (Some x4 :: nil) x4 q LP (eq_refl (Some x4)) H27); intros.
+      destruct H10. subst.
+      rename x1 into LP'. rename x0 into LQ'.
+      specialize(H14 LP' LQ' S T S' T' xs0).
+      assert (exists L : ltt, projectionC G' p L /\ subtypeC T L).
+      {
+        pclearbot.
+        apply H14; try easy.
+        - admit. (* wfgC of element in continuation *)
+        - specialize(_a_26 (ltt_send q LP) (ltt_send q LP') nil H27); intros.
+          apply stTrans with (l2 := (ltt_send q LP)); try easy.
+        - specialize(_a_26 (ltt_recv p LQ) (ltt_recv p LQ') nil H38); intros.
+          apply stTrans with (l2 := (ltt_recv p LQ)); try easy.
+        - destruct H21; try easy.
+        - exists ctxG. exists SI. exists Sn. 
+        split. easy.
+        - split. intros. apply H7; try easy.
+          - case_eq (eqb p s); intros.
+            assert (p = s). apply eqb_eq; try easy. subst. apply ha_sendp.
+          - case_eq (eqb p s'); intros.
+            assert (p = s'). apply eqb_eq; try easy. subst. apply ha_sendq.
+          - assert (p <> s). apply eqb_neq; try easy. 
+            assert (p <> s'). apply eqb_neq; try easy.
+            apply ha_sendr with (n := 0) (s := x) (g := Gl); try easy.
+        - split. intros. apply H8.
+          - case_eq (eqb q s); intros.
+            assert (q = s). apply eqb_eq; try easy. subst. apply ha_sendp.
+          - case_eq (eqb q s'); intros.
+            assert (q = s'). apply eqb_eq; try easy. subst. apply ha_sendq.
+          - assert (q <> s). apply eqb_neq; try easy. 
+            assert (q <> s'). apply eqb_neq; try easy.
+            apply ha_sendr with (n := 0) (s := x) (g := Gl); try easy.
+        - split; try easy.
+      }
+      destruct H10. destruct H10. 
+      exists x0. split; try easy. 
+      pfold.
+      destruct x0.
+      - apply proj_end; intros.
+        apply pmergeCR with (G := G') (r := p); try easy.
+        admit. (* participant pf, doable, because we have wfcG *)
+      - apply proj_cont with (ys := (Some (ltt_recv s0 l0) :: nil)); try easy.
+        constructor; try easy. right. exists x. exists G'. exists (ltt_recv s0 l0).
+        split. easy. split. easy. left. easy.
+        apply triv_merge; try easy.
+      - apply proj_cont with (ys := (Some (ltt_send s0 l0) :: nil)); try easy.
+        constructor; try easy. right. exists x. exists G'. exists (ltt_send s0 l0).
+        split. easy. split. easy. left. easy.
+        apply triv_merge; try easy.
+    apply step_mon.
+    apply proj_mon.
+    apply proj_mon.
 Admitted.
+      
+  
 
 Lemma _3_19_2 : forall p q l G G' L1 L2 S T xs,
   wfgC G ->
