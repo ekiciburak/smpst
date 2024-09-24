@@ -18,9 +18,27 @@ Inductive ishParts : part -> gtth -> Prop :=
   | ha_sendq : forall p q l, ishParts q (gtth_send p q l)
   | ha_sendr : forall p q r n s g lis, p <> r -> q <> r -> onth n lis = Some (s, g) -> ishParts r g -> ishParts r (gtth_send p q lis).
 
-Definition isMerge (t : ltt) (lis : list (option ltt)) : Prop := 
-  List.Forall (fun u => u = None \/ (exists t', u = Some t' /\ t = t')) lis /\ SList lis.
+Inductive Forall3 {A B C} : (A -> B -> C -> Prop) -> list A -> list B -> list C -> Prop := 
+  | Forall3_nil : forall P, Forall3 P nil nil nil
+  | Forall3_cons : forall P a xa b xb c xc, P a b c -> Forall3 P xa xb xc -> Forall3 P (a :: xa) (b :: xb) (c :: xc).
 
+Inductive merge2 : ltt -> ltt -> ltt -> Prop := 
+  | mrg_id : forall x, merge2 x x x
+  | mrg_bra : forall p xs ys IJ, Forall3 (fun u v w => 
+    (u = None /\ v = None /\ w = None) \/
+    (exists t, u = None /\ v = Some t /\ w = Some t) \/
+    (exists t, u = Some t /\ v = Some t /\ w = Some t) \/
+    (exists t, u = Some t /\ v = Some t /\ w = Some t)
+  ) xs ys IJ ->  merge2 (ltt_recv p xs) (ltt_recv p ys) (ltt_recv p IJ).
+
+Fixpoint isMerge (t : ltt) (lis : list (option ltt)) : Prop := SList lis /\
+  match lis with 
+    | Some x :: (x2 :: xs)  => exists t', isMerge t' xs /\ merge2 x t' t
+    | None   :: (x2 :: xs)  => isMerge t xs 
+    | Some x :: nil         => t = x
+    | _                     => False
+  end.
+ 
 Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
   | proj_end : forall g r, 
                (isgPartsC r g -> False) -> 
@@ -544,6 +562,24 @@ Proof.
   split. easy. split. easy. split. easy.
   specialize(_a_29_helper4 n xs ys S' Sk T' x1); intros. apply H22; try easy.
 Qed.
+
+
+Lemma _a_29_s : forall G p q PT QT S T S' T' n, 
+    wfgC G -> 
+    projectionC G p (ltt_send q PT) -> 
+    onth n PT = Some(S, T) ->
+    projectionC G q (ltt_recv p QT) -> 
+    onth n QT = Some (S', T') ->
+    exists G' ctxG SI Sn, 
+    typ_gtth ctxG G' G /\ (* 1 *)
+    (ishParts p G' -> False) /\ (ishParts q G' -> False) /\ (* 2 *)
+    List.Forall (fun u => u = None \/ (exists g lsg, u = Some g /\ g = gtt_send p q lsg /\
+      (exists s' Gjk Tp Tq, onth n lsg = Some (s', Gjk) /\ projectionC Gjk p Tp /\ T = Tp /\ projectionC Gjk q Tq /\ T' = Tq) /\
+      List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g', u = Some(s, g') /\ v = Some s)) lsg SI
+    )) ctxG /\ (* 3 5 6 *)
+    (onth n SI = Some Sn) /\ subsort S Sn /\ subsort Sn S'. (* 5 6 *)
+Proof.
+Admitted.
 
 
 Lemma wfgC_after_step : forall G G' p q n, wfgC G -> gttstepC G G' p q n -> wfgC G'.
