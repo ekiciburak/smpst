@@ -1,15 +1,11 @@
 -R . SST
 
-src/axioms.v
-src/fintype.v
-src/unscoped.v
-src/header_extensible.v
-src/coseq.v
 src/expressions.v
+src/header.v
 type/local.v
 type/global.v
-tree/local.v
-tree/global.v
+type/isomorphism.v
+type/projection.v
 process/processes.v
 process/typecheck.v
 process/inversion.v
