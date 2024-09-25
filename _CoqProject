@@ -6,7 +6,8 @@ type/local.v
 type/global.v
 type/isomorphism.v
 type/projection.v
-type/3_19.v
+type/merge.v
+type/proj_sub.v
 process/processes.v
 process/typecheck.v
 process/inversion.v
