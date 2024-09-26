@@ -59,6 +59,11 @@ Fixpoint onth {A : Type} (n : fin) (lis : list (option A)) : option A :=
         | []    => None
       end
   end.
-  
-  
-  
+
+Lemma onthNil: forall {A: Type} n, @onth A n nil = None.
+Proof. intros A n.
+       induction n; intros.
+       - simpl. easy.
+       - simpl. easy.
+Qed.
+       

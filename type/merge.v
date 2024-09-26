@@ -31,37 +31,90 @@ Lemma _a_29_part_helper_recv : forall n ys1 x4 p ys,
     onth n ys1 = Some x4 ->
     isMerge (ltt_recv p ys) ys1 -> 
     exists ys1', x4 = ltt_recv p ys1'.
-Proof.
-Admitted.
+Proof. intro n.
+       induction n; intros.
+       - inversion H0. subst.
+         simpl in H. inversion H. subst.
+         exists ys. easy.
+         subst. simpl in H. easy.
+         subst. simpl in H.
+         inversion H. subst.
+         inversion H2. subst. exists ys. easy.
+         subst. exists ys0. easy.
+       - inversion H0. 
+         subst. simpl in H.
+         rewrite onthNil in H. easy.
+         subst. simpl in H.
+         apply IHn with (ys1 := xs) (ys := ys). easy. easy.
+         subst. simpl in H.
+         inversion H2. subst.
+         apply IHn with (ys1 := xs) (ys := ys). easy. easy.
+         subst. 
+         apply IHn with (ys1 := xs) (ys := xs0). easy. easy. 
+Qed.
 
 Lemma _a_29_part_helper_send : forall n ys2 x3 q x,
     onth n ys2 = Some x3 ->
     isMerge (ltt_send q x) ys2 ->
     exists ys2', x3 = ltt_send q ys2'.
-Proof.
-Admitted.
+Proof. intro n.
+       induction n; intros.
+       - inversion H0. subst. simpl in H. inversion H. subst.
+         exists x. easy.
+         subst. simpl in H. easy.
+         subst. simpl in H. inversion H. subst. 
+         inversion H2. subst. exists x. easy.
+       - inversion H0. subst. simpl in H.
+         rewrite onthNil in H. easy.
+         subst. simpl in H0.
+         specialize(IHn xs x3 q x).
+         simpl in H.
+         apply IHn. easy. easy.
+         inversion H2. subst. simpl in H.
+         specialize(IHn xs x3 q x).
+         apply IHn. easy. easy.
+Qed.
 
 
 Lemma triv_merge : forall T T', isMerge T (Some T' :: nil) -> T = T'.
-Admitted.
+Proof. intros.
+       inversion H. subst. easy. subst.
+       inversion H3.
+Qed.
 
 Lemma triv_merge2 : forall T xs, isMerge T xs -> isMerge T (None :: xs).
-Admitted. 
+Proof. intros.
+       inversion H. subst.
+       constructor. easy.
+       subst. constructor. easy.
+       subst. constructor. easy.
+Qed. 
 
 Lemma triv_merge3 : forall T xs, isMerge T xs -> isMerge T (Some T :: xs).
-Admitted.
+Proof. intros.
+       inversion H.
+       subst. 
+       apply mconss with (t := T). easy.
+       constructor.
+       subst.
+       apply mconss with (t := T). easy.
+       constructor.
+       subst.
+       apply mconss with (t := T). easy.
+       constructor.
+Qed.
 
 Lemma merge_onth_recv : forall n p LQ ys1 gqT,
       isMerge (ltt_recv p LQ) ys1 ->
       onth n ys1 = Some gqT -> 
       exists LQ', gqT = ltt_recv p LQ'.
-Admitted.
+Proof. intros. eapply _a_29_part_helper_recv. eauto. eauto. Qed.
 
 Lemma merge_onth_send : forall n q LP ys0 gpT,
       isMerge (ltt_send q LP) ys0 ->
       onth n ys0 = Some gpT ->
       exists LP', gpT = (ltt_send q LP').
-Admitted.
+Proof. intros. eapply _a_29_part_helper_send. eauto. eauto. Qed.
 
 Lemma merge_label_recv : forall Mp LQ' LQ0' T k l p,
           isMerge (ltt_recv p LQ') Mp ->
