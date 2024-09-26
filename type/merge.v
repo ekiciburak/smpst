@@ -1,9 +1,47 @@
-From SST Require Export type.global type.local type.isomorphism type.projection.
+From SST Require Export type.global type.local type.isomorphism.
 Require Import List String Datatypes ZArith Relations PeanoNat.
 Open Scope list_scope.
 From Paco Require Import paco pacotac.
 Require Import Setoid Morphisms Coq.Program.Basics.
 Require Import Coq.Init.Datatypes.
+
+
+Inductive Forall3 {A B C} : (A -> B -> C -> Prop) -> list A -> list B -> list C -> Prop := 
+  | Forall3_nil : forall P, Forall3 P nil nil nil
+  | Forall3_cons : forall P a xa b xb c xc, P a b c -> Forall3 P xa xb xc -> Forall3 P (a :: xa) (b :: xb) (c :: xc).
+ 
+
+Inductive merge2 : ltt -> ltt -> ltt -> Prop := 
+  | mrg_id : forall x, merge2 x x x
+  | mrg_bra : forall p xs ys IJ, Forall3 (fun u v w => 
+    (u = None /\ v = None /\ w = None) \/
+    (exists t, u = None /\ v = Some t /\ w = Some t) \/
+    (exists t, u = Some t /\ v = Some t /\ w = Some t) \/
+    (exists t, u = Some t /\ v = Some t /\ w = Some t)
+  ) xs ys IJ ->  merge2 (ltt_recv p xs) (ltt_recv p ys) (ltt_recv p IJ).
+
+Fixpoint isMerge (t : ltt) (lis : list (option ltt)) : Prop := SList lis /\
+  match lis with 
+    | Some x :: (x2 :: xs)  => exists t', isMerge t' xs /\ merge2 x t' t
+    | None   :: (x2 :: xs)  => isMerge t xs 
+    | Some x :: nil         => t = x
+    | _                     => False
+  end.
+  
+
+Lemma _a_29_part_helper_recv : forall n ys1 x4 p ys,
+    onth n ys1 = Some x4 ->
+    isMerge (ltt_recv p ys) ys1 -> 
+    exists ys1', x4 = ltt_recv p ys1'.
+Proof.
+Admitted.
+
+Lemma _a_29_part_helper_send : forall n ys2 x3 q x,
+    onth n ys2 = Some x3 ->
+    isMerge (ltt_send q x) ys2 ->
+    exists ys2', x3 = ltt_send q ys2'.
+Proof.
+Admitted.
 
 
 Lemma triv_merge : forall T T', isMerge T (Some T' :: nil) -> T = T'.
@@ -48,32 +86,4 @@ Lemma merge_label_sendb : forall ys0 LP LP' ST n l q,
       onth l LP' = Some ST.
 Admitted.
 
-Lemma merge_same : forall ys ys0 ys1 p q l LP LQ S T S' T',
-      Forall
-        (fun u : option (sort * gtt) =>
-         u = None \/
-         (exists (s : sort) (g : gtt) (LP' LQ' : list (option (sort * ltt))) 
-          (T T' : sort * ltt),
-            u = Some (s, g) /\
-            projectionC g p (ltt_send q LP') /\
-            projectionC g q (ltt_recv p LQ') /\ onth l LP' = Some T /\ onth l LQ' = Some T')) ys ->
-      Forall2
-        (fun (u : option (sort * gtt)) (v : option ltt) =>
-         u = None /\ v = None \/
-         (exists (s : sort) (g : gtt) (t : ltt),
-            u = Some (s, g) /\ v = Some t /\ upaco3 projection bot3 g p t)) ys ys0 ->
-      isMerge (ltt_send q LP) ys0 ->
-      Forall2
-        (fun (u : option (sort * gtt)) (v : option ltt) =>
-         u = None /\ v = None \/
-         (exists (s : sort) (g : gtt) (t : ltt),
-            u = Some (s, g) /\ v = Some t /\ upaco3 projection bot3 g q t)) ys ys1 ->
-      isMerge (ltt_recv p LQ) ys1 ->
-      onth l LP = Some (S, T) ->
-      onth l LQ = Some (S', T') ->
-      Forall (fun u => u = None \/ (exists s g LP' LQ', u = Some (s, g) /\
-          projectionC g p (ltt_send q LP') /\ onth l LP' = Some (S, T) /\
-          projectionC g q (ltt_recv p LQ') /\ onth l LQ' = Some (S', T'))) ys.
-Proof.
-Admitted.
  

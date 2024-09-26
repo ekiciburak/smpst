@@ -342,8 +342,9 @@ Proof.
     intros. specialize(H0 pt H7).
     unfold InT in H0. simpl in H0. destruct H0; try easy. subst. 
     specialize(_a23_f p_inact x nil nil H6 (eq_refl p_inact)); intros. subst. 
-    specialize(pmergeCR G pt H5); intros.
-    assert False. apply H0. unfold isgPartsC. exists Gl; try easy. easy.
+    assert (wfgC G). unfold wfgC. exists Gl. easy.
+    specialize(pmergeCR G pt H0 H5); intros.
+    assert False. apply H8. unfold isgPartsC. exists Gl; try easy. easy.
   - simpl in H1. inversion H1. subst. easy.
   - inversion H; subst. inversion H1; subst. apply t_sess with (Gl := Gl); try easy.
     intros. specialize (H0 pt H7); intros. simpl.

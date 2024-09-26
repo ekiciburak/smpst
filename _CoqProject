@@ -5,8 +5,8 @@ src/header.v
 type/local.v
 type/global.v
 type/isomorphism.v
-type/projection.v
 type/merge.v
+type/projection.v
 type/proj_sub.v
 process/processes.v
 process/typecheck.v

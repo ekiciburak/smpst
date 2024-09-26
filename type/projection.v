@@ -1,6 +1,6 @@
 From mathcomp Require Import ssreflect.seq all_ssreflect.
 From Paco Require Import paco pacotac.
-From SST Require Export src.expressions src.header type.global type.local type.isomorphism.
+From SST Require Export src.expressions src.header type.global type.local type.isomorphism type.merge.
 Require Import List String Coq.Arith.PeanoNat Relations.
 Import ListNotations. 
 
@@ -18,27 +18,7 @@ Inductive ishParts : part -> gtth -> Prop :=
   | ha_sendq : forall p q l, ishParts q (gtth_send p q l)
   | ha_sendr : forall p q r n s g lis, p <> r -> q <> r -> onth n lis = Some (s, g) -> ishParts r g -> ishParts r (gtth_send p q lis).
 
-Inductive Forall3 {A B C} : (A -> B -> C -> Prop) -> list A -> list B -> list C -> Prop := 
-  | Forall3_nil : forall P, Forall3 P nil nil nil
-  | Forall3_cons : forall P a xa b xb c xc, P a b c -> Forall3 P xa xb xc -> Forall3 P (a :: xa) (b :: xb) (c :: xc).
 
-Inductive merge2 : ltt -> ltt -> ltt -> Prop := 
-  | mrg_id : forall x, merge2 x x x
-  | mrg_bra : forall p xs ys IJ, Forall3 (fun u v w => 
-    (u = None /\ v = None /\ w = None) \/
-    (exists t, u = None /\ v = Some t /\ w = Some t) \/
-    (exists t, u = Some t /\ v = Some t /\ w = Some t) \/
-    (exists t, u = Some t /\ v = Some t /\ w = Some t)
-  ) xs ys IJ ->  merge2 (ltt_recv p xs) (ltt_recv p ys) (ltt_recv p IJ).
-
-Fixpoint isMerge (t : ltt) (lis : list (option ltt)) : Prop := SList lis /\
-  match lis with 
-    | Some x :: (x2 :: xs)  => exists t', isMerge t' xs /\ merge2 x t' t
-    | None   :: (x2 :: xs)  => isMerge t xs 
-    | Some x :: nil         => t = x
-    | _                     => False
-  end.
- 
 Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
   | proj_end : forall g r, 
                (isgPartsC r g -> False) -> 
@@ -68,16 +48,16 @@ Proof. unfold monotone3.
        - constructor. easy.
        - try easy.
 Admitted.
-
+(* 
 Lemma wfg_to_wfl : forall G p T,
   wfgC G -> 
   projectionC G p T ->
   wfC T.
-Admitted.
+Admitted. *)
 
 Lemma lttT_mon : monotone2 lttT.
 Admitted.
-
+(* 
 Lemma ltt_after_betaL : forall G G' T,
   lttTC G T -> multiS betaL G G' -> lttTC G' T.
 Proof.
@@ -117,9 +97,10 @@ Proof.
       apply lttT_mon.
     - subst. pinversion H8; try easy. subst.
     
-Admitted.
+Admitted. *)
 
 Lemma pmergeCR: forall G r,
+          wfgC G ->
           projectionC G r ltt_end ->
           (isgPartsC r G -> False).
 Proof. intros.
@@ -127,12 +108,10 @@ Admitted.
 
 Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> part -> part -> nat -> Prop :=
   | steq : forall p q xs s gc n,
-                  wfgC (gtt_send p q xs) -> 
                   p <> q ->
                   Datatypes.Some (s, gc) = onth n xs ->
                   gttstep R (gtt_send p q xs) gc p q n
   | stneq: forall p q r s xs ys n,
-                  wfgC (gtt_send p q xs) ->
                   p <> q ->
                   r <> s ->
                   r <> p ->
@@ -145,7 +124,30 @@ Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> pa
 
 Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n. 
 
-Lemma proj_inj [G p T T'] :  projectionC G p T -> projectionC G p T' -> T = T'.
+Lemma proj_inj_p [G p T T' ctxG q Gl] :  
+  Forall
+       (fun u : option gtt =>
+        u = None \/
+        (exists (g : gtt) (lsg : list (option (sort * gtt))),
+           u = Some g /\
+           g = gtt_send p q lsg))
+       ctxG ->
+  (ishParts p Gl -> False) ->
+  typ_gtth ctxG Gl G ->
+  projectionC G p T -> projectionC G p T' -> T = T'.
+Admitted.
+
+Lemma proj_inj_q [G p T T' ctxG q Gl] :  
+  Forall
+       (fun u : option gtt =>
+        u = None \/
+        (exists (g : gtt) (lsg : list (option (sort * gtt))),
+           u = Some g /\
+           g = gtt_send p q lsg))
+       ctxG ->
+  (ishParts q Gl -> False) -> 
+  typ_gtth ctxG Gl G ->
+  projectionC G q T -> projectionC G q T' -> T = T'.
 Admitted.
 
 
@@ -237,19 +239,6 @@ Proof.
   
 Admitted.
 
-Lemma _a_29_part_helper_recv : forall n ys1 x4 p ys,
-    onth n ys1 = Some x4 ->
-    isMerge (ltt_recv p ys) ys1 -> 
-    exists ys1', x4 = ltt_recv p ys1'.
-Proof.
-Admitted.
-
-Lemma _a_29_part_helper_send : forall n ys2 x3 q x,
-    onth n ys2 = Some x3 ->
-    isMerge (ltt_send q x) ys2 ->
-    exists ys2', x3 = ltt_send q ys2'.
-Proof.
-Admitted.
 
 Lemma _a_29_part : forall ctxG G' G p q x ys,
     typ_gtth ctxG G' G -> 
@@ -496,7 +485,12 @@ Proof.
   specialize(_a_29_10 G p q PT S T n H0 H1); intros.
   destruct H5. destruct H5. destruct H5. destruct H5. destruct H6. destruct H7.
   rename x0 into Sk. rename x1 into Tk.
-  specialize(proj_inj H0 H5); intros. subst. clear H5. (* _a_29_10 *)
+  assert (PT = (ltt_send q x)).
+  {
+(*    specialize(proj_inj H0 H5); intros. *)
+    admit.
+  } 
+  subst. clear H5. (* _a_29_10 *)
   
   specialize(_a_29_11 G p q x H H0); intros.
   destruct H5. destruct H5. destruct H5. destruct H9.
@@ -535,7 +529,13 @@ Proof.
   specialize(_a_29_1314 G G' p q QT xs ctxG x H10 H5 H9 H2 H4); intros; try easy.
   destruct H13. destruct H13. rename x0 into ys.
   
-  specialize(proj_inj H13 H2); intros. subst. clear H13.
+  assert (ltt_recv p ys = QT).
+  {
+    admit.
+(*     specialize(proj_inj H13 H2); intros. *)
+  } 
+ 
+  subst. clear H13.
   clear H7.
   
   specialize(_a_29_part ctxG G' G p q x ys H5 H0 H2 H9); intros.
@@ -605,7 +605,7 @@ Proof.
   destruct H19. destruct H19. exists x1. split. easy.
   split. easy. split. easy. split. easy.
   specialize(_a_29_helper4 n xs ys S' Sk T' x1); intros. apply H22; try easy.
-Qed.
+Admitted.
 
 
 Lemma _a_29_s : forall G p q PT QT S T S' T' n, 
