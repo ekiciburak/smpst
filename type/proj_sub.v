@@ -40,25 +40,6 @@ Lemma merge_same : forall ys ys0 ys1 p q l LP LQ S T S' T',
 Proof.
 Admitted.
 
-Lemma merge_constr : forall p LQ ys1 n,
-          isMerge (ltt_recv p LQ) ys1 ->
-          onth n ys1 = Some ltt_end ->
-          False.
-Admitted.
-
-Lemma merge_consts : forall q LP ys0 n,
-          isMerge (ltt_send q LP) ys0 -> 
-          onth n ys0 = Some ltt_end -> 
-          False.
-Admitted.
-
-Lemma merge_slist : forall T ys, isMerge T ys -> SList ys.
-Proof.
-  intros T ys. revert T. induction ys; intros; try easy.
-  unfold isMerge in H. destruct H. easy.
-  unfold isMerge in H. destruct H. easy.
-Qed.
-
 Lemma in_some_implies_onth {A} : forall (x : A) xs,
     In (Some x) xs -> exists n, onth n xs = Some x.
 Proof.

@@ -22,8 +22,8 @@ Inductive merge2 : ltt -> ltt -> ltt -> Prop :=
 
 Fixpoint isMerge (t : ltt) (lis : list (option ltt)) : Prop := SList lis /\
   match lis with 
-    | Some x :: (x2 :: xs)  => exists t', isMerge t' xs /\ merge2 x t' t
-    | None   :: (x2 :: xs)  => isMerge t xs 
+    | Some x :: (x2 :: xs)  => exists t', isMerge t' (x2 :: xs) /\ merge2 x t' t
+    | None   :: (x2 :: xs)  => isMerge t (x2 :: xs) 
     | Some x :: nil         => t = x
     | _                     => False
   end.
@@ -85,5 +85,25 @@ Lemma merge_label_sendb : forall ys0 LP LP' ST n l q,
       onth l LP = Some ST ->
       onth l LP' = Some ST.
 Admitted.
+
+
+Lemma merge_constr : forall p LQ ys1 n,
+          isMerge (ltt_recv p LQ) ys1 ->
+          onth n ys1 = Some ltt_end ->
+          False.
+Admitted.
+
+Lemma merge_consts : forall q LP ys0 n,
+          isMerge (ltt_send q LP) ys0 -> 
+          onth n ys0 = Some ltt_end -> 
+          False.
+Admitted.
+
+Lemma merge_slist : forall T ys, isMerge T ys -> SList ys.
+Proof.
+  intros T ys. revert T. induction ys; intros; try easy.
+  unfold isMerge in H. destruct H. easy.
+  unfold isMerge in H. destruct H. easy.
+Qed.
 
  
