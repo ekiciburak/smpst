@@ -121,6 +121,20 @@ Lemma merge_label_recv : forall Mp LQ' LQ0' T k l p,
           onth k Mp = Some (ltt_recv p LQ0') ->
           onth l LQ0' = Some T ->
           exists T', onth l LQ' = Some T'.
+Proof. intros Mp LQ' LQ0' T k.
+       revert Mp LQ' LQ0' T.
+       induction k; intros.
+       - inversion H. subst. simpl in H0.
+         inversion H0. subst. exists T. easy.
+         subst. simpl in H0. easy.
+         subst. simpl in H0. inversion H0. subst.
+         inversion H3. subst. exists T. easy.
+         subst. inversion H6. subst.
+         rewrite onthNil in H1. easy.
+         subst.
+         destruct H4. destruct H4 as (H4a, (H4b, H4c)).
+         subst.  
+
 Admitted.
 
 Lemma merge_label_send : forall Mq LP' LP0' T k l q,
@@ -142,16 +156,51 @@ Lemma merge_constr : forall p LQ ys1 n,
           isMerge (ltt_recv p LQ) ys1 ->
           onth n ys1 = Some ltt_end ->
           False.
-Admitted.
+Proof. intros p LQ ys1 n.
+       revert p LQ ys1.
+       induction n; intros.
+       - inversion H. subst. simpl in H0. easy.
+         subst. simpl in H0. easy.
+         subst. simpl in H0. inversion H0. subst.
+         inversion H2.
+       - inversion H. subst. simpl in H0.
+         rewrite onthNil in H0. easy.
+         subst. simpl in H0.
+         apply (IHn p LQ xs). easy. easy.
+         subst. simpl in H0. 
+         inversion H2. subst. 
+         apply (IHn p LQ xs). easy. easy.
+         subst.
+         apply (IHn p xs0 xs). easy. easy.
+Qed.
 
 Lemma merge_consts : forall q LP ys0 n,
           isMerge (ltt_send q LP) ys0 -> 
           onth n ys0 = Some ltt_end -> 
           False.
-Admitted.
+Proof. intros q LP ys0 n.
+       revert q LP ys0.
+       induction n; intros.
+       - inversion H. subst. simpl in H0. easy.
+         subst. simpl in H0. easy.
+         subst. simpl in H0. inversion H0. subst.
+         inversion H2.
+       - inversion H. subst. simpl in H0.
+         rewrite onthNil in H0. easy.
+         subst. simpl in H0.
+         apply (IHn q LP xs). easy. easy.
+         subst. simpl in H0. 
+         inversion H2. subst. 
+         apply (IHn q LP xs). easy. easy.
+Qed.
 
 Lemma merge_slist : forall T ys, isMerge T ys -> SList ys.
-Proof.
-Admitted.
+Proof. intros.
+       induction H; intros.
+       simpl. easy.
+       simpl. easy.
+       simpl. destruct xs.
+       easy. easy.
+Qed.
 
  
