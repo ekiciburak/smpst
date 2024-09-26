@@ -16,7 +16,7 @@ Inductive merge2 : ltt -> ltt -> ltt -> Prop :=
   | mrg_bra : forall p xs ys IJ, Forall3 (fun u v w => 
     (u = None /\ v = None /\ w = None) \/
     (exists t, u = None /\ v = Some t /\ w = Some t) \/
-    (exists t, u = Some t /\ v = Some t /\ w = Some t) \/
+    (exists t, u = Some t /\ v = None /\ w = Some t) \/
     (exists t, u = Some t /\ v = Some t /\ w = Some t)
   ) xs ys IJ ->  merge2 (ltt_recv p xs) (ltt_recv p ys) (ltt_recv p IJ).
 
