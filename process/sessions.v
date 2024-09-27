@@ -25,14 +25,13 @@ Definition InT (pt : part) (M : session) : Prop :=
   In pt (flattenT M).
   
 Inductive typ_sess : session -> gtt -> Prop := 
-  | t_sess : forall M G Gl, (forall pt, isgParts pt Gl -> InT pt M) ->
-                            NoDup (flattenT M) ->
-                            gttTC Gl G -> wfG Gl -> (forall n, exists m, guardG n m Gl) -> balancedG Gl ->
-                            ForallT (fun u P => exists T, projectionC G u T /\ typ_proc nil nil P T) M ->
-                            typ_sess M G.
+  | t_sess : forall M G, wfgC G ->
+                         (forall pt, isgPartsC pt G -> InT pt M) ->
+                         NoDup (flattenT M) ->
+                         ForallT (fun u P => exists T, projectionC G u T /\ typ_proc nil nil P T) M ->
+                         typ_sess M G.
 
 
-(* not done *)
 Inductive stepE : relation expr := 
   | ec_var   : forall n, stepE (e_var n) (e_var n)
   | ec_val   : forall v, stepE (e_val v) (e_val v)
@@ -331,47 +330,41 @@ Qed.
 Lemma _a22_2 : forall M M' G, typ_sess M G -> scong M M' -> typ_sess M' G.
 Proof.
   intros. revert H. revert G. induction H0; intros; try easy.
-  - inversion H0. subst. rename H6 into H100. rename H7 into H6. inversion H6. subst. clear H6.
-    inversion H9. subst. clear H9. destruct H7. destruct H6.
-    apply t_sess with (Gl := Gl); try easy. constructor. constructor; try easy.
-    exists x. split; try easy.
+  - inversion H0. subst.
+    inversion H4. subst. clear H4. inversion H7. subst. clear H7. 
+    apply t_sess; try easy. constructor; try easy. constructor; try easy.
+    destruct H5. exists x. split; try easy. destruct H4.
     apply _a22_1 with (P := P); try easy.
-    easy.
-  - inversion H. subst. rename H5 into H100. rename H6 into H5. inversion H5. subst. clear H5.
-    apply t_sess with (Gl := Gl); try easy. inversion H8. subst. destruct H6. destruct H5. clear H8.
-    intros. specialize(H0 pt H7).
-    unfold InT in H0. simpl in H0. destruct H0; try easy. subst. 
-    specialize(_a23_f p_inact x nil nil H6 (eq_refl p_inact)); intros. subst. 
-    assert (wfgC G). unfold wfgC. exists Gl. easy.
-    specialize(pmergeCR G pt H0 H5); intros.
-    assert False. apply H8. unfold isgPartsC. exists Gl; try easy. easy.
-  - simpl in H1. inversion H1. subst. easy.
-  - inversion H; subst. inversion H1; subst. apply t_sess with (Gl := Gl); try easy.
-    intros. specialize (H0 pt H7); intros. simpl.
-    apply in_swap; try easy. 
-    apply nodup_swap; try easy.
-    rename H5 into H100. rename H6 into H5.  
-    inversion H5. subst. constructor; try easy.
-    apply t_sess with (Gl := Gl); try easy.
-    intros. specialize(H0 pt H10). 
+  - inversion H. subst. inversion H3. subst. clear H3.
+    inversion H6. subst. clear H6. destruct H4. destruct H3.
+    apply t_sess; try easy.
+    specialize(_a23_f p_inact x nil nil H4 (eq_refl p_inact)); intros. subst.
+    unfold InT in *. simpl in *. specialize(H1 pt H6).
+    specialize(pmergeCR G p H0 H3); intros. 
+    destruct H1; try easy. subst. specialize(H5 H6). easy.
+    simpl in H2. inversion H2. subst. easy.
+  - inversion H. subst. inversion H3. subst. clear H3.
+    apply t_sess; try easy.
+    - intros. specialize(H1 pt H3).
+      unfold InT in *.
+      simpl in *. apply in_swap; try easy.
+      apply nodup_swap; try easy.
+    - constructor; try easy.
+  - inversion H. subst. inversion H3. subst. inversion H6. subst.
+    apply t_sess; try easy.
+    intros. specialize(H1 pt H4).
+    unfold InT in *. 
     simpl in *.
-    apply in_swap; try easy.
-    apply nodup_swap; try easy.
-  - rename H5 into H100. rename H6 into H5. inversion H5. subst. constructor; try easy.
-  - inversion H; subst. rename H5 into H100. rename H6 into H5. inversion H5; subst. inversion H8; subst. 
-    apply t_sess with (Gl := Gl); try easy.
-    - intros. specialize(H0 pt H6). unfold InT in *. simpl in *.
     specialize(app_assoc (flattenT M) (flattenT M') (flattenT M'')); intros.
     replace (flattenT M ++ flattenT M' ++ flattenT M'') with ((flattenT M ++ flattenT M') ++ flattenT M'') in *.
     easy.
     simpl in *.
     specialize(app_assoc (flattenT M) (flattenT M') (flattenT M'')); intros.
     replace (flattenT M ++ flattenT M' ++ flattenT M'') with ((flattenT M ++ flattenT M') ++ flattenT M'') in *.
-    easy. 
-    constructor; try easy. constructor; try easy.
+    easy.
+
+    constructor. easy. constructor; try easy.
 Qed.
-
-
 
 (* Declare Instance Equivalence_pcong : Equivalence scongP. 
 Declare Instance Equivalence_scong : Equivalence scong.

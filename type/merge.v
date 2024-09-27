@@ -282,7 +282,7 @@ Proof. intros Mp.
               inversion H6. subst.
               specialize(IHMp LQ' LQ0' T n l p). apply IHMp; try easy.
               subst. inversion H. subst.
-              rewrite onthNil in H0. easy.
+              destruct n; try easy.
               subst.
               specialize(IHMp xs LQ0' T n l p H5 H0 H1).
               destruct IHMp as (u,IHu).
@@ -298,7 +298,7 @@ Lemma merge_label_send : forall Mq LP' LP0' T k l q,
           exists T', onth l LP' = Some T'. 
 Proof. intro Mq.
        induction Mq; intros.
-       - rewrite onthNil in H0. easy.
+       - destruct k; try easy. 
        - inversion H. subst. case_eq k; intros. subst. simpl in H0. inversion H0. subst.
          exists T. easy.
          subst. simpl in H0. rewrite onthNil in H0. easy.
@@ -321,7 +321,7 @@ Proof. intro ys0.
        - rewrite onthNil in H0. easy.
        - inversion H. subst. 
          case_eq n; intros. subst. simpl in H0. inversion H0. subst. easy.
-         subst. simpl in H0. rewrite onthNil in H0. easy.
+         subst. simpl in H0. destruct n0; try easy.
          subst. case_eq n; intros. subst. simpl in H0. easy.
          subst. simpl in H0.
          apply IHys0 with (LP := LP) (n := n0) (q := q); easy.
@@ -343,7 +343,6 @@ Proof. intros p LQ ys1 n.
          subst. simpl in H0. inversion H0. subst.
          inversion H2.
        - inversion H. subst. simpl in H0.
-         rewrite onthNil in H0. easy.
          subst. simpl in H0.
          apply (IHn p LQ xs). easy. easy.
          subst. simpl in H0. 
@@ -366,6 +365,7 @@ Proof. intros q LP ys0 n.
          inversion H2.
        - inversion H. subst. simpl in H0.
          rewrite onthNil in H0. easy.
+         destruct n; try easy. 
          subst. simpl in H0.
          apply (IHn q LP xs). easy. easy.
          subst. simpl in H0. 

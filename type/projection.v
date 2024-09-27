@@ -48,62 +48,16 @@ Proof. unfold monotone3.
        - constructor. easy.
        - try easy.
 Admitted.
-(* 
-Lemma wfg_to_wfl : forall G p T,
-  wfgC G -> 
-  projectionC G p T ->
-  wfC T.
-Admitted. *)
-
-Lemma lttT_mon : monotone2 lttT.
-Admitted.
-(* 
-Lemma ltt_after_betaL : forall G G' T,
-  lttTC G T -> multiS betaL G G' -> lttTC G' T.
-Proof.
-  intros. revert H. revert T. induction H0; intros; try easy.
-  inversion H. subst. pfold. 
-  pinversion H0; try easy. subst.
-  specialize(subst_injL 0 0 (l_rec G) G y Q H3 H1); intros. subst. easy.
-  apply lttT_mon.
-  apply IHmultiS.
-  inversion H. subst. 
-  pinversion H1. subst.
-  specialize(subst_injL 0 0 (l_rec G) G y Q H4 H2); intros. subst. pfold. easy.
-  apply lttT_mon.
-Qed.
-
-Lemma wfL_after_betaL : forall G G',
-  wfL G -> multiS betaL G G' -> wfL G'.
-Admitted.
-
-Lemma wfC_implies_SList_recv : forall LQ q,
-  wfC (ltt_recv q LQ) -> SList LQ.
-Proof.
-  intro LQ. 
-  induction LQ; intros; try easy.
-  - unfold wfC in H. destruct H. destruct H. destruct H0.
-    pinversion H; try easy. subst. destruct xs; try easy.
-    inversion H0. subst. easy.
-    subst.
-    specialize(guard_break G H1); intros. destruct H4.
-    destruct H4. destruct H5.
-    specialize(ltt_after_betaL (l_rec G) x (ltt_recv q [])); intros.
-    assert (lttTC x (ltt_recv q [])). apply H7; try easy. pfold. easy.
-    destruct H6.
-    - subst. pinversion H8. apply lttT_mon.
-    - destruct H6. destruct H6. destruct H6. 
-      pinversion H8. subst. inversion H10. subst. inversion H11.
-      apply lttT_mon.
-    - subst. pinversion H8; try easy. subst.
-    
-Admitted. *)
 
 Lemma pmergeCR: forall G r,
           wfgC G ->
           projectionC G r ltt_end ->
           (isgPartsC r G -> False).
 Proof. intros.
+  unfold isgPartsC in H1. destruct H1. 
+  destruct H1. rename x into Gl. unfold wfgC in H. destruct H. destruct H. destruct H3. destruct H4. rename x into Gl'.
+  
+
 Admitted.
 
 Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> part -> part -> nat -> Prop :=
@@ -123,6 +77,36 @@ Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> pa
                   gttstep R (gtt_send r s xs) (gtt_send r s ys) p q n.
 
 Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n. 
+
+Lemma triv_pt_p : forall p q x0,
+    wfgC (gtt_send p q x0) -> 
+    isgPartsC p (gtt_send p q x0).
+Proof.
+  intros. unfold wfgC in H.
+  destruct H. destruct H. destruct H0. destruct H1.
+  
+Admitted.
+
+
+Lemma triv_pt_q : forall p q x0,
+    wfgC (gtt_send p q x0) -> 
+    isgPartsC q (gtt_send p q x0).
+Proof.
+  intros. unfold wfgC in H.
+  destruct H. destruct H. destruct H0. destruct H1.
+  
+Admitted.
+
+
+Lemma part_after_step : forall G G' q p pt l LP LQ,
+        wfgC G ->
+        gttstepC G G' q p l -> 
+        projectionC G p (ltt_recv q LQ) ->
+        projectionC G q (ltt_send p LP) ->
+        isgPartsC pt G' -> 
+        isgPartsC pt G.
+Proof.
+Admitted. (* probaly induction on Gl, base case ok, should be movable into everything later *)
 
 Lemma proj_inj_p [G p T T' ctxG q Gl] :  
   Forall
@@ -373,7 +357,7 @@ Proof.
   
 Admitted.
 
-
+(* 
 Lemma _a_29_helper : forall n x Sk Tk lsg p,
     onth n x = Some (Sk, Tk) ->
     Forall2 
@@ -463,8 +447,8 @@ Proof.
     inversion H0. inversion H. subst. easy.
   - destruct xs; try easy. destruct ys; try easy.
     inversion H1. subst. specialize(IHn xs ys S' Sk). apply IHn; try easy.
-Qed.
-
+Qed. *)
+(* 
 Lemma _a_29 : forall G p q PT QT S T S' T' xs n, 
     wfgC G -> 
     projectionC G p PT -> 
@@ -606,7 +590,7 @@ Proof.
   split. easy. split. easy. split. easy.
   specialize(_a_29_helper4 n xs ys S' Sk T' x1); intros. apply H22; try easy.
 Admitted.
-
+ *)
 
 Lemma _a_29_s : forall G p q PT QT S T S' T' n, 
     wfgC G -> 

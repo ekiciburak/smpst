@@ -46,9 +46,84 @@ Proof.
   split; try easy. apply Classical_Prop.and_not_or. split; try easy.
 Qed.
 
+(* 
+Lemma ltt_after_betaL : forall G G' T,
+  lttTC G T -> multiS betaL G G' -> lttTC G' T.
+Proof.
+  intros. revert H. revert T. induction H0; intros; try easy.
+  inversion H. subst. pfold. 
+  pinversion H0; try easy. subst.
+  specialize(subst_injL 0 0 (l_rec G) G y Q H3 H1); intros. subst. easy.
+  apply lttT_mon.
+  apply IHmultiS.
+  inversion H. subst. 
+  pinversion H1. subst.
+  specialize(subst_injL 0 0 (l_rec G) G y Q H4 H2); intros. subst. pfold. easy.
+  apply lttT_mon.
+Qed.
+
+Lemma wfL_after_betaL : forall G G',
+  wfL G -> multiS betaL G G' -> wfL G'.
+Admitted.
+
+Lemma wfC_implies_SList_recv : forall LQ q,
+  wfC (ltt_recv q LQ) -> SList LQ.
+Proof.
+  intro LQ. 
+  induction LQ; intros; try easy.
+  - unfold wfC in H. destruct H. destruct H. destruct H0.
+    pinversion H; try easy. subst. destruct xs; try easy.
+    inversion H0. subst. easy.
+    subst.
+    specialize(guard_break G H1); intros. destruct H4.
+    destruct H4. destruct H5.
+    specialize(ltt_after_betaL (l_rec G) x (ltt_recv q [])); intros.
+    assert (lttTC x (ltt_recv q [])). apply H7; try easy. pfold. easy.
+    destruct H6.
+    - subst. pinversion H8. apply lttT_mon.
+    - destruct H6. destruct H6. destruct H6. 
+      pinversion H8. subst. inversion H10. subst. inversion H11.
+      apply lttT_mon.
+    - subst. pinversion H8; try easy. subst.
+    
+Admitted. *)
+
+Lemma wfC_recv :  forall [l LQ SL' TL' q],
+        wfC (ltt_recv q LQ) -> 
+        onth l LQ = Some (SL', TL') -> 
+        wfC TL'.
+Proof.  
+  intros.
+  unfold wfC in *.
+  destruct H. rename x into T. destruct H. destruct H1.
+  pinversion H; try easy. subst.
+  assert(exists T, onth l xs = Some(SL', T) /\ lttTC T TL').
+  {
+    revert H5 H0. clear H2 H1 H. clear q. revert xs TL' SL' LQ.
+    induction l; intros.
+    - destruct LQ; try easy. destruct xs; try easy.
+      inversion H5. subst. clear H5. simpl in H0. subst.
+      destruct H3; try easy. destruct H. destruct H. destruct H. destruct H. destruct H0.
+      inversion H0. subst.
+      simpl in *. exists x0. pclearbot. easy.
+    - destruct LQ; try easy. destruct xs; try easy.
+      inversion H5. subst. specialize(IHl xs TL' SL' LQ H6). apply IHl; try easy.
+  }
+  destruct H3. destruct H3. rename x into T. exists T. split; try easy.
+  inversion H1. subst.
+  
+Admitted.
+
+Lemma wfC_send : forall [l LP SL TL p],
+        wfC (ltt_send p LP) -> 
+        onth l LP = Some (SL, TL) -> 
+        wfC TL.
+Admitted.
 
 
-Lemma _3_21_3_helper : forall M p q G G' l L1 L2 S T xs y,
+
+
+Lemma _3_19_3_helper : forall M p q G G' l L1 L2 S T xs y,
     wfgC G ->
     projectionC G p (ltt_send q L1) -> 
     subtypeC (ltt_send q (extendLis l (Datatypes.Some(S, T)))) (ltt_send q L1) ->
@@ -115,110 +190,140 @@ Proof.
     inversion H0. subst. apply IHl with (xs := xs); try easy.
 Qed.
 
+Lemma _3_21_helper_1 : forall [l LQ SL' TL' x x1 x0 q],
+        onth l LQ = Some (SL', TL') -> 
+        onth l x = Some (x0, x1) ->
+        subtypeC (ltt_recv q x) (ltt_recv q LQ) ->
+        subtypeC x1 TL' /\ subsort SL' x0.
+Proof.
+  intros.
+  specialize(subtype_recv_inv q x LQ H1); intros.
+  clear H1. revert H2 H0 H. revert q x0 x1 x TL' SL' LQ.
+  induction l; intros.
+  - destruct x; try easy. destruct LQ; try easy. simpl in *. subst.
+    inversion H2. subst. destruct H3; try easy. destruct H. destruct H. destruct H.
+    destruct H. destruct H. destruct H0. destruct H1. inversion H. inversion H0. subst. easy.
+  - destruct LQ; try easy. destruct x; try easy. 
+    inversion H2. subst.
+    specialize(IHl q x0 x1 x TL' SL' LQ). apply IHl; try easy.
+Qed.
+
+Lemma _3_21_helper_2 : forall [l LP SL TL LT S p],
+       subtypeC (ltt_send p (extendLis l (Some (S, LT)))) (ltt_send p LP) ->
+       onth l LP = Some (SL, TL) -> 
+       subtypeC LT TL /\ subsort S SL.
+Proof.
+  intros.
+  specialize(subtype_send_inv p (extendLis l (Some (S, LT))) LP H); intros.
+  clear H. revert H0 H1. revert LP SL TL LT S p.
+  induction l; intros.
+  - destruct LP; try easy. inversion H1. subst.
+    destruct H4; try easy. destruct H. destruct H. destruct H. destruct H. destruct H.
+    destruct H2. destruct H3. inversion H. simpl in H0. subst. inversion H2. subst.
+    easy.
+  - destruct LP; try easy. inversion H1. subst.
+    specialize(IHl LP SL TL LT S p). apply IHl; try easy.
+Qed. 
+
+
 Theorem _3_21 : forall M M' G, typ_sess M G -> betaP M M' -> exists G', typ_sess M' G' /\ multiC G G'.
 Proof.
   intros. revert H. revert G.
   induction H0; intros; try easy.
   (* R-COMM *)
-  inversion H1. subst. rename H4 into H100. rename H5 into H101. rename H6 into H102. rename H7 into H103.
-  rename H8 into H4. clear H1. inversion H3. subst. clear H3.
-  inversion H4. subst. clear H4. inversion H5. subst. clear H5.
-  - inversion H4. subst. destruct H3. destruct H1. inversion H9. subst. destruct H10. destruct H5. 
-  - specialize(_a23_a q xs (p_recv q xs) nil nil x H3 (eq_refl (p_recv q xs))); intros.
-    destruct H11. destruct H11. destruct H12. destruct H13. 
-  - specialize(_a23_bf p l e Q (p_send p l e Q) nil nil x0 H10 (eq_refl (p_send p l e Q))); intros.
-    destruct H15. destruct H15. destruct H15. destruct H16.
-  - specialize(subtype_recv x q x1 H12); intros.
-    destruct H18. subst.
-    specialize(subtype_recv_inv q x1 x4 H12); intros.
-    specialize(subtype_send x0 p (extendLis l (Some (x2, x3))) H17); intros.
-    destruct H19. subst.
-    specialize(subtype_send_inv p (extendLis l (Some (x2, x3))) x H17); intros.
-  - specialize(_a_29 G q p (ltt_send p x) (ltt_recv q x4) x2 x3); intros.
-    specialize(_3_21_helper l xs x1 y H H13); intros.
-    destruct H21. destruct H21. destruct H21. 
-    specialize(H20 x0 x5 x1 l).
-    assert (wfgC G). 
-    {
-      unfold wfgC. exists Gl; try easy.
-    }
-    specialize(H20 H23 H5 H17 H1 H21 H12).
-    destruct H20. destruct H20. destruct H20. destruct H20. destruct H20. destruct H24. destruct H25. destruct H26. destruct H27.
-    destruct H28.
+  inversion H1. subst.
+  - inversion H5. subst. clear H5. inversion H8. subst. clear H8. 
+    inversion H7. subst. clear H7. inversion H10. subst. clear H10. clear H1.
+    destruct H6. destruct H1. destruct H7. destruct H6. rename x into T. rename x0 into T'.
+    - specialize(_a23_a q xs (p_recv q xs) nil nil T H5 (eq_refl (p_recv q xs))); intros. 
+      destruct H8. destruct H8. destruct H10. destruct H11.
+    - specialize(_a23_bf p l e Q (p_send p l e Q) nil nil T' H7 (eq_refl (p_send p l e Q))); intros.
+      destruct H13. destruct H13. destruct H13. destruct H14. rename x0 into S. rename x1 into LT.
     
-  - specialize(_3_19_h q p l G x x4 x2 x3 x1 (x0, x5) H23 H5 H17 H1 H21 H12); intros.
-    destruct H30. rename x10 into G'.
-    exists G'.
+    specialize(_3_19_h q p l); intros.
+    specialize(subtype_recv T q x H10); intros. destruct H17. subst.
+    specialize(subtype_send T' p (extendLis l (Some (S, LT))) H15); intros. destruct H17. subst.
+    rename x0 into LQ. rename x1 into LP.
+    specialize(H16 G LP LQ S LT).
+    specialize(_3_21_helper l xs x y H H11); intros. destruct H17. destruct H17. destruct H17.
+    specialize(H16 x (x0, x1)). 
+    assert(exists G' : gtt, gttstepC G G' q p l).
+    apply H16; try easy. destruct H19. subst. rename x2 into G'. 
     assert(multiC G G').
-    apply multiC_step with (G2 := G') (p := q) (q := p) (n := l). easy. apply multiC_refl.
-    split; try easy.
-    specialize(wfgC_after_step G G' q p l H23 H30); intros.
-    unfold wfgC in H32. destruct H32. rename x10 into Gl0.
-    apply t_sess with (Gl := Gl0); intros; try easy.
-    - apply H2; try easy.
-      admit. (* participant after gttstep is participant before step *)
-    - simpl in *.
-      constructor; try easy.
-    constructor. constructor. 
+    specialize(multiC_step G G' G' q p l); intros. apply H20; try easy. constructor.
+    exists G'. split; try easy. clear H20.
+    clear H16.
+    constructor.
+    - specialize(wfgC_after_step G G' q p l H2 H19); try easy.
+    - intros.
+      apply H3; try easy.
+      
+        
+      - specialize(part_after_step G G' q p pt l LP LQ); intros. 
+        apply H20; try easy.
+      easy.
+    specialize(projection_step_label G G' q p l LP LQ); intros.
+    assert(exists (LS LS' : sort) (LT LT' : ltt), onth l LP = Some (LS, LT) /\ onth l LQ = Some (LS', LT')).
+    apply H16; try easy. clear H16. destruct H20. destruct H16. destruct H16. destruct H16. destruct H16.
+    rename x2 into SL. rename x3 into SL'. rename x4 into TL. rename x5 into TL'.
+    
+    specialize(_a_29_s G q p LP LQ SL TL SL' TL' l H2 H6 H16 H1 H20); intros.
+    destruct H21. rename x2 into Gl. destruct H21. rename x2 into ctxG. destruct H21. destruct H21.
+    rename x2 into SI. rename x3 into Sn.
+    destruct H21. destruct H22. destruct H23. destruct H24. destruct H25. destruct H26.
+    specialize(_3_21_helper_1 H20 H17 H10); intros.
+    specialize(_3_21_helper_2 H15 H16); intros. 
+    constructor. constructor.
     - constructor.
-      specialize(_3_19_2 q p l G G' x x4 x2 x3 x0 x5 x1 H23 H5 H17 H1 H21 H12 H30); intros.
-      destruct H33. destruct H33. exists x10. split; try easy.
+      specialize(_3_19_2_helper q p l G G' LP LQ SL TL SL' TL'); intros.
+      assert(projectionC G' p TL'). apply H30; try easy. clear H30. 
+      exists TL'. split; try easy.
+      
       apply _a24 with (S := x0); try easy.
-      - apply tc_sub with (t := x5); try easy.
-        assert (wfC x10). 
-        {
-          admit.
-          (* apply H35; try easy. 
-          specialize(typable_implies_wfC H3). easy. *)
-        }
-        easy.
-      - apply sc_sub with (s := x2); try easy.
-        apply expr_typ_multi with (e := e); intros; try easy.
-        apply sstrans with (s2 := x9); try easy.
+      - apply tc_sub with (t := x1); try easy.
+        specialize(typable_implies_wfC H5); intros.
+        specialize(wfC_recv H30 H20); try easy.
+      - apply sc_sub with (s := S); try easy.
+        apply expr_typ_multi with (e := e); try easy.
+        apply sstrans with (s2 := SL'); try easy.
+        apply sstrans with (s2 := Sn); try easy. 
+        apply sstrans with (s2 := SL); try easy.
     - constructor.
-      specialize(_3_19_1 q p l G G' x x4 x2 x3 x0 x5 x1 H23 H5 H17 H1 H21 H12 H30); intros.
-      destruct H33. destruct H33. exists x10. split; try easy.
-      - apply tc_sub with (t := x3); try easy.
-        assert (wfC x10).
-        {
-          admit.
-         (*  specialize(projection_wfc_q G l p q x G' x10); intros.
-          apply H35; try easy.
-          specialize(typable_implies_wfC H10). easy. *)
-        }
-        easy.
-    - specialize(_3_21_3_helper M q p G G' l x x4 x2 x3 x1 (x0, x5)); intros.
-      apply H33; try easy.
-      simpl in H6. specialize(Classical_Prop.not_or_and (q = p) (In p (flattenT M)) H6); intros.
-      destruct H34; try easy. unfold InT. 
-      inversion H7. subst. easy.
+      specialize(_3_19_1_helper q p l G G' LP LQ SL TL SL' TL'); intros.
+      assert(projectionC G' q TL). apply H30; try easy. clear H30.
+      exists TL. split; try easy.
+      - apply tc_sub with (t := LT); try easy.
+        specialize(typable_implies_wfC H7); intros.
+        specialize(wfC_send H30 H16); try easy.
+    - specialize(_3_19_3_helper M q p G G' l LP LQ S LT x (x0, x1)); intros.
+      inversion H4. subst. inversion H34. subst.
+      specialize(Classical_Prop.not_or_and (q = p) (In p (flattenT M)) H33); intros. destruct H31.
+      apply H30; try easy.
 
   (* T-COND *)
-  inversion H0. subst. rename H3 into H100. rename H4 into H101. rename H5 into H102. rename H6 into H103. rename H7 into H3. 
-  inversion H3. subst. clear H3.
-  inversion H6. subst. clear H6. destruct H4. destruct H3. 
-  specialize(_a23_c (p_ite e P Q) e P Q x nil nil H4 (eq_refl (p_ite e P Q))); intros.
-  destruct H5. destruct H5. destruct H5. destruct H6. destruct H8. destruct H9. 
+  inversion H0. subst. inversion H4. subst. clear H4. inversion H7. subst. clear H7.
+  destruct H5. destruct H4.
+  specialize(_a23_c (p_ite e P Q) e P Q x nil nil H5 (eq_refl (p_ite e P Q))); intros.
+  destruct H6. destruct H6. destruct H6. destruct H7. destruct H9. destruct H10. 
   exists G. split.
-  apply t_sess with (Gl := Gl); try easy. apply ForallT_par; try easy.
+  apply t_sess; try easy. apply ForallT_par; try easy.
   apply ForallT_mono; try easy. exists x.
   split; try easy.
   apply tc_sub with (t := x0); try easy.
-  specialize(typable_implies_wfC H4); try easy.
+  specialize(typable_implies_wfC H5); try easy.
   apply multiC_refl.
   
   (* F-COND *)
-  inversion H0. subst. rename H3 into H100. rename H4 into H101. rename H5 into H102. rename H6 into H103. rename H7 into H3.
-  inversion H3. subst. clear H3.
-  inversion H6. subst. clear H6. destruct H4. destruct H3. 
-  specialize(_a23_c (p_ite e P Q) e P Q x nil nil H4 (eq_refl (p_ite e P Q))); intros.
-  destruct H5. destruct H5. destruct H5. destruct H6. destruct H8. destruct H9. 
+  inversion H0. subst. inversion H4. subst. clear H4. inversion H7. subst. clear H7.
+  destruct H5. destruct H4.
+  specialize(_a23_c (p_ite e P Q) e P Q x nil nil H5 (eq_refl (p_ite e P Q))); intros.
+  destruct H6. destruct H6. destruct H6. destruct H7. destruct H9. destruct H10. 
   exists G. split.
-  apply t_sess with (Gl := Gl); try easy. apply ForallT_par; try easy.
+  apply t_sess; try easy. apply ForallT_par; try easy.
   apply ForallT_mono; try easy. exists x.
   split; try easy.
   apply tc_sub with (t := x1); try easy.
-  specialize(typable_implies_wfC H4); try easy.
+  specialize(typable_implies_wfC H5); try easy.
   apply multiC_refl.
   
   (* R-STRUCT *)
@@ -226,5 +331,4 @@ Proof.
   specialize(IHbetaP G H3); intros. destruct IHbetaP. exists x. 
   destruct H4. split; try easy.
   specialize(_a22_2 M2' M2 x H4 H0); intros. easy.
-  
-Admitted.
+Qed.

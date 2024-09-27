@@ -9,12 +9,11 @@ Inductive gnode : Type :=
   | gnode_pq : part -> part -> gnode
   | gnode_s  : sort -> gnode.
 
-Inductive gttmap : global -> list fin -> option fin -> gnode -> Prop := 
-  | gmap_end : gttmap g_end nil None gnode_end
-  | gmap_pq  : forall p q xs, gttmap (g_send p q xs) nil None (gnode_pq p q)
-  | gmap_con : forall n lis xs p q st gk s gn, onth n xs = Some (st, gk) -> gttmap gk lis s gn -> gttmap (g_send p q xs) (n :: lis) s gn
-  | gmap_st  : forall n xs p q st gk, onth n xs = Some (st, gk) -> gttmap (g_send p q xs) nil (Some n) (gnode_s st)
-  | gmap_mu  : forall lis g Q s gn, subst_global 0 0 (g_rec g) g Q -> gttmap (g_rec g) lis s gn -> gttmap Q lis s gn. 
+Inductive gttmap : gtt -> list fin -> option fin -> gnode -> Prop := 
+  | gmap_end : gttmap gtt_end nil None gnode_end
+  | gmap_pq  : forall p q xs, gttmap (gtt_send p q xs) nil None (gnode_pq p q)
+  | gmap_con : forall n lis xs p q st gk s gn, onth n xs = Some (st, gk) -> gttmap gk lis s gn -> gttmap (gtt_send p q xs) (n :: lis) s gn
+  | gmap_st  : forall n xs p q st gk, onth n xs = Some (st, gk) -> gttmap (gtt_send p q xs) nil (Some n) (gnode_s st). 
 
 
 (* global trees with context holes *)
@@ -71,7 +70,7 @@ Section typ_gtth_ind_ref.
 
 End typ_gtth_ind_ref.
 
-Definition balancedG (G : global) := forall G w w' p q gn,
+Definition balancedG (G : gtt) := forall G w w' p q gn,
   gttmap G w None gn -> gttmap G (w ++ w') None (gnode_pq p q) -> 
   (exists k, forall w', gttmap G (w ++ w') None (gnode_end) \/ 
                         (List.length w' = k /\ exists w2 w0, w' = w2 ++ w0 /\ exists r, 
@@ -80,9 +79,9 @@ Definition balancedG (G : global) := forall G w w' p q gn,
                         (List.length w' = k /\ exists w2 w0, w' = w2 ++ w0 /\ exists r,
                         gttmap G (w ++ w2) None (gnode_pq q r) \/ gttmap G (w ++ w2) None (gnode_pq r q))).
 
-Definition wfgT G := wfG G /\ (forall n, exists m, guardG n m G) /\ balancedG G.
-
-Definition wfgC G := exists G', gttTC G' G /\ wfG G' /\ (forall n, exists m, guardG n m G') /\ balancedG G'. 
+(* Definition wfgT G := wfG G /\ (forall n, exists m, guardG n m G) /\ balancedG G.
+ *)
+Definition wfgC G := exists G', gttTC G' G /\ wfG G' /\ (forall n, exists m, guardG n m G') /\ balancedG G. 
 
 Definition wfC T := exists T', lttTC T' T /\ wfL T' /\ (forall n, exists m, guardL n m T').
 

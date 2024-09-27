@@ -485,7 +485,7 @@ Qed.
 
 
 
-Lemma mon_lttT : monotone2 lttT.
+Lemma lttT_mon : monotone2 lttT.
 Proof.
   unfold monotone2. intros. induction IN; intros; try easy.
   - apply lttT_end.

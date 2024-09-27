@@ -59,11 +59,10 @@ Fixpoint onth {A : Type} (n : fin) (lis : list (option A)) : option A :=
         | []    => None
       end
   end.
-
-Lemma onthNil: forall {A: Type} n, @onth A n nil = None.
-Proof. intros A n.
-       induction n; intros.
-       - simpl. easy.
-       - simpl. easy.
-Qed.
-       
+  
+Lemma triad_le :  forall m t',
+                  is_true (ssrnat.leq m t') ->
+                  is_true (ssrnat.leq (S t') m) -> False.
+Proof.
+Admitted.
+  
