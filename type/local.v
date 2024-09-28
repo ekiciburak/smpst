@@ -517,12 +517,6 @@ Proof.
 
 Qed.
 
-Lemma triad_le :  forall m t',
-                  is_true (ssrnat.leq m t') ->
-                  is_true (ssrnat.leq (S t') m) -> False.
-Proof.
-Admitted.
-  
 
 Lemma subst_injL : forall m n G G1 Q Q0, subst_local m n G G1 Q0 -> subst_local m n G G1 Q -> Q = Q0.
 Proof.

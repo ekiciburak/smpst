@@ -49,17 +49,6 @@ Proof. unfold monotone3.
        - try easy.
 Admitted.
 
-Lemma pmergeCR: forall G r,
-          wfgC G ->
-          projectionC G r ltt_end ->
-          (isgPartsC r G -> False).
-Proof. intros.
-  unfold isgPartsC in H1. destruct H1. 
-  destruct H1. rename x into Gl. unfold wfgC in H. destruct H. destruct H. destruct H3. destruct H4. rename x into Gl'.
-  
-
-Admitted.
-
 Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> part -> part -> nat -> Prop :=
   | steq : forall p q xs s gc n,
                   p <> q ->
@@ -78,14 +67,56 @@ Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> pa
 
 Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n. 
 
+Lemma step_mon : monotone5 gttstep.
+Admitted.
+
+Lemma gttTC_after_subst : forall G G' G1,
+    multiS betaG G G' -> 
+    gttTC G G1 ->
+    gttTC G' G1.
+Proof.
+  intros. revert H0. revert G1. induction H; intros.
+  - inversion H. subst.
+    pinversion H0. subst.
+    specialize(subst_injG 0 0 (g_rec G) G y Q H3 H1); intros. subst.
+    easy.
+    apply gttT_mon.
+  - apply IHmultiS. inversion H. subst.
+    pinversion H1. subst.
+    specialize(subst_injG 0 0 (g_rec G) G y Q H4 H2); intros. subst.
+    easy.
+    apply gttT_mon.
+Qed.
+
 Lemma triv_pt_p : forall p q x0,
     wfgC (gtt_send p q x0) -> 
     isgPartsC p (gtt_send p q x0).
 Proof.
   intros. unfold wfgC in H.
   destruct H. destruct H. destruct H0. destruct H1.
-  
-Admitted.
+  unfold isgPartsC in *.
+  pinversion H; try easy. 
+  - subst. exists (g_send p q xs). split. pfold. easy. constructor.
+  - subst. specialize(guard_breakG G H1); intros. 
+    destruct H5. destruct H5. destruct H6.
+   
+    destruct H7.
+    - subst. 
+      specialize(gttTC_after_subst (g_rec G) g_end (gtt_send p q x0) H5); intros.
+      assert(gttTC g_end (gtt_send p q x0)). 
+      apply H7. pfold. easy. pinversion H8. 
+      apply gttT_mon.
+    destruct H7. destruct H7. destruct H7.
+    - subst.
+      specialize(gttTC_after_subst (g_rec G) (g_send x1 x2 x3) (gtt_send p q x0) H5); intros.
+      assert(gttTC (g_send x1 x2 x3) (gtt_send p q x0)).
+      apply H7. pfold. easy.
+      pinversion H8. subst.
+      exists (g_send p q x3). split; try easy. pfold. easy.
+      constructor.
+    apply gttT_mon.
+    apply gttT_mon.
+Qed.
 
 
 Lemma triv_pt_q : forall p q x0,
@@ -94,19 +125,30 @@ Lemma triv_pt_q : forall p q x0,
 Proof.
   intros. unfold wfgC in H.
   destruct H. destruct H. destruct H0. destruct H1.
-  
-Admitted.
+  unfold isgPartsC in *.
+  pinversion H; try easy. 
+  - subst. exists (g_send p q xs). split. pfold. easy. constructor.
+  - subst. specialize(guard_breakG G H1); intros. 
+    destruct H5. destruct H5. destruct H6.
+   
+    destruct H7.
+    - subst. 
+      specialize(gttTC_after_subst (g_rec G) g_end (gtt_send p q x0) H5); intros.
+      assert(gttTC g_end (gtt_send p q x0)). 
+      apply H7. pfold. easy. pinversion H8. 
+      apply gttT_mon.
+    destruct H7. destruct H7. destruct H7.
+    - subst.
+      specialize(gttTC_after_subst (g_rec G) (g_send x1 x2 x3) (gtt_send p q x0) H5); intros.
+      assert(gttTC (g_send x1 x2 x3) (gtt_send p q x0)).
+      apply H7. pfold. easy.
+      pinversion H8. subst.
+      exists (g_send p q x3). split; try easy. pfold. easy.
+      constructor.
+    apply gttT_mon.
+    apply gttT_mon.
+Qed.
 
-
-Lemma part_after_step : forall G G' q p pt l LP LQ,
-        wfgC G ->
-        gttstepC G G' q p l -> 
-        projectionC G p (ltt_recv q LQ) ->
-        projectionC G q (ltt_send p LP) ->
-        isgPartsC pt G' -> 
-        isgPartsC pt G.
-Proof.
-Admitted. (* probaly induction on Gl, base case ok, should be movable into everything later *)
 
 Lemma proj_inj_p [G p T T' ctxG q Gl] :  
   Forall
@@ -614,6 +656,34 @@ Lemma wfgC_after_step : forall G G' p q n, wfgC G -> gttstepC G G' p q n -> wfgC
 Proof.
 Admitted.
 
+
+Lemma part_after_step : forall G G' q p pt l LP LQ,
+        wfgC G ->
+        gttstepC G G' q p l -> 
+        projectionC G p (ltt_recv q LQ) ->
+        projectionC G q (ltt_send p LP) ->
+        isgPartsC pt G' -> 
+        isgPartsC pt G.
+Proof.
+Admitted. (* probaly induction on Gl, base case ok, should be movable into everything later *)
+
+
+Lemma pmergeCR: forall G r,
+          wfgC G ->
+          projectionC G r ltt_end ->
+          (isgPartsC r G -> False).
+Proof. intros.
+
+ (*  wfgC G -> 
+  isgPartsC r G -> 
+  exists ctxG Gl, typ_gtth ctxG Gl G /\ ishPartsC r Gl.
+  
+ *)
+  unfold isgPartsC in H1. destruct H1. 
+  destruct H1. rename x into Gl. unfold wfgC in H. destruct H. destruct H. destruct H3. destruct H4. rename x into Gl'.
+  
+
+Admitted.
 
 
 

@@ -6,6 +6,7 @@ Require Import Coq.Init.Datatypes.
 Open Scope list_scope.
 Import ListNotations.
 
+
 CoFixpoint Ga : gtt := gtt_send "Alice" "Bob" [Some (snat, Ga)].
 
 Example Grec : gttTC (g_rec (g_send "Alice" "Bob" [Some (snat, g_var 0)])) Ga.

@@ -379,4 +379,19 @@ Proof. intros.
        easy. easy.
 Qed.
 
+
+Lemma merge_label_recv_s : forall Mp LQ' LQ0' T k l p,
+          isMerge (ltt_recv p LQ') Mp ->
+          onth k Mp = Some (ltt_recv p LQ0') ->
+          onth l LQ0' = Some T ->
+          onth l LQ' = Some T.
+Admitted.
+
+Lemma merge_label_send_s : forall Mq LP' LP0' T k l q,
+          isMerge (ltt_send q LP') Mq ->
+          onth k Mq = Some (ltt_send q LP0') ->
+          onth l LP0' = Some T ->
+          onth l LP' = Some T. 
+Admitted.
+
  

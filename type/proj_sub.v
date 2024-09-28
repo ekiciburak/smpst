@@ -5,28 +5,6 @@ From Paco Require Import paco pacotac.
 Require Import Setoid Morphisms Coq.Program.Basics.
 Require Import Coq.Init.Datatypes.
 
-Lemma step_mon : monotone5 gttstep.
-Admitted.
-
-Lemma gttT_mon : monotone2 gttT.
-Admitted.
-
-
-Lemma merge_label_recv_s : forall Mp LQ' LQ0' T k l p,
-          isMerge (ltt_recv p LQ') Mp ->
-          onth k Mp = Some (ltt_recv p LQ0') ->
-          onth l LQ0' = Some T ->
-          onth l LQ' = Some T.
-Admitted.
-
-Lemma merge_label_send_s : forall Mq LP' LP0' T k l q,
-          isMerge (ltt_send q LP') Mq ->
-          onth k Mq = Some (ltt_send q LP0') ->
-          onth l LP0' = Some T ->
-          onth l LP' = Some T. 
-Admitted.
-
-
 Lemma in_some_implies_onth {A} : forall (x : A) xs,
     In (Some x) xs -> exists n, onth n xs = Some x.
 Proof.

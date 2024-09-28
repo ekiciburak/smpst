@@ -21,13 +21,13 @@ Proof.
         pinversion H0. subst. 
         specialize(subst_injL 0 0 (l_rec G) G Q y H1 H3); intros. subst.
         unfold lttTC. pfold. easy.
-        apply mon_lttT.
+        apply lttT_mon.
       - apply IHmultiS; try easy.
         inversion H. subst.
         pinversion H0. subst. 
         specialize(subst_injL 0 0 (l_rec G) G Q y H1 H4); intros. subst.
         unfold lttTC. pfold. easy.
-        apply mon_lttT.
+        apply lttT_mon.
       split; try easy.
       - clear H H1 H3.
         revert H0. revert T'. induction H2; intros; try easy.
@@ -48,17 +48,17 @@ Lemma typable_implies_wfC_helper_recv : forall x p STT,
 Proof.
   induction x using local_ind_ref; intros; try easy.
   - pinversion H.
-    apply mon_lttT.
+    apply lttT_mon.
   - pinversion H.
-    apply mon_lttT.
+    apply lttT_mon.
   - exists lis. 
     pinversion H0. subst. 
-    apply mon_lttT.
+    apply lttT_mon.
   - exists lis.
     pinversion H0. subst.
     split.
     pfold. easy. easy.
-    apply mon_lttT.
+    apply lttT_mon.
   - pinversion H. subst.
     
     specialize(typable_implies_wfC_helper_p2 x (ltt_recv p STT)); intros.
@@ -80,8 +80,8 @@ Proof.
     - destruct H7; try easy. destruct H7. destruct H7. destruct H7. easy.
       inversion H7. subst. exists x1. unfold lttTC. split. pfold. easy. easy.
     - subst. destruct H7; try easy. destruct H7. destruct H7. destruct H7; try easy.
-    apply mon_lttT.
-    apply mon_lttT.
+    apply lttT_mon.
+    apply lttT_mon.
 Qed.
 
 
@@ -107,7 +107,7 @@ Proof.
       split.
       - pinversion H4. subst.
         unfold lttTC. pfold. constructor. constructor; try easy. left. easy.
-        apply mon_lttT.
+        apply lttT_mon.
       split; try easy.
       - inversion H5. subst. constructor; try easy. constructor; try easy.
         left. easy. 
@@ -126,7 +126,7 @@ Proof.
           pinversion H8. subst. constructor; try easy.
           right. exists x0. exists x2. exists x1. split. easy. split. easy.
           left. easy.
-          apply mon_lttT.
+          apply lttT_mon.
         split.
         - constructor; try easy.
           specialize(SList_f (Some x) Pr H); intros.
@@ -145,15 +145,15 @@ Proof.
                 destruct STT; try easy. destruct x4; try easy.
                 destruct H4; try easy. destruct H0. destruct H0. destruct H0. destruct H0. destruct H1. inversion H0. subst.
                 destruct H5; try easy. destruct H1. destruct H1. destruct H1. destruct H1. destruct H3. inversion H3. subst. easy.
-                apply mon_lttT.
+                apply lttT_mon.
             - destruct H. subst. destruct STT; try easy.
               pinversion H8. subst. destruct x4; try easy.
-              apply mon_lttT.
+              apply lttT_mon.
           }
         - pinversion H8. subst. constructor.
           right. exists x0. exists x2. split; try easy.
           inversion H9. subst. easy.
-          apply mon_lttT.
+          apply lttT_mon.
         - clear H4 H5 H7 H H0 H1 H6 H3 H8 H9.
           clear STT x3 Pr x x1.
           intros.

@@ -11,8 +11,6 @@ Inductive multiC : relation gtt :=
   | multiC_step : forall G1 G2 G3 p q n, gttstepC G1 G2 p q n -> multiC G2 G3 -> multiC G1 G3.
   
 
-
-
 Lemma _3_21_1_helper : forall l x1 xs x4 x5 y,
     onth l x1 = Some (x4, x5) ->
     onth l xs = Some y ->

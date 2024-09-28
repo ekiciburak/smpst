@@ -9,11 +9,36 @@ Inductive gnode : Type :=
   | gnode_pq : part -> part -> gnode
   | gnode_s  : sort -> gnode.
 
+(* gtt, labels to follow, sort if we want, where we reach *)
 Inductive gttmap : gtt -> list fin -> option fin -> gnode -> Prop := 
   | gmap_end : gttmap gtt_end nil None gnode_end
   | gmap_pq  : forall p q xs, gttmap (gtt_send p q xs) nil None (gnode_pq p q)
   | gmap_con : forall n lis xs p q st gk s gn, onth n xs = Some (st, gk) -> gttmap gk lis s gn -> gttmap (gtt_send p q xs) (n :: lis) s gn
   | gmap_st  : forall n xs p q st gk, onth n xs = Some (st, gk) -> gttmap (gtt_send p q xs) nil (Some n) (gnode_s st). 
+
+Inductive lnode : Type := 
+  | lnode_end  : lnode 
+  | lnode_send : part -> lnode 
+  | lnode_recv : part -> lnode
+  | lnode_s    : sort -> lnode.
+
+(* tree to define on, labels to follow, sort if we want, where we reach *)
+Inductive lttmap : ltt -> list fin -> option fin -> lnode -> Prop := 
+  | lmap_end  : lttmap ltt_end nil None lnode_end 
+  | lmap_send : forall p xs, lttmap (ltt_send p xs) nil None (lnode_send p)
+  | lmap_recv : forall p xs, lttmap (ltt_recv p xs) nil None (lnode_recv p)
+  | lmap_cons : forall n lis xs p st gk s gn, onth n xs = Some (st, gk) -> lttmap gk lis s gn -> lttmap (ltt_send p xs) (n :: lis) s gn
+  | lmap_conr : forall n lis xs p st gk s gn, onth n xs = Some (st, gk) -> lttmap gk lis s gn -> lttmap (ltt_recv p xs) (n :: lis) s gn
+  | lmap_sts  : forall n xs p st gk, onth n xs = Some(st, gk) -> lttmap (ltt_send p xs) nil (Some n) (lnode_s st)
+  | lmap_str  : forall n xs p st gk, onth n xs = Some(st, gk) -> lttmap (ltt_recv p xs) nil (Some n) (lnode_s st).
+ (* 
+CoInductive EqGtt (G1 G2 : gtt) : Prop := 
+  eqg_end : EqGtt gtt_end gtt_end 
+   
+
+Lemma fext_ltt : forall T T' lis sn x, lttmap T lis sn x -> lttmap T' lis sn x -> T = T'.
+Proof.
+   *)
 
 
 (* global trees with context holes *)

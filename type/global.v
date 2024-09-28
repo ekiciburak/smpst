@@ -99,7 +99,8 @@ Inductive guardG : fin -> fin -> global -> Prop :=
   | gg_send : forall n m p q lis, List.Forall (fun u => u = None \/ (exists s g, u = Some(s, g) /\ guardG n m g)) lis -> guardG (S n) m (g_send p q lis)
   | gg_rec : forall n m g Q, subst_global 0 0 (g_rec g) g Q -> guardG n m Q -> guardG n (S m) (g_rec g).
 
-
+Lemma gttT_mon : monotone2 gttT.
+Admitted.
 
 Lemma guardL_more : forall n m k G, guardG n m G -> m <= k -> guardG n k G.
 Proof.
