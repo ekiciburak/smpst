@@ -9,7 +9,7 @@ Inductive isgParts : part -> global -> Prop :=
   | pa_sendq : forall p q l, isgParts q (g_send p q l)
   | pa_mu    : forall p g,   isgParts p g -> isgParts p (g_rec g)
   | pa_sendr : forall p q r n s g lis, p <> r -> q <> r -> onth n lis = Some (s, g) -> isgParts r g -> isgParts r (g_send p q lis).
-  
+
 Definition isgPartsC (pt : part) (G : gtt) : Prop := 
     exists G', gttTC G' G /\ isgParts pt G'.
 
@@ -17,7 +17,6 @@ Inductive ishParts : part -> gtth -> Prop :=
   | ha_sendp : forall p q l, ishParts p (gtth_send p q l)
   | ha_sendq : forall p q l, ishParts q (gtth_send p q l)
   | ha_sendr : forall p q r n s g lis, p <> r -> q <> r -> onth n lis = Some (s, g) -> ishParts r g -> ishParts r (gtth_send p q lis).
-
 
 Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :=
   | proj_end : forall g r, 
@@ -40,6 +39,11 @@ Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :
                projection R (gtt_send p q xs) r t.
 
 Definition projectionC g r t := paco3 projection bot3 g r t.
+
+(* Definition lttIso' := forall r, { L: ltt & { L': ltt | exists G, projectionC G r L /\ projectionC G r L'}}. *)
+
+(* Definition lttIso': ltt -> ltt -> Prop := forall r L L', exists G, projectionC G r L /\ projectionC G r L'. *)
+
 
 Lemma proj_mon: monotone3 projection.
 Proof. unfold monotone3.
@@ -149,6 +153,43 @@ Proof.
     apply gttT_mon.
 Qed.
 
+Class nonVacP (G: gtt) (r: part) (T: ltt): Prop :=
+  {
+    pOb : projectionC G r T;
+    pOb1: G = gtt_end -> 
+          (isgPartsC r G -> False) -> 
+          (projectionC G r (ltt_end) -> False);
+    pOb2: forall p xs ys, 
+                 G = (gtt_send p r xs) -> 
+                 p <> r ->
+                 Forall2 (fun (u : option (sort * gtt)) (v : option (sort * ltt)) => u = None /\ v = None \/ (exists (s : sort) (g : gtt) (t : ltt), u = Some (s, g) /\ v = Some (s, t) /\ upaco3 projection bot3 g r t)) xs ys ->
+                 (projectionC (gtt_send p r xs) r (ltt_recv p ys) -> False);
+    pOb3: forall q xs ys, 
+                 G = (gtt_send r q xs) -> 
+                 r <> q ->
+                 Forall2 (fun (u : option (sort * gtt)) (v : option (sort * ltt)) => u = None /\ v = None \/ (exists (s : sort) (g : gtt) (t : ltt), u = Some (s, g) /\ v = Some (s, t) /\ upaco3 projection bot3 g r t)) xs ys ->
+                 (projectionC (gtt_send r q xs) r (ltt_send q ys) -> False)
+  }.
+
+Class nonVacQ (G: gtt) (r: part) (T: ltt): Prop :=
+{
+  pObl : projectionC G r T;
+  pObl1: forall p q xs ys t, 
+                G = (gtt_send p q xs) -> 
+                p <> q ->
+                q <> r ->
+                p <> r ->
+                Forall2 (fun (u : option (sort * gtt)) (v : option ltt) => u = None /\ v = None \/ (exists (s : sort) (g : gtt) (t : ltt), u = Some (s, g) /\ v = Some t /\ upaco3 projection bot3 g p t)) xs ys ->
+                isMerge t ys ->
+                (projectionC (gtt_send p q xs) r t -> False)
+}.
+
+Lemma propA20 [G r T]: nonVacP G r T -> exists G', nonVacQ G' r T.
+Proof. intros.
+       destruct H as (P, Hp1, Hp2, Hp3).
+       pinversion P. admit. admit. admit.
+       assert((isgPartsC r G -> False) \/ isgPartsC r G) by admit.
+Admitted.
 
 Lemma proj_inj_p [G p T T' ctxG q Gl] :  
   Forall
@@ -156,11 +197,11 @@ Lemma proj_inj_p [G p T T' ctxG q Gl] :
         u = None \/
         (exists (g : gtt) (lsg : list (option (sort * gtt))),
            u = Some g /\
-           g = gtt_send p q lsg))
-       ctxG ->
+           g = gtt_send p q lsg)) ctxG ->
   (ishParts p Gl -> False) ->
   typ_gtth ctxG Gl G ->
   projectionC G p T -> projectionC G p T' -> T = T'.
+Proof.
 Admitted.
 
 Lemma proj_inj_q [G p T T' ctxG q Gl] :  

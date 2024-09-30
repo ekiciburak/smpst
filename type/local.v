@@ -893,6 +893,23 @@ Proof.
 Qed.
 
 
+Fixpoint isoList (R: ltt -> ltt -> Prop) (l1 l2: list (option(sort*ltt))): Prop :=
+  match (l1,l2) with
+    | (Datatypes.None::xs, Datatypes.None::ys)               => isoList R xs ys
+    | (Datatypes.Some (s,t)::xs, Datatypes.Some (s',t')::ys) => s = s' /\ R t t' /\ isoList R xs ys
+    | _                                                      => False
+  end.
+
+Inductive lttIso (R: ltt -> ltt -> Prop): ltt -> ltt -> Prop :=
+  | i_end : lttIso R ltt_end ltt_end
+  | i_recv: forall p xs ys, isoList R xs ys -> lttIso R (ltt_recv p xs) (ltt_recv p ys)
+  | i_send: forall p xs ys, isoList R xs ys -> lttIso R (ltt_send p xs) (ltt_send p ys).
+
+Definition lttIsoC L L' := paco2 lttIso bot2 L L'.
+
+(* equivalent to functional extensionality *)
+Axiom lltExt: forall L L', lttIsoC L L' -> L = L'.
+
 
 
 End ltt.

@@ -386,7 +386,6 @@ Proof. intros.
 Qed.
 
 
-
 Lemma asameE: forall {A: Type} (xs: list (option A)) x, allSame (x::xs) -> allSame xs.
 Proof. intros A xs.
        induction xs; intros.
