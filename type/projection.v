@@ -153,44 +153,6 @@ Proof.
     apply gttT_mon.
 Qed.
 
-Class nonVacP (G: gtt) (r: part) (T: ltt): Prop :=
-  {
-    pOb : projectionC G r T;
-    pOb1: G = gtt_end -> 
-          (isgPartsC r G -> False) -> 
-          (projectionC G r (ltt_end) -> False);
-    pOb2: forall p xs ys, 
-                 G = (gtt_send p r xs) -> 
-                 p <> r ->
-                 Forall2 (fun (u : option (sort * gtt)) (v : option (sort * ltt)) => u = None /\ v = None \/ (exists (s : sort) (g : gtt) (t : ltt), u = Some (s, g) /\ v = Some (s, t) /\ upaco3 projection bot3 g r t)) xs ys ->
-                 (projectionC (gtt_send p r xs) r (ltt_recv p ys) -> False);
-    pOb3: forall q xs ys, 
-                 G = (gtt_send r q xs) -> 
-                 r <> q ->
-                 Forall2 (fun (u : option (sort * gtt)) (v : option (sort * ltt)) => u = None /\ v = None \/ (exists (s : sort) (g : gtt) (t : ltt), u = Some (s, g) /\ v = Some (s, t) /\ upaco3 projection bot3 g r t)) xs ys ->
-                 (projectionC (gtt_send r q xs) r (ltt_send q ys) -> False)
-  }.
-
-Class nonVacQ (G: gtt) (r: part) (T: ltt): Prop :=
-{
-  pObl : projectionC G r T;
-  pObl1: forall p q xs ys t, 
-                G = (gtt_send p q xs) -> 
-                p <> q ->
-                q <> r ->
-                p <> r ->
-                Forall2 (fun (u : option (sort * gtt)) (v : option ltt) => u = None /\ v = None \/ (exists (s : sort) (g : gtt) (t : ltt), u = Some (s, g) /\ v = Some t /\ upaco3 projection bot3 g p t)) xs ys ->
-                isMerge t ys ->
-                (projectionC (gtt_send p q xs) r t -> False)
-}.
-
-Lemma propA20 [G r T]: nonVacP G r T -> exists G', nonVacQ G' r T.
-Proof. intros.
-       destruct H as (P, Hp1, Hp2, Hp3).
-       pinversion P. admit. admit. admit.
-       assert((isgPartsC r G -> False) \/ isgPartsC r G) by admit.
-Admitted.
-
 Lemma proj_inj_p [G p T T' ctxG q Gl] :  
   Forall
        (fun u : option gtt =>
