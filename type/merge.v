@@ -25,6 +25,14 @@ Inductive isMerge : ltt -> list (option ltt) -> Prop :=
   | mconsn : forall t xs, isMerge t xs -> isMerge t (None :: xs) 
   | mconss : forall t t' t'' xs, isMerge t xs -> merge2 t t' t'' -> isMerge t'' (Some t' :: xs). 
 
+
+Lemma onthNil: forall {A: Type} n, @onth A n nil = None.
+Proof. intros A n.
+       induction n; intros.
+       - simpl. easy.
+       - simpl. easy.
+Qed.
+
 Lemma merge2I_fst: forall l T p xs ys zs,
   merge2 (ltt_recv p xs) (ltt_recv p ys) (ltt_recv p zs) ->
   onth l zs = Some T ->
@@ -379,19 +387,56 @@ Proof. intros.
        easy. easy.
 Qed.
 
-
 Lemma merge_label_recv_s : forall Mp LQ' LQ0' T k l p,
           isMerge (ltt_recv p LQ') Mp ->
           onth k Mp = Some (ltt_recv p LQ0') ->
           onth l LQ0' = Some T ->
           onth l LQ' = Some T.
-Admitted.
+Proof. intro Mp.
+       induction Mp; intros.
+       - destruct k; try easy.
+       - inversion H. subst. case_eq k; intros. 
+         subst. simpl in H0. inversion H0. subst. easy.
+         subst. simpl in H0. rewrite onthNil in H0. easy.
+         subst. case_eq k; intros. subst. simpl in H0. easy.
+         subst. simpl in H0. 
+         specialize(IHMp LQ' LQ0' T n l p). apply IHMp; easy.
+         subst.
+         inversion H6. subst.
+         case_eq k; intros. subst. simpl in H0. inversion H0. subst. easy.
+         subst. simpl in H0.  
+         specialize(IHMp LQ' LQ0' T n l p). apply IHMp; easy.
+         subst. inversion H. subst. 
+         case_eq k; intros. subst. simpl in H0. inversion H0. subst. easy.
+         subst. simpl in H0. rewrite onthNil in H0. easy.
+         subst.
+         case_eq k; intros. subst. simpl in H0. inversion H0. subst.
+         inversion H9. subst. easy. subst.
+         specialize(merge2_snd l T p xs0 LQ0' LQ' H9 H1); intro HF. easy.
+         subst. simpl in H0.
+         specialize(IHMp xs LQ0' T n l p H5 H0 H1).
+         specialize(merge2_fst l T p xs ys LQ' H6 IHMp); intro HF. easy.
+Qed.
 
 Lemma merge_label_send_s : forall Mq LP' LP0' T k l q,
           isMerge (ltt_send q LP') Mq ->
           onth k Mq = Some (ltt_send q LP0') ->
           onth l LP0' = Some T ->
-          onth l LP' = Some T. 
-Admitted.
+          onth l LP' = Some T.
+Proof. intro Mq.
+       induction Mq; intros.
+       - destruct k; try easy. 
+       - inversion H. subst. case_eq k; intros. subst. simpl in H0. inversion H0. subst.
+         easy.
+         subst. simpl in H0. destruct n; try easy. 
+         subst. case_eq k; intros.
+         + subst. simpl in H0. easy. subst. simpl in H0.
+           specialize(IHMq LP' LP0' T n l q). apply IHMq; try easy.
+           subst. inversion H6. case_eq k; intros. subst. simpl in H0. inversion H0. subst.
+           inversion H6. subst. easy.
+           subst. simpl in H0.
+           apply IHMq with (LP0' := LP0') (T := T) (k := n) (q := q); easy.
+Qed.
+
 
  
