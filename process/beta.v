@@ -59,7 +59,7 @@ Proof.
   intro n. induction n; intros; try easy.
   - destruct Gsl; try easy.
   - destruct Gsl; try easy. apply IHn with (S := S); try easy.
-  apply PeanoNat.lt_S_n; try easy.
+  apply lt_S_n; try easy.
 Qed.
 
 Lemma onth_smore {X} : forall n (Gsl Gsr : list (option X)) x0 o S,
@@ -103,7 +103,7 @@ Proof.
         destruct H5. specialize(H5 H4). clear H4 H6.
         constructor.
         apply eq_sym. apply onth_sless with (S := S); try easy.
-        apply PeanoNat.lt_S_n. easy.
+        apply lt_S_n. easy.
       - specialize(Nat.ltb_ge(Datatypes.S n) (Datatypes.S (length Gsl))); intros.
         destruct H5. specialize(H5 H4). clear H4 H6.
         constructor.
