@@ -51,7 +51,6 @@ Section global_ind_ref.
   Qed.
 End global_ind_ref.
 
-
 Fixpoint incr_freeG (fv m : fin) (G : global) := 
   match G with 
     | g_var n        => g_var (if fv <= n then (n + m) else n)
@@ -315,7 +314,10 @@ Proof.
     inversion H0. easy.
 Qed.
   
-Lemma guard_breakG : forall x, (forall n, exists m, guardG n m (g_rec x)) -> exists T, multiS betaG (g_rec x) T /\  (forall n, exists m, guardG n m T) /\ (T = g_end \/ (exists p q lis, T = g_send p q lis)).
+Lemma guard_breakG : forall x, 
+ (forall n, exists m, guardG n m (g_rec x)) -> 
+  exists T, multiS betaG (g_rec x) T /\  
+    (forall n, exists m, guardG n m T) /\ (T = g_end \/ (exists p q lis, T = g_send p q lis)).
 Proof.
   intros.
   pose proof H as H1.
@@ -358,7 +360,6 @@ Proof.
     subst. exists m.
     specialize(subst_injG 0 0 (g_rec G) G y Q H4 H2); intros. subst. easy.
 Qed.
-
 
 End gtt.
 

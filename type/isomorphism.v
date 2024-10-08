@@ -95,6 +95,7 @@ Section typ_gtth_ind_ref.
 
 End typ_gtth_ind_ref.
 
+
 Definition balancedG (G : gtt) := forall G w w' p q gn,
   gttmap G w None gn -> gttmap G (w ++ w') None (gnode_pq p q) -> 
   (exists k, forall w', gttmap G (w ++ w') None (gnode_end) \/ 

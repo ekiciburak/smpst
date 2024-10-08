@@ -34,16 +34,11 @@ Variant projection (R: gtt -> part -> ltt -> Prop): gtt -> part -> ltt -> Prop :
                p <> q ->
                q <> r ->
                p <> r ->
-               List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g t, u = Some(s, g) /\ v = Some t /\ R g r t)) xs ys ->
+               List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g l, u = Some(s, g) /\ v = Some l /\ R g r l)) xs ys ->
                isMerge t ys ->
                projection R (gtt_send p q xs) r t.
 
 Definition projectionC g r t := paco3 projection bot3 g r t.
-
-(* Definition lttIso' := forall r, { L: ltt & { L': ltt | exists G, projectionC G r L /\ projectionC G r L'}}. *)
-
-(* Definition lttIso': ltt -> ltt -> Prop := forall r L L', exists G, projectionC G r L /\ projectionC G r L'. *)
-
 
 Lemma proj_mon: monotone3 projection.
 Proof. unfold monotone3.
@@ -151,6 +146,218 @@ Proof.
       constructor.
     apply gttT_mon.
     apply gttT_mon.
+Qed.
+
+Definition nonVac4 (G: gtt) (r: part) (T: ltt) :=
+  { _ : projectionC G r T | 
+    exists p q xs ys,
+      G = (gtt_send p q xs) /\
+      p <> q /\
+      q <> r /\
+      p <> r /\
+      (List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g l, u = Some(s, g) /\ v = Some l /\ projectionC g r l)) xs ys) /\
+      isMerge T ys
+  }.
+
+Definition nonVac1 (G: gtt) (r: part) (T: ltt) :=
+{ _ : projectionC G r T | 
+    G = (gtt_end) /\
+    (isgPartsC r G -> False) /\
+    T = ltt_end
+}.
+
+Definition nonVac2 (G: gtt) (r: part) (T: ltt) :=
+  { _ : projectionC G r T | 
+    exists p xs ys,
+      G = (gtt_send p r xs) /\
+      p <> r /\
+      (List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g t, u = Some(s, g) /\ v = Some (s,t) /\ projectionC g r t)) xs ys) /\
+      T = (ltt_recv p ys)
+  }.
+
+Definition nonVac3 (G: gtt) (r: part) (T: ltt) :=
+  { _ : projectionC G r T | 
+    exists p xs ys,
+      G = (gtt_send r p xs) /\
+      p <> r /\
+      (List.Forall2 (fun u v => (u = None /\ v = None) \/ (exists s g t, u = Some(s, g) /\ v = Some (s, t) /\ projectionC g r t)) xs ys) /\
+      T = (ltt_send p ys)
+  }.
+
+Lemma unf_ph: forall l p q r s g,
+  p <> r -> q <> r ->
+  isgParts r (g_send p q (Some (s, g) :: l)) <->
+  isgParts r g \/ (exists n s' g', onth n l = Some (s', g') /\ isgParts r g').
+Proof. split. intros.
+       inversion H1. subst. easy. subst. easy.
+       subst.
+       case_eq n; intros. subst. simpl in H8. inversion H8. subst.
+       left. easy.
+       subst. simpl in H8.
+       right. exists n0. exists s0. exists g0.
+       split. easy. easy.
+       intros.
+       destruct H1.
+       specialize(pa_sendr p q r 0 s g (Some (s, g) :: l) H H0); intro HH.
+       apply HH. simpl. easy. easy.
+       destruct H1 as (n,(s1,(g1,(Hg1,Hg2)))).
+       specialize(pa_sendr p q r (S n) s1 g1 (Some (s, g) :: l) H H0); intro HH.
+       simpl in HH. apply HH; easy.
+Qed.
+
+Lemma unf_phA: forall l p q r s g,
+  p <> r -> q <> r ->
+  isgParts r (g_send p q (Some (s, g) :: l)) <->
+  isgParts r g \/ isgParts r (g_send p q l).
+Proof. split. intros.
+       inversion H1. subst. easy. subst. easy.
+       subst.
+       case_eq n; intros. subst. simpl in H8. inversion H8. subst.
+       left. easy.
+       subst. simpl in H8.
+       right.
+       specialize(pa_sendr p q r n0 s0 g0 l H5 H7 H8 H9); intro HH. easy.
+       intros.
+       destruct H1.
+       specialize(pa_sendr p q r 0 s g (Some (s, g) :: l) H H0); intro HH.
+       apply HH. simpl. easy. easy.
+       inversion H1. constructor. constructor. subst.
+       specialize(pa_sendr p q r (S n) s0 g0  (Some (s, g) :: l) H5 H7); intro HH.
+       simpl in HH. apply HH; easy.
+Qed.
+
+Lemma unf_ph2: forall ys p q r ,
+  isgParts r (g_send p q (None :: ys)) <->
+  isgParts r (g_send p q ys).
+Proof. split. intros.
+       inversion H. constructor. constructor.
+       subst.
+       case_eq n; intros. subst. simpl in H6. easy.
+       subst. simpl in H6.  
+       specialize(pa_sendr p q r n0 s g ys H3 H5); intro HH.
+       apply HH; easy.
+       intros.
+       inversion H. constructor. constructor. subst.
+       specialize(pa_sendr p q r (S n) s g (None::ys) H3 H5); intro HH.
+       apply HH; easy.
+Qed.
+
+Lemma subst_none: forall l ys p q t m g1,
+  subst_global t m g1 (g_send p q (None :: l)) (g_send p q (None :: ys)) ->
+  subst_global t m g1 (g_send p q l) (g_send p q ys).
+Proof. intros.
+       inversion H. subst.
+       inversion H4.
+       subst.
+       constructor. easy. 
+Qed.
+
+Lemma subst_some: forall l ys p q t m g1 g2 g3 s,
+  subst_global t m g1 (g_send p q (Some (s, g2) :: l)) (g_send p q (Some (s, g3) :: ys)) ->
+  subst_global t m g1 (g_send p q l) (g_send p q ys).
+Proof. intros.
+       inversion H. subst.
+       inversion H4.
+       subst.
+       constructor. easy. 
+Qed.
+
+Lemma onth_in: forall {A: Type} n (l: list (option A)) a,
+  onth n l = Some a ->
+  In (Some a) l.
+Proof. intros A n.
+       induction n; intros.
+       - case_eq l; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. simpl. left. easy.
+       - case_eq l; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. simpl.
+           right. apply IHn. easy.
+Qed.
+
+Lemma subst_preserve_part: forall G g1 g2 r t m,
+  isgParts r G ->
+  subst_global t m g1 G g2 ->
+  isgParts r g2.
+Proof. intro G.
+       induction G using global_ind_ref; intros; try easy.
+       - rewrite Forall_forall in H.
+         inversion H1; subst; try easy.
+         revert H1 H9 H H0.
+         revert p q r lis.
+         induction ys; intros.
+         - inversion H1. subst.
+           inversion H6. subst. easy.
+         - inversion H9. subst.
+           destruct H5 as [(H5a, H5b) | H5].
+           subst.
+           apply unf_ph2.
+           apply IHys with (lis := l).
+           apply subst_none in H1. easy.
+           easy.
+           intros. specialize(H x).
+           assert(In x (None :: l)). simpl. right. easy.
+           specialize(H H3). destruct H. left. easy.
+           right. easy.
+           apply -> unf_ph2 in H0. easy.
+           destruct H5 as (s1,(g2,(g3,(Hg1,(Hg2,Hg3))))).
+           subst.
+           inversion H0. constructor. constructor.
+           subst.
+           pose proof H as HHH.
+           specialize(H (Some(s,g))).
+           assert(In (Some (s, g)) (Some (s1, g2) :: l)).
+           { apply onth_in in H10. easy. }
+           specialize(H H2).
+           destruct H. easy.
+           destruct H as (s2,(g4,(Hg4,Hg5))).
+           inversion Hg4. subst.
+           case_eq n; intros. subst. simpl in H10.
+           inversion H10. subst.
+           apply unf_phA. easy. easy.
+           apply -> unf_phA in H0.
+           destruct H0. left.
+           apply Hg5 with (g1 := g1) (t := t) (m := m). easy. easy.
+           right. 
+           apply IHys with (lis := l).
+           apply subst_some in H1. easy. easy.
+           intros. 
+           specialize(HHH x).
+           assert(In x (Some (s2, g4) :: l)). simpl. right. easy.
+           specialize(HHH H3).
+           destruct HHH. subst. left. easy.
+           right.
+           destruct H4 as (s1,(g2,(Hg1,Hg2))).
+           exists s1. exists g2. split. easy. easy.
+           easy. easy. easy.
+           subst. simpl in H10.
+           specialize(pa_sendr p q r (S n0) s2 g4 (Some (s1, g3)::l) H5 H8); intro HH.
+           simpl in HH.
+           specialize(HH H10 H11).
+
+           apply unf_phA. easy. easy.
+           apply -> unf_phA in HH.
+           destruct HH. left. easy.
+           right. 
+           apply IHys with (lis := l).
+           apply subst_some in H1. easy. easy.
+           
+           intros. 
+           specialize(HHH x).
+           assert(In x (Some (s1, g2) :: l)). simpl. right. easy.
+           specialize(HHH H4).
+           destruct HHH. subst. left. easy.
+           right.
+           destruct H7 as (s3,(g5,(Hg1,Hg2))).
+           exists s3. exists g5. split. easy. easy.
+           easy. easy. easy.
+
+           inversion H.
+           subst.
+           inversion H0. subst.
+           constructor.
+           apply IHG with (g1 := g1) (t := S t) (m := S m). easy. easy.
 Qed.
 
 Lemma proj_inj_p [G p T T' ctxG q Gl] :  
