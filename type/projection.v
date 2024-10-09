@@ -13,6 +13,14 @@ Inductive isgParts : part -> global -> Prop :=
 Definition isgPartsC (pt : part) (G : gtt) : Prop := 
     exists G', gttTC G' G /\ isgParts pt G'.
 
+Inductive isgPartsG (R: part -> gtt -> Prop): part -> gtt -> Prop := 
+  | g_sendp : forall p q l, isgPartsG R p (gtt_send p q l)
+  | g_sendq : forall p q l, isgPartsG R q (gtt_send p q l)
+  | g_sendr : forall p q r lis, p <> r -> q <> r -> 
+              Exists (fun u => (u = None) \/ (exists s g, u = Some(s, g) /\ R r g)) lis -> isgPartsG R r (gtt_send p q lis).
+
+Definition isgPartsGC r G := paco2 isgPartsG bot2 r G.
+
 Inductive ishParts : part -> gtth -> Prop := 
   | ha_sendp : forall p q l, ishParts p (gtth_send p q l)
   | ha_sendq : forall p q l, ishParts q (gtth_send p q l)
@@ -71,20 +79,47 @@ Admitted.
 
 Lemma gttTC_after_subst : forall G G' G1,
     multiS betaG G G' -> 
-    gttTC G G1 ->
+    gttTC G G1 <->
     gttTC G' G1.
-Proof.
-  intros. revert H0. revert G1. induction H; intros.
-  - inversion H. subst.
-    pinversion H0. subst.
-    specialize(subst_injG 0 0 (g_rec G) G y Q H3 H1); intros. subst.
-    easy.
-    apply gttT_mon.
-  - apply IHmultiS. inversion H. subst.
-    pinversion H1. subst.
-    specialize(subst_injG 0 0 (g_rec G) G y Q H4 H2); intros. subst.
-    easy.
-    apply gttT_mon.
+Proof. split.
+       intros. revert H0. revert G1. induction H; intros.
+       - inversion H. subst.
+         pinversion H0. subst.
+         specialize(subst_injG 0 0 (g_rec G) G y Q H3 H1); intros. subst.
+     (*     pfold. *)
+         easy.
+         apply gttT_mon.
+       - apply IHmultiS. inversion H. subst.
+         pinversion H1. subst.
+         specialize(subst_injG 0 0 (g_rec G) G y Q H4 H2); intros. subst.
+     (*     pfold. *)
+         easy.
+         apply gttT_mon.
+         intros.
+         revert H0. revert G1. induction H; intros.
+       - inversion H. subst.
+         pinversion H0. subst.
+         pfold.
+         apply gttT_rec with (Q := g_end). easy.
+         left. pfold. easy.
+         subst.
+         inversion H. subst.
+         pfold.
+         apply gttT_rec with (Q := (g_send p q xs)). easy.
+         left. pfold. easy.
+         subst.
+         pfold.
+         apply gttT_rec with (Q := (g_rec G0)). easy.
+         left. pfold. easy.
+         apply gttT_mon.
+
+         inversion H.
+         subst.
+         pfold.
+         apply gttT_rec with (Q := y). easy.
+         left.
+         apply IHmultiS.
+         easy.
 Qed.
 
 Lemma triv_pt_p : forall p q x0,
@@ -359,6 +394,140 @@ Proof. intro G.
            constructor.
            apply IHG with (g1 := g1) (t := S t) (m := S m). easy. easy.
 Qed.
+
+
+Lemma multi_preserve_part: forall G g2 r,
+  isgParts r G ->
+  multiS betaG G g2 ->
+  isgParts r g2.
+Proof. intros.
+       revert H. revert r. 
+       induction H0; intros.
+       - inversion H. subst.
+         apply subst_preserve_part with (G := G) (g1 := (g_rec G)) (t := 0) (m := 0).
+         inversion H0. subst. easy.
+         easy.
+       - inversion H. subst.
+         apply IHmultiS.
+         apply subst_preserve_part with (G := G) (g1 := (g_rec G)) (t := 0) (m := 0).
+         inversion H1. subst. easy.
+         easy.
+Qed.
+
+Derive Inversion gtt_inv with (forall G Q G', gttT G Q G') Sort Prop.
+
+Lemma unfold_grec: forall (r: global -> gtt -> Prop) g q G,
+  (forall g' q' G', multiS betaG g' q' -> r g' G' -> paco2 gttT r q' G') ->
+  multiS betaG g q ->
+  paco2 gttT r g G <-> paco2 gttT r q G.
+Proof. split. intros.
+       induction H0; intros.
+       - pinversion H1. subst.
+         inversion H0.
+         subst. 
+         inversion H0.
+         subst. inversion H0. subst.
+         unfold upaco2 in H3. destruct H3.
+         admit.
+
+         apply H with (g' := y). constructor. admit. admit.
+         admit.
+         
+       - pinversion H1. subst. inversion H0.
+         subst. inversion H0.
+         subst.
+         unfold upaco2 in H4. destruct H4.
+         inversion H0. subst. apply IHmultiS. admit.
+         apply IHmultiS. 
+         inversion H0. subst.
+         apply H with (g' := y). admit. admit.
+         admit.
+         
+       intros.
+       induction H0; intros.
+       - pinversion H1. subst.
+         inversion H0.
+         subst. inversion H2.
+         subst. 
+         pfold.
+         apply gttT_rec with (Q := g_end). constructor.
+         left. pfold. constructor.
+         subst.
+         inversion H0. subst. pfold.
+         apply gttT_rec with (Q := (g_send p q xs)). easy.
+         left. pfold. easy.
+         subst.
+         unfold upaco2 in H3. destruct H3.
+         inversion H0. subst.
+         pfold. apply gttT_rec with (Q := (g_rec G0)). easy.
+         left. pfold. easy.
+         inversion H0. subst.
+         pfold. apply gttT_rec with (Q := (g_rec G0)). easy.
+         left. pfold. easy.
+         admit.
+
+       - pose proof IHmultiS as HH.
+         specialize(HH H1).
+         pinversion HH. subst.
+         inversion H0. subst.
+         pfold. apply gttT_rec with (Q := g_end). easy.
+         left. pfold. constructor.
+         
+         subst. inversion H0. subst.
+         pfold.
+         apply gttT_rec with (Q := (g_send p q xs)). easy.
+         left. pfold. easy.
+         subst.
+
+         unfold upaco2 in H4. destruct H4.
+         inversion H0. subst.
+         pfold. 
+         apply gttT_rec with (Q := (g_rec G0)). easy.
+         left. apply IHmultiS. easy.
+         
+         inversion H0. subst.
+         pfold. apply gttT_rec with (Q := (g_rec G0)). easy.
+         left. pfold. easy.
+         admit.
+Admitted.
+
+(* same as gttTC_after_subst *)
+Lemma unfold_grec_lift: forall g q G,
+  multiS betaG g q ->
+  gttTC g G <-> gttTC q G.
+Proof. intros. apply unfold_grec. easy.
+       easy.
+Qed.
+
+Lemma send_inv: forall Q, 
+  gttT (upaco2 gttT bot2) Q gtt_end ->
+  (forall p q xs, Q = g_send p q xs -> False).
+Proof. intro Q.
+       induction Q using global_ind_ref; intros; try easy.
+Qed.
+
+Lemma send_inv2: forall Q,
+  gttT (upaco2 gttT bot2) Q gtt_end ->
+  (forall p q xs, subst_global 0 0 (g_rec Q) Q (g_send p q xs) (* multiS betaG Q (g_send p q xs) *) -> False).
+Proof. intro Q.
+       induction Q using global_ind_ref; intros; try easy.
+Qed.
+
+Lemma subst_end_inv: forall g g' m n, 
+  subst_global m n g g' g_end <->
+  (g' = g_var m /\ g = g_end) \/ (g' = g_end).
+Proof. split. 
+       induction g using global_ind_ref; intros; try easy.
+       - inversion H. subst. right. easy.
+       - inversion H. subst. left. easy.
+       - subst. right. easy.
+       - inversion H0. subst. right. easy.
+       - inversion H. subst. right. easy.
+       intros. destruct H as [(Ha,Hb) | H].
+       subst. constructor. subst.
+       constructor. 
+Qed.
+
 
 Lemma proj_inj_p [G p T T' ctxG q Gl] :  
   Forall

@@ -75,7 +75,6 @@ Inductive subst_global : fin -> fin -> global -> global -> global -> Prop :=
                                                   ) xs ys -> subst_global t m G (g_send p q xs) (g_send p q ys)
   | subg_rec      : forall G t m P Q, subst_global (S t) (S m) G P Q -> subst_global t m G (g_rec P) (g_rec Q). 
 
-
 Inductive betaG : relation global := 
   | lttS : forall G G', subst_global 0 0 (g_rec G) G G' -> betaG (g_rec G) G'.
 
