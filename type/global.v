@@ -84,7 +84,7 @@ Inductive gttT (R : global -> gtt -> Prop) : global -> gtt -> Prop :=
   | gttT_rec  : forall G Q G', subst_global 0 0 (g_rec G) G Q -> R Q G' -> gttT R (g_rec G) G'.
 
 Definition gttTC G G' := paco2 gttT bot2 G G'.
-
+ 
 Inductive wfG : global -> Prop := 
   | wfg_var : forall n, wfG (g_var n)
   | wfg_end : wfG g_end
@@ -96,6 +96,8 @@ Inductive guardG : fin -> fin -> global -> Prop :=
   | gg_end : forall n m, guardG n m g_end
   | gg_send : forall n m p q lis, List.Forall (fun u => u = None \/ (exists s g, u = Some(s, g) /\ guardG n m g)) lis -> guardG (S n) m (g_send p q lis)
   | gg_rec : forall n m g Q, subst_global 0 0 (g_rec g) g Q -> guardG n m Q -> guardG n (S m) (g_rec g).
+
+Parameter closedG: fin -> fin -> global -> Prop.
 
 Lemma gttT_mon : monotone2 gttT.
 Admitted.

@@ -16,8 +16,7 @@ Definition isgPartsC (pt : part) (G : gtt) : Prop :=
 Inductive isgPartsG (R: part -> gtt -> Prop): part -> gtt -> Prop := 
   | g_sendp : forall p q l, isgPartsG R p (gtt_send p q l)
   | g_sendq : forall p q l, isgPartsG R q (gtt_send p q l)
-  | g_sendr : forall p q r lis, p <> r -> q <> r -> 
-              Exists (fun u => (u = None) \/ (exists s g, u = Some(s, g) /\ R r g)) lis -> isgPartsG R r (gtt_send p q lis).
+  | g_sendr : forall p q r n s g lis, p <> r -> q <> r -> onth n lis = Some (s, g) -> isgPartsG R r g -> isgPartsG R r (gtt_send p q lis).
 
 Definition isgPartsGC r G := paco2 isgPartsG bot2 r G.
 
@@ -53,7 +52,42 @@ Proof. unfold monotone3.
        intros.
        induction IN; intros.
        - constructor. easy.
-       - try easy.
+       - constructor. easy. 
+         revert ys H0.
+         induction xs; intros.
+         + subst. inversion H0. constructor.
+         + subst. inversion H0. constructor.
+           destruct H3 as [(H3a, H3b) | (s,(g,(t,(Ht1,(Ht2,Ht3)))))].
+           subst. left. easy.
+           subst. right. exists s. exists g. exists t.
+           split. easy. split. easy. apply LE. easy.
+           apply IHxs. easy.
+       - constructor. easy.
+         revert ys H0.
+         induction xs; intros.
+         + subst. inversion H0. constructor.
+         + subst. inversion H0. constructor.
+           destruct H3 as [(H3a, H3b) | (s,(g,(t,(Ht1,(Ht2,Ht3)))))].
+           subst. left. easy.
+           subst. right. exists s. exists g. exists t.
+           split. easy. split. easy. apply LE. easy.
+           apply IHxs. easy.
+       - apply proj_cont with (ys := ys); try easy.
+         revert ys H2 H3.
+         induction xs; intros.
+         + subst. inversion H2. constructor.
+         + subst. inversion H2. constructor.
+           destruct H6 as [(H6a, H6b) | (s,(g,(t2,(Ht1,(Ht2,Ht3)))))].
+           subst. left. easy.
+           subst. right. exists s. exists g. exists t2.
+           split. easy. split. easy. apply LE. easy.
+           subst.
+           apply IHxs. easy.
+           subst.
+           destruct H6 as [(H6a, H6b) | (s,(g,(t2,(Ht1,(Ht2,Ht3)))))].
+           subst. inversion H3. easy.
+           subst.
+           admit.
 Admitted.
 
 Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> part -> part -> nat -> Prop :=
@@ -75,7 +109,30 @@ Variant gttstep (R: gtt -> gtt -> part -> part -> nat -> Prop): gtt -> gtt -> pa
 Definition gttstepC g1 g2 p q n := paco5 gttstep bot5 g1 g2 p q n. 
 
 Lemma step_mon : monotone5 gttstep.
-Admitted.
+Proof. unfold monotone5.
+       intros.
+       induction IN; intros.
+       - apply steq with (s := s). easy. easy.
+       - constructor; try easy. 
+         revert ys H6.
+         induction xs; intros.
+         + subst. inversion H6. constructor.
+         + subst. inversion H6. constructor.
+           subst.
+           destruct H9 as [(H9a, H9b) | (s1,(g,(t,(Ht1,(Ht2,Ht3)))))].
+           subst. left. easy.
+           subst. right. exists s1. exists g. exists t.
+           split. easy. split. easy. apply LE. easy.
+           apply IHxs.
+           rewrite Forall_forall.
+           intros u Hu.
+           subst. rewrite Forall_forall in H5.
+           specialize(H5 u).
+           assert(In u (a :: xs)) by (simpl; right; easy).
+           apply H5 in H7.
+           easy.
+           easy.
+Qed.
 
 Lemma gttTC_after_subst : forall G G' G1,
     multiS betaG G G' -> 
@@ -395,7 +452,6 @@ Proof. intro G.
            apply IHG with (g1 := g1) (t := S t) (m := S m). easy. easy.
 Qed.
 
-
 Lemma multi_preserve_part: forall G g2 r,
   isgParts r G ->
   multiS betaG G g2 ->
@@ -528,6 +584,48 @@ Proof. split.
        constructor. 
 Qed.
 
+Lemma subst_multi: forall g,
+  closedG 0 0 g ->
+  subst_global 0 0 (g_rec g) g g.
+Proof. Admitted.
+
+Lemma unroll_guarded g Q:
+  closedG 0 0 g ->
+  guardG 0 0 g ->
+  multiS betaG g Q ->
+  forall g', Q <> g_rec g'.
+Admitted.
+
+Lemma multi_preserve_part_rev: forall y G r,
+  isgParts r y ->
+  multiS betaG G y ->
+  isgParts r G.
+Proof. Admitted.
+
+Lemma part_send_inv: forall g p q r xs,
+  gttTC g (gtt_send p q xs) ->
+  r = p \/ r = q ->
+  isgParts r g.
+Proof. induction g; intros; try easy.
+       - pinversion H. apply gttT_mon.
+       - pinversion H. apply gttT_mon.
+       - pinversion H. subst.
+         destruct H0 as [H0 | H0].
+         + subst. constructor. 
+         + subst. constructor.
+           apply gttT_mon.
+       - pinversion H. subst.
+         constructor.
+         apply IHg with (p := p) (q := q) (xs := xs).
+
+         specialize(gttTC_after_subst g Q (gtt_send p q xs)); intro HH.
+         apply HH. constructor. 
+         admit.
+         pfold. punfold H3. 
+         apply gttT_mon.
+         easy.
+         apply gttT_mon.
+Admitted.
 
 Lemma proj_inj_p [G p T T' ctxG q Gl] :  
   Forall

@@ -36,7 +36,7 @@ Qed.
 Lemma merge2I_fst: forall l T p xs ys zs,
   merge2 (ltt_recv p xs) (ltt_recv p ys) (ltt_recv p zs) ->
   onth l zs = Some T ->
-  onth l xs = Some T \/  onth l xs = None.
+  onth l xs = Some T \/ onth l xs = None.
 Proof. intro l.
        induction l; intros.
        - inversion H. subst. left. easy.
