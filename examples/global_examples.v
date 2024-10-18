@@ -84,9 +84,162 @@ Proof.
   easy.
 Qed.
 
-Lemma ispartsend: forall p, isgPartsC p gtt_end -> False.
+Lemma some_onth_implies_In: forall {A B: Type} n (lis: list (option (A*B))) a,
+  onth n lis = Some a ->
+  In (Some a) lis.
+Proof. intros A B n lis.
+       revert n.
+       induction lis; intros.
+       - case_eq n; intros.
+         + subst. simpl in H. easy.
+         + subst. simpl in H. easy.
+       - simpl.
+         case_eq n; intros.
+         + subst. simpl in H. left. easy.
+         + subst. simpl in H. right.
+           apply IHlis with (n := n0). easy.
+Qed.
+
+Lemma isgParts_depth_exists : forall r Gl,
+    isgParts r Gl -> exists n, isgParts_depth n r Gl.
 Proof.
-  intros. inversion H. destruct H0. inversion H1. Admitted.
+  induction Gl using global_ind_ref; intros; try easy.
+  inversion H0.
+  - subst. exists 0. constructor.
+  - subst. exists 0. constructor.
+  - subst.
+    specialize(some_onth_implies_In n lis (s, g) H7); intros.
+    specialize(Forall_forall (fun u : option (sort * global) =>
+       u = None \/
+       (exists (s : sort) (g : global),
+          u = Some (s, g) /\
+          (isgParts r g -> exists n : fin, isgParts_depth n r g))) lis); intros.
+    destruct H2. specialize(H2 H). clear H H3.
+    specialize(H2 (Some (s, g)) H1).
+    destruct H2; try easy. destruct H. destruct H. destruct H. inversion H. subst. clear H.
+    specialize(H2 H8). destruct H2.
+    exists (S x1). apply dpth_c with (s := x) (g := x0) (k := n); try easy.
+  - inversion H. subst. specialize(IHGl H2). destruct IHGl. exists (S x). constructor. easy.
+Qed.
+
+Lemma isgParts_depth_back : forall G n r,
+      isgParts_depth n r G -> isgParts r G.
+Proof.
+  induction G using global_ind_ref; intros; try easy.
+  inversion H0.
+  - subst. constructor.
+  - subst. constructor.
+  - subst.
+    specialize(some_onth_implies_In k lis (s, g) H8); intros.
+    specialize(Forall_forall (fun u : option (sort * global) =>
+       u = None \/
+       (exists (s : sort) (g : global),
+          u = Some (s, g) /\
+          (forall (n : fin) (r : string),
+           isgParts_depth n r g -> isgParts r g))) lis); intros.
+    destruct H2. specialize(H2 H). clear H H3.
+    specialize(H2 (Some (s, g)) H1). destruct H2; try easy. destruct H. destruct H. destruct H.
+    inversion H. subst.
+    specialize(H2 n0 r H9).
+    apply pa_sendr with (n := k) (s := x) (g := x0); try easy.
+  inversion H. subst.
+  - specialize(IHG n0 r H3). constructor. easy.
+Qed.
+
+Lemma subst_parts_helper : forall k0 xs s g0 r n0 lis m n g,
+      onth k0 xs = Some (s, g0) ->
+      isgParts_depth n0 r g0 ->
+      Forall2
+       (fun u v : option (sort * global) =>
+        u = None /\ v = None \/
+        (exists (s : sort) (g0 g' : global),
+           u = Some (s, g0) /\ v = Some (s, g') /\ subst_global m n (g_rec g) g0 g')) xs lis ->
+      Forall
+      (fun u : option (sort * global) =>
+       u = None \/
+       (exists (s : sort) (g : global),
+          u = Some (s, g) /\
+          (forall (m n k : fin) (r : string) (g0 g' : global),
+           isgParts_depth k r g' -> subst_global m n (g_rec g0) g' g -> isgParts_depth k r g))) lis ->
+      exists g', onth k0 lis = Some (s, g') /\ isgParts_depth n0 r g'.
+Proof.
+  induction k0; intros; try easy.
+  - destruct xs; try easy.
+    simpl in H. subst. destruct lis; try easy. inversion H1. subst. clear H1. inversion H2. subst. clear H2.
+    clear H4 H7. destruct H5; try easy. destruct H. destruct H. destruct H. destruct H.
+    destruct H1. inversion H. subst.
+    destruct H3; try easy. destruct H1. destruct H1. destruct H1. inversion H1. subst.
+    specialize(H3 m n n0 r g x0 H0 H2).
+    exists x3. split; try easy.
+  - destruct xs; try easy. destruct lis; try easy. inversion H1. subst. clear H1. inversion H2. subst. clear H2.
+    specialize(IHk0 xs s g0 r n0 lis m n g). apply IHk0; try easy.
+Qed.
+
+Lemma subst_parts_depth : forall m n k r g g' Q,
+      subst_global m n (g_rec g) g' Q ->
+      isgParts_depth k r g' ->
+      isgParts_depth k r Q.
+Proof.
+  intros. revert H0 H. revert m n k r g g'.
+  induction Q using global_ind_ref; intros; try easy.
+  inversion H.
+  - subst. inversion H0; try easy.
+  - subst. inversion H0; try easy.
+  - subst. inversion H0; try easy.
+  - inversion H. subst. inversion H0.
+  - inversion H1. subst.
+    inversion H0.
+    - subst. constructor.
+    - subst. constructor.
+    - subst.
+      specialize(subst_parts_helper k0 xs s g0 r n0 lis m n g H10 H11 H7 H); intros.
+      destruct H2. destruct H2.
+      apply dpth_c with (n := n0) (s := s) (g := x) (k := k0); try easy.
+  - inversion H. subst. inversion H0.
+  - subst. inversion H0. subst.
+    constructor. specialize(IHQ m.+1 n.+1 n0 r g P). apply IHQ; try easy.
+Qed.
+
+Lemma part_break_s : forall G pt,
+    isgPartsC pt G ->
+    exists Gl, gttTC Gl G /\ isgParts pt Gl /\ (Gl = g_end \/ exists p q lis, Gl = g_send p q lis).
+Proof.
+  intros. pose proof H as H0.
+  unfold isgPartsC in H0. destruct H0. destruct H0.
+  rename x into Gl.
+  specialize(isgParts_depth_exists pt Gl H1); intros. destruct H2. rename x into n.
+
+  clear H.
+  clear H1.
+  revert H2 H0. revert G pt Gl.
+  induction n; intros; try easy.
+  - inversion H2. subst.
+    exists (g_send pt q lis). split. easy. split. constructor. right. exists pt. exists q. exists lis. easy.
+  - subst.
+    exists (g_send p pt lis). split. easy. split. constructor. right. exists p. exists pt. exists lis. easy.
+  - inversion H2. subst.
+    pinversion H0. subst.
+    specialize(subst_parts_depth 0 0 n pt g g Q H3 H1); intros.
+    apply IHn with (Gl := Q); try easy.
+    apply gttT_mon.
+  - subst.
+    exists (g_send p q lis). split. easy.
+    split.
+    apply pa_sendr with (n := k) (s := s) (g := g); try easy.
+    apply isgParts_depth_back with (n := n); try easy.
+    right. exists p. exists q. exists lis. easy.
+Qed.
+
+Lemma ispartsend: forall p,
+  isgPartsC p (gtt_end) -> False.
+Proof. intros.
+       specialize(part_break_s gtt_end p H); intro HH.
+       destruct HH as (g, (Ha,(Hb,[Hc | (r,(s,(xs,Hxs)))]))).
+       subst. inversion Hb.
+       subst.
+       pinversion Ha.
+       apply gttT_mon.
+Qed. 
 
 (* Projections *)
 Example GABCProjTCarol: projectionC GABC "Carol" TCarol.
